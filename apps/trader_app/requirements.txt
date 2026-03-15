@@ -1,0 +1,3 @@
+# Trader App requirements
+frappe
+erpnext

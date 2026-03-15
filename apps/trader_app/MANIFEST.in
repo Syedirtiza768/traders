@@ -1,0 +1,17 @@
+include MANIFEST.in
+include requirements.txt
+include *.json
+include *.md
+include *.py
+include *.txt
+recursive-include trader_app *.css
+recursive-include trader_app *.csv
+recursive-include trader_app *.html
+recursive-include trader_app *.ico
+recursive-include trader_app *.js
+recursive-include trader_app *.json
+recursive-include trader_app *.md
+recursive-include trader_app *.png
+recursive-include trader_app *.py
+recursive-include trader_app *.svg
+recursive-include trader_app *.txt

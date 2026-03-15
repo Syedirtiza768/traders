@@ -1,0 +1,144 @@
+name: CI — Build & Test
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/trader
+
+jobs:
+  # ────────────────────────────────────────────────────────────────────────────
+  # Frontend — Lint, Type-check, Build
+  # ────────────────────────────────────────────────────────────────────────────
+  frontend:
+    name: Frontend Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend/trader-ui
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/trader-ui/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/trader-ui/dist
+          retention-days: 7
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Backend — Python Lint & Checks
+  # ────────────────────────────────────────────────────────────────────────────
+  backend:
+    name: Backend Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install linters
+        run: pip install flake8 black isort
+
+      - name: Lint with flake8
+        run: |
+          flake8 apps/trader_app/ \
+            --max-line-length=120 \
+            --exclude=__pycache__,*.pyc \
+            --ignore=E501,W503,E402
+
+      - name: Check formatting with black
+        run: black --check --line-length 120 apps/trader_app/
+
+      - name: Check import ordering
+        run: isort --check-only --profile black apps/trader_app/
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Docker — Build Images
+  # ────────────────────────────────────────────────────────────────────────────
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: [frontend, backend]
+    if: github.event_name == 'push'
+
+    strategy:
+      matrix:
+        image:
+          - name: backend
+            dockerfile: infra/docker/backend.Dockerfile
+            context: .
+          - name: frontend
+            dockerfile: infra/docker/frontend.Dockerfile
+            context: frontend/trader-ui
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download frontend artifacts
+        if: matrix.image.name == 'frontend'
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/trader-ui/dist
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image.name }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.image.context }}
+          file: ${{ matrix.image.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

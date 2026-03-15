@@ -1,0 +1,5 @@
+[project]
+name = "trader_app"
+version = "1.0.0"
+description = "Trader Business System — Custom ERPNext Application"
+requires-python = ">=3.10"

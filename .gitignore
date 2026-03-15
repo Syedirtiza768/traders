@@ -1,0 +1,52 @@
+# ============================================================================
+# Trader Business System — .gitignore
+# ============================================================================
+
+# ─── Python ─────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# ─── Node.js / Frontend ────────────────────────────────────────────────────
+node_modules/
+frontend/trader-ui/dist/
+frontend/trader-ui/.vite/
+*.tsbuildinfo
+
+# ─── Environment & Secrets ──────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+compose/.env
+
+# ─── Docker ─────────────────────────────────────────────────────────────────
+docker-compose.override.yml
+
+# ─── IDE ────────────────────────────────────────────────────────────────────
+.vscode/
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ─── Backups ────────────────────────────────────────────────────────────────
+backups/
+*.tar.gz
+*.sql.gz
+
+# ─── Logs ───────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ─── Frappe / ERPNext ───────────────────────────────────────────────────────
+sites/
+*.pyc

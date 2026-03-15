@@ -1,0 +1,200 @@
+# ============================================
+# Traders — Docker Compose
+# Complete trader business system on ERPNext
+# ============================================
+
+version: "3.8"
+
+x-backend-defaults: &backend-defaults
+  image: traders-backend:latest
+  build:
+    context: ..
+    dockerfile: infra/docker/backend.Dockerfile
+  restart: unless-stopped
+  env_file:
+    - .env
+  volumes:
+    - sites-vol:/home/frappe/frappe-bench/sites
+    - logs-vol:/home/frappe/frappe-bench/logs
+  depends_on:
+    db:
+      condition: service_healthy
+    redis-cache:
+      condition: service_started
+    redis-queue:
+      condition: service_started
+
+services:
+  # ===========================================
+  # DATABASE
+  # ===========================================
+  db:
+    image: mariadb:10.11
+    restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+      - --skip-innodb-read-only-compressed
+      - --innodb-buffer-pool-size=512M
+      - --innodb-log-file-size=64M
+      - --max-allowed-packet=256M
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    volumes:
+      - db-vol:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ===========================================
+  # REDIS — CACHE
+  # ===========================================
+  redis-cache:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-cache-vol:/data
+
+  # ===========================================
+  # REDIS — QUEUE
+  # ===========================================
+  redis-queue:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb
+    volumes:
+      - redis-queue-vol:/data
+
+  # ===========================================
+  # FRAPPE BACKEND
+  # ===========================================
+  backend:
+    <<: *backend-defaults
+    ports:
+      - "8000:8000"
+    command: >
+      bash -c "
+        cd /home/frappe/frappe-bench &&
+        bench set-config -g db_host $${DB_HOST} &&
+        bench set-config -g redis_cache redis://$${REDIS_CACHE} &&
+        bench set-config -g redis_queue redis://$${REDIS_QUEUE} &&
+        gunicorn
+          --bind 0.0.0.0:8000
+          --workers $${GUNICORN_WORKERS:-4}
+          --threads $${GUNICORN_THREADS:-4}
+          --worker-class gthread
+          --timeout 120
+          --graceful-timeout 30
+          --log-level info
+          frappe.app:application
+      "
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/api/method/ping || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ===========================================
+  # WEBSOCKET
+  # ===========================================
+  websocket:
+    <<: *backend-defaults
+    ports:
+      - "9000:9000"
+    command: >
+      bash -c "
+        cd /home/frappe/frappe-bench &&
+        node apps/frappe/socketio.js
+      "
+
+  # ===========================================
+  # WORKERS
+  # ===========================================
+  worker-short:
+    <<: *backend-defaults
+    command: >
+      bash -c "
+        cd /home/frappe/frappe-bench &&
+        bench worker --queue short
+      "
+
+  worker-long:
+    <<: *backend-defaults
+    command: >
+      bash -c "
+        cd /home/frappe/frappe-bench &&
+        bench worker --queue long
+      "
+
+  worker-default:
+    <<: *backend-defaults
+    command: >
+      bash -c "
+        cd /home/frappe/frappe-bench &&
+        bench worker --queue default
+      "
+
+  # ===========================================
+  # SCHEDULER
+  # ===========================================
+  scheduler:
+    <<: *backend-defaults
+    command: >
+      bash -c "
+        cd /home/frappe/frappe-bench &&
+        bench schedule
+      "
+
+  # ===========================================
+  # CUSTOM FRONTEND
+  # ===========================================
+  frontend:
+    image: traders-frontend:latest
+    build:
+      context: ..
+      dockerfile: infra/docker/frontend.Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL}
+        VITE_SITE_NAME: ${VITE_SITE_NAME}
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+
+  # ===========================================
+  # NGINX REVERSE PROXY
+  # ===========================================
+  proxy:
+    image: nginx:1.25-alpine
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-8080}:8080"
+    volumes:
+      - ../infra/nginx/proxy.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+
+# ===========================================
+# VOLUMES
+# ===========================================
+volumes:
+  db-vol:
+    driver: local
+  redis-cache-vol:
+    driver: local
+  redis-queue-vol:
+    driver: local
+  sites-vol:
+    driver: local
+  logs-vol:
+    driver: local

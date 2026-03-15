@@ -1,0 +1,110 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-brand: #1e40af;
+    --color-brand-light: #3b82f6;
+    --sidebar-width: 260px;
+    --navbar-height: 64px;
+  }
+
+  body {
+    @apply text-gray-800;
+  }
+
+  * {
+    @apply border-gray-200;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-brand-700 text-white px-4 py-2 rounded-lg font-medium
+           hover:bg-brand-800 transition-colors duration-200
+           focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply bg-white text-gray-700 px-4 py-2 rounded-lg font-medium
+           border border-gray-300 hover:bg-gray-50 transition-colors duration-200
+           focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2;
+  }
+
+  .btn-danger {
+    @apply bg-red-600 text-white px-4 py-2 rounded-lg font-medium
+           hover:bg-red-700 transition-colors duration-200
+           focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2;
+  }
+
+  .card {
+    @apply bg-white rounded-xl border border-gray-200 shadow-sm;
+  }
+
+  .card-header {
+    @apply px-6 py-4 border-b border-gray-100;
+  }
+
+  .card-body {
+    @apply px-6 py-4;
+  }
+
+  .input-field {
+    @apply w-full px-3 py-2 border border-gray-300 rounded-lg
+           focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500
+           placeholder-gray-400 text-sm;
+  }
+
+  .table-container {
+    @apply overflow-x-auto rounded-xl border border-gray-200;
+  }
+
+  .kpi-card {
+    @apply card p-6 flex flex-col justify-between min-h-[120px];
+  }
+
+  .sidebar-link {
+    @apply flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium
+           text-gray-600 hover:bg-brand-50 hover:text-brand-700
+           transition-colors duration-200;
+  }
+
+  .sidebar-link.active {
+    @apply bg-brand-50 text-brand-700;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Loading spinner */
+.spinner {
+  border: 3px solid #e5e7eb;
+  border-top: 3px solid #1e40af;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

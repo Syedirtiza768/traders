@@ -1,0 +1,8 @@
+{
+  "creation": "2026-01-01 00:00:00",
+  "doctype": "Module Def",
+  "modified": "2026-01-01 00:00:00",
+  "module_name": "Trader App",
+  "name": "Trader App",
+  "app_name": "trader_app"
+}
