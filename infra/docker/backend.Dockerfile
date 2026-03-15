@@ -3,9 +3,8 @@
 
 ARG FRAPPE_VERSION=v15.47.4
 ARG ERPNEXT_VERSION=v15.37.2
-ARG PYTHON_VERSION=3.11
 
-FROM frappe/bench:latest as builder
+FROM frappe/bench:latest
 
 ARG FRAPPE_VERSION
 ARG ERPNEXT_VERSION
@@ -16,29 +15,20 @@ USER frappe
 RUN bench init \
     --frappe-branch ${FRAPPE_VERSION} \
     --skip-redis-config-generation \
-    --skip-assets \
     --python python3.11 \
     /home/frappe/frappe-bench
 
 WORKDIR /home/frappe/frappe-bench
 
 # Get ERPNext
-RUN bench get-app --branch ${ERPNEXT_VERSION} --skip-assets erpnext
+RUN bench get-app --branch ${ERPNEXT_VERSION} erpnext
 
 # Copy and install trader_app
 COPY --chown=frappe:frappe apps/trader_app /home/frappe/frappe-bench/apps/trader_app
-RUN bench get-app --skip-assets /home/frappe/frappe-bench/apps/trader_app
+RUN cd apps/trader_app && pip install -e .
 
-# Build assets
-RUN bench build --production
-
-# --- Production image ---
-FROM frappe/frappe-worker:${FRAPPE_VERSION} as production
-
-# Copy built bench
-COPY --from=builder --chown=frappe:frappe /home/frappe/frappe-bench /home/frappe/frappe-bench
-
-WORKDIR /home/frappe/frappe-bench
+# Expose ports
+EXPOSE 8000 9000
 
 # Default command
 CMD ["bench", "start"]
