@@ -1,8 +1,8 @@
 # Backend Dockerfile — Frappe + ERPNext + Trader App
 # Based on official Frappe Docker images
 
-ARG FRAPPE_VERSION=v15.47.4
-ARG ERPNEXT_VERSION=v15.37.2
+ARG FRAPPE_VERSION=version-15
+ARG ERPNEXT_VERSION=version-15
 
 FROM frappe/bench:latest
 
