@@ -16,50 +16,43 @@ Complete audit — 2026-03-16
 
 ## Current Critical Issues
 
-No current critical issues are confirmed from the shipped repo state.
+| ID | Finding | Module | Description | Status |
+|---|---|---|---|---|
+| FIND-01 | Settings page has no backend | Settings | Save Changes button has no handler; no API calls; changes lost on refresh | 🔴 New |
 
 ## Current High Issues
 
 | ID | Finding | Module | Description | Status |
 |---|---|---|---|---|
-| FIND-01 | Runtime validation still pending | Demo / Validation | Seed engine and dashboard/report flows exist, but the validation checklist counts and business outputs are not proven by repo inspection alone. | 🔴 Open |
+| FIND-02 | Create actions non-functional | Sales | "New Invoice" button rendered but no onClick handler or create modal | 🔴 New |
+| FIND-03 | Create actions non-functional | Purchases | "New Purchase" button rendered but no onClick handler or create modal | 🔴 New |
+| FIND-04 | Create actions non-functional | Customers | "Add Customer" button rendered but no onClick handler or create modal | 🔴 New |
+| FIND-05 | Create actions non-functional | Suppliers | "Add Supplier" button rendered but no onClick handler or create modal | 🔴 New |
+| FIND-06 | No role-based UI visibility | Permissions | Trader roles defined in fixtures but sidebar shows all items to all users | 🔴 New |
 
 ## Current Medium Issues
 
 | ID | Finding | Module | Description | Status |
 |---|---|---|---|---|
-| FIND-02 | Specialist sales workflows remain exception-thin | Sales | Core quotation → order → dispatch → invoice → return → payment flows are now materially covered, but richer fulfillment exception handling and return exception controls remain incomplete. | ⚠️ Open |
-| FIND-03 | Specialist purchase workflows remain exception-thin | Purchases | Core requisition → RFQ → order → receipt → invoice → payment flows are now materially covered, but richer receiving exception handling and quote comparison/selection depth remain incomplete. | ⚠️ Open |
-| FIND-04 | Delivery operations remain thin beyond draft dispatch | Inventory | Purchase receipts and sales dispatch drafts now exist, but richer shipment confirmation, exception handling, and execution tracing remain thin. | ⚠️ Open |
-| FIND-05 | Operations controller is not exception-complete | Operations | `/operations` now includes approval-focused queues, but richer exception ownership and escalation handling are still absent. | ⚠️ Open |
+| FIND-07 | Orphan backend endpoints | Inventory | `get_warehouse_stock` and `get_stock_movement` not called from frontend | ⚠️ New |
+| FIND-08 | Filter/Export buttons | Sales, Purchases | Filter and Export buttons have no implementation | ⚠️ New |
+| FIND-09 | Sales Orders read-only | Sales | Sales Orders queried for dashboard but not manageable from UI | ⚠️ New |
+| FIND-10 | Delivery/Receipt not exposed | Inventory | Created by demo but no frontend screens | ⚠️ New |
+| FIND-11 | Global search non-functional | Navbar | Search input has no handler | ⚠️ New |
 
 ## Current Low Issues
 
 | ID | Finding | Module | Description | Status |
 |---|---|---|---|---|
-| FIND-08 | `_get_default_company` duplication | Backend | Default-company helper logic remains duplicated across backend API modules and could be consolidated. | 🔵 Open |
-| FIND-09 | Commented-out code in `hooks.py` | Backend | Several inactive configuration sections remain and make architectural intent harder to scan. | 🔵 Open |
-| FIND-10 | Reports export/admin polish is lighter than core drill-ins | Reports | Reporting surfaces are operational, but export breadth and admin controls remain lighter than list/detail workflows. | 🔵 Open |
-| FIND-11 | Generic CRUD helpers underused | Frontend | Some generic resource helpers remain less used now that domain-specific APIs power most shipped screens. | 🔵 Open |
+| FIND-12 | `_get_default_company` duplication | Backend | Same helper duplicated in 3 API modules | 🔵 New |
+| FIND-13 | Notification bell misleading | Navbar | Red dot indicator but no notification system | 🔵 New |
+| FIND-14 | Commented-out code in hooks.py | Backend | Multiple inactive config sections | 🔵 New |
+| FIND-15 | Export buttons non-functional | Reports | Export button in Reports page has no handler | 🔵 New |
+| FIND-16 | CRUD API methods unused | Frontend | resourceApi.create/update/delete/count defined but never called | 🔵 New |
 
 ## Recently Resolved Issues
 
-| ID | Finding | Resolution |
-|---|---|---|
-| RES-00 | No role-based UI visibility | `authStore`, `Sidebar`, route guards in `App.tsx`, and `permissions.ts` now load Trader roles and gate visible navigation plus routed surfaces by capability. |
-| RES-01 | Settings page had no backend persistence | `frontend/trader-ui/src/pages/SettingsPage.tsx` now loads, validates, resets, and saves through `settingsApi`, backed by `apps/trader_app/trader_app/api/settings.py`. |
-| RES-02 | Create actions were non-functional across core modules | Create routes and forms now exist for sales invoices, sales orders, purchase invoices, purchase orders, customers, suppliers, journals, and payments. |
-| RES-03 | Sales and purchase queue flows were read-only | Queue pages now support row-level drill-ins, create actions, workflow filters, and downstream navigation continuity. |
-| RES-04 | Filter/export actions were placeholder-only on core controllers | Sales, purchases, and operations now expose URL-backed filtering/search plus visible CSV export actions. |
-| RES-05 | Customer/supplier drill-ins broke upstream workflow context | Preserved `list` context now carries through controller, queue, detail, invoice, and payment flows, including operations-origin back navigation. |
-| RES-06 | Global search was non-functional | `Navbar.tsx` now exposes a capability-aware cross-module search suggestion surface that routes into current modules and workflows. |
-| RES-07 | Notification bell was decorative | `Navbar.tsx` now opens a workflow notification panel with role-aware follow-up links into approvals and finance views. |
-| RES-08 | Operations lacked approval-focused visibility | `OperationsPage.tsx` now includes approval-focused queue cards and `approvalOnly` filtering. |
-| RES-09 | Purchase receipt depth was absent | `CreatePurchaseReceiptPage.tsx` and `PurchaseOrderDetailPage.tsx` now create draft `Material Receipt` stock entries through the existing inventory API before billing. |
-| RES-10 | Sales dispatch / delivery depth was absent | `CreateSalesDispatchPage.tsx`, `SalesOrderDetailPage.tsx`, and `SalesOrdersPage.tsx` now create draft `Material Issue` stock entries from sales orders through the existing inventory API. |
-| RES-11 | Sales return depth was absent | `CreateSalesReturnPage.tsx`, `SalesPage.tsx`, `SalesInvoiceDetailPage.tsx`, and the sales API now create draft return invoices linked by `return_against` for credit-note style reversal flows. |
-| RES-12 | Purchase RFQ / requisition depth was absent | `PurchaseRequisitionsPage.tsx`, `CreatePurchaseRequisitionPage.tsx`, `SupplierQuotationsPage.tsx`, `CreateSupplierQuotationPage.tsx`, and new purchase APIs now cover requisition and RFQ draft workflows ahead of purchase orders. |
-| RES-13 | Operations approval queues lacked deeper routing | `OperationsPage.tsx` now routes approval / exception cards into concrete sales and procurement review queues, including requisitions and return-review follow-up paths. |
+None — this is the initial audit baseline.
 
 ## Needs Manual Verification
 
@@ -75,16 +68,17 @@ Based on the audit policy, the following are release-blocking:
 
 | Finding | Reason | Waivable? |
 |---|---|---|
-| FIND-01 (Runtime validation still pending) | Demo/readiness claims remain weaker until seeded data volumes and business outputs are verified in a live environment. | Yes, for development-only or internal preview deployments |
+| FIND-01 (Settings no backend) | User-visible broken functionality | Yes, if Settings marked as "Coming Soon" |
+| FIND-06 (No role-based visibility) | Permission mismatch between visible UI and backend guards | Yes, if all users are admins in current deployment |
 
 ## Summary Statistics
 
 | Severity | Count |
 |---|---|
-| 🔴 Critical | 0 |
-| 🔴 High | 1 |
-| ⚠️ Medium | 4 |
-| 🔵 Low | 3 |
-| **Total** | **8** |
+| 🔴 Critical | 1 |
+| 🔴 High | 5 |
+| ⚠️ Medium | 5 |
+| 🔵 Low | 5 |
+| **Total** | **16** |
 | Needs Manual Verification | 3 |
-| Release Blockers | 1 |
+| Release Blockers | 2 |

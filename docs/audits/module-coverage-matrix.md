@@ -14,35 +14,20 @@ Full architecture audit — 2026-03-16
 
 ---
 
-## Current interpretation note
-
-This matrix has been reconciled against the currently shipped repo state, not just the original architecture scanner baseline. Several modules have progressed materially beyond read-only coverage via new list/detail/create/submit flows, contextual finance actions, queue drill-ins, and traceability surfaces.
-
 ## Coverage Matrix
 
 | Module | Nav | Route | Screen | Actions | Frontend API | Backend API | DB Access | Workflow | Overall |
 |---|---|---|---|---|---|---|---|---|---|
-| **Dashboard** | ✅ | ✅ | ✅ | ✅ View + drill-in | ✅ Expanded | ✅ Expanded | ✅ | ✅ Operational read | 🟢 98% |
-| **Sales** | ✅ | ✅ | ✅ | ✅ List/detail/create/submit + dispatch/return launch on core flows | ✅ Domain APIs | ✅ Sales workflow APIs | ✅ | ✅ Strong core workflow | 🟢 94% |
-| **Purchases** | ✅ | ✅ | ✅ | ✅ Requisition/RFQ/order/receipt/invoice core actions | ✅ Domain APIs | ✅ Purchase workflow APIs | ✅ | ✅ Strong core workflow | 🟢 93% |
-| **Inventory** | ✅ | ✅ | ✅ | ✅ View/search/detail + receipt/dispatch draft creation | ✅ Expanded | ✅ Expanded | ✅ | ✅ Operational read/write | 🟢 95% |
-| **Customers** | ✅ | ✅ | ✅ | ✅ List/detail/create + finance actions | ✅ Domain APIs | ✅ Customer APIs | ✅ | ✅ Practical CRM core | 🟢 82% |
-| **Suppliers** | ✅ | ✅ | ✅ | ✅ List/detail/create + finance actions | ✅ Domain APIs | ✅ Supplier APIs | ✅ | ✅ Practical procurement CRM core | 🟢 82% |
-| **Finance** | ✅ | ✅ | ✅ | ✅ Journals/payments/outstanding flows | ✅ Expanded | ✅ Expanded | ✅ | ✅ Working operations core | 🟢 86% |
-| **Reports** | ✅ | ✅ | ✅ | ✅ View + operational drill-ins | ✅ Expanded | ✅ Expanded | ✅ | ✅ Strong reporting surface | 🟢 93% |
-| **Settings** | ✅ | ✅ | ✅ | ✅ Load/validate/reset/save flows | ✅ `settingsApi` + role lookup | ✅ Settings endpoints | ✅ System Settings + user cache | ✅ Practical admin core | Medium (78%) |
-
-| Module | Representative file evidence |
-|---|---|
-| Dashboard | `frontend/trader-ui/src/pages/DashboardPage.tsx`, `frontend/trader-ui/src/components/KPICard.tsx`, `apps/trader_app/trader_app/api/dashboard.py` |
-| Sales | `frontend/trader-ui/src/pages/QuotationsPage.tsx`, `QuotationDetailPage.tsx`, `SalesOrdersPage.tsx`, `SalesOrderDetailPage.tsx`, `CreateSalesOrderPage.tsx`, `CreateSalesInvoicePage.tsx`, `CreateSalesReturnPage.tsx`, `CreateSalesDispatchPage.tsx`, `SalesInvoiceDetailPage.tsx`, `apps/trader_app/trader_app/api/sales.py` |
-| Purchases | `frontend/trader-ui/src/pages/PurchaseRequisitionsPage.tsx`, `CreatePurchaseRequisitionPage.tsx`, `SupplierQuotationsPage.tsx`, `CreateSupplierQuotationPage.tsx`, `PurchaseOrdersPage.tsx`, `PurchaseOrderDetailPage.tsx`, `CreatePurchaseOrderPage.tsx`, `CreatePurchaseInvoicePage.tsx`, `CreatePurchaseReceiptPage.tsx`, `PurchaseInvoiceDetailPage.tsx`, `apps/trader_app/trader_app/api/purchases.py` |
-| Inventory | `frontend/trader-ui/src/pages/InventoryItemDetailPage.tsx`, `WarehouseStockPage.tsx`, `StockMovementPage.tsx`, `CreatePurchaseReceiptPage.tsx`, `CreateSalesDispatchPage.tsx`, `apps/trader_app/trader_app/api/inventory.py` |
-| Customers | `frontend/trader-ui/src/pages/CreateCustomerPage.tsx`, `CustomerDetailPage.tsx`, `CustomerOutstandingPage.tsx`, `CustomerAgingPage.tsx`, `apps/trader_app/trader_app/api/customers.py` |
-| Suppliers | `frontend/trader-ui/src/pages/CreateSupplierPage.tsx`, `SupplierDetailPage.tsx`, `apps/trader_app/trader_app/api/suppliers.py` |
-| Finance | `frontend/trader-ui/src/pages/JournalEntriesPage.tsx`, `JournalEntryDetailPage.tsx`, `CreateJournalEntryPage.tsx`, `PaymentEntriesPage.tsx`, `PaymentEntryDetailPage.tsx`, `CreatePaymentEntryPage.tsx`, `apps/trader_app/trader_app/api/finance.py` |
-| Reports | `frontend/trader-ui/src/pages/ReportsPage.tsx`, `CustomerOutstandingPage.tsx`, `CustomerAgingPage.tsx`, `apps/trader_app/trader_app/api/reports.py` |
-| Settings | `frontend/trader-ui/src/pages/SettingsPage.tsx`, `apps/trader_app/trader_app/api/settings.py` |
+| **Dashboard** | ✅ | ✅ | ✅ | ✅ View | ✅ 6 calls | ✅ 6 endpoints | ✅ 7 tables | ✅ Read | 🟢 95% |
+| **Sales** | ✅ | ✅ | ✅ | ⚠️ Read-only | ✅ 1 call | ✅ (resource) | ✅ SI table | ⚠️ Partial | 🟡 60% |
+| **Purchases** | ✅ | ✅ | ✅ | ⚠️ Read-only | ✅ 1 call | ✅ (resource) | ✅ PI table | ⚠️ Partial | 🟡 60% |
+| **Inventory** | ✅ | ✅ | ✅ | ✅ View+Search | ✅ 2 calls | ✅ 4 endpoints | ✅ 4 tables | ✅ Read | 🟢 85% |
+| **Customers** | ✅ | ✅ | ✅ | ⚠️ Read-only | ✅ 1 call | ✅ (resource) | ✅ Customer | ⚠️ Partial | 🟡 55% |
+| **Suppliers** | ✅ | ✅ | ✅ | ⚠️ Read-only | ✅ 1 call | ✅ (resource) | ✅ Supplier | ⚠️ Partial | 🟡 55% |
+| **Finance** | ✅ | ✅ | ✅ | ✅ View | ✅ 4 calls | ✅ 4 endpoints | ✅ 5 tables | ✅ Read | 🟢 90% |
+| **Reports** | ✅ | ✅ | ✅ | ✅ View+Switch | ✅ 4 calls | ✅ 4 endpoints | ✅ 2 tables | ✅ Read | 🟢 90% |
+| **Settings** | ✅ | ✅ | ✅ | 🔴 Broken | ❌ 0 calls | ❌ None | ❌ None | ❌ None | 🔴 25% |
+| **Auth** | — | ✅ | ✅ | ✅ Login/Logout | ✅ 3 calls | ✅ (Frappe) | ✅ Session | ✅ Full | 🟢 100% |
 
 ## Legend
 
@@ -56,20 +41,12 @@ This matrix has been reconciled against the currently shipped repo state, not ju
 
 | Module | Risk Level | Primary Gap |
 |---|---|---|
-| Settings | Medium | Deeper tenant/admin controls remain lighter than the core settings save flow |
-| Sales | 🟡 Medium | Fulfillment exception handling, return resolution depth, and pricing depth are still incomplete |
-| Purchases | 🟡 Medium | Quote comparison/award and richer receipt exception handling are still incomplete |
-| Customers | 🟢 Low | Lead/opportunity and assignment depth remains outside shipped CRM scope |
-| Suppliers | 🟢 Low | Advanced sourcing and vendor comparison workflows remain absent |
-| Inventory | 🟢 Low | Rich item editing and warehouse operations depth can still expand |
-| Dashboard | 🟢 Low | Core dashboard is strong; remaining work is mostly controller-surface depth |
-| Finance | 🟡 Medium | Reconciliation, close, and accounting setup screens remain incomplete |
-| Reports | 🟢 Low | Report export/admin polish is still lighter than the core reporting surface |
-
-## Summary
-
-- The previous audit substantially understated current module maturity.
-- The strongest shipped areas are now `Dashboard`, `Sales`, `Purchases`, `Inventory`, `Finance`, and `Reports`.
-- `Settings` has moved from broken to functionally implemented for core admin use cases.
-- Role-aware visibility, navbar search, notifications, purchase requisition/RFQ drafting, purchase receipt drafting, sales dispatch drafting, and sales return drafting have all moved the app beyond the earlier shell/workflow baseline.
-- Remaining work is concentrated in specialist ERP workflows and runtime validation rather than missing core UI scaffolding.
+| Settings | 🔴 High | No backend persistence — user-visible broken functionality |
+| Sales | 🟡 Medium | No create/edit/submit workflow from UI |
+| Purchases | 🟡 Medium | No create/edit/submit workflow from UI |
+| Customers | 🟡 Medium | No create/edit from UI |
+| Suppliers | 🟡 Medium | No create/edit from UI |
+| Inventory | 🟢 Low | Stock movement history not exposed in UI |
+| Dashboard | 🟢 None | Fully functional read-only dashboard |
+| Finance | 🟢 None | Fully functional read-only finance view |
+| Reports | 🟢 None | Export not implemented (minor) |

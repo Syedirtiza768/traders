@@ -22,50 +22,51 @@ Full scan of all API namespaces and page-level call sites — 2026-03-16
 
 | Method | HTTP | Endpoint | Parameters |
 |---|---|---|---|
-| `login` | POST | `/method/login` | usr: string, pwd: string |
-| `logout` | POST | `/method/logout` | — |
-| `getLoggedUser` | GET | `/method/frappe.auth.get_logged_user` | — |
 
 ### `dashboardApi`
 
 | Method | HTTP | Endpoint | Parameters |
 |---|---|---|---|
-| `getKPIs` | GET | `/method/trader_app.api.dashboard.get_dashboard_kpis` | — |
-| `getSalesTrend` | GET | `/method/trader_app.api.dashboard.get_sales_trend` | — |
-| `getTopCustomers` | GET | `/method/trader_app.api.dashboard.get_top_customers?limit={param}` | limit = 10 |
-| `getRecentOrders` | GET | `/method/trader_app.api.dashboard.get_recent_orders?limit={param}` | limit = 20 |
-| `getSalesByItemGroup` | GET | `/method/trader_app.api.dashboard.get_sales_by_item_group` | — |
-| `getCashFlowSummary` | GET | `/method/trader_app.api.dashboard.get_cash_flow_summary` | — |
 
-### `resourceApi`
+### `salesApi`
 
 | Method | HTTP | Endpoint | Parameters |
 |---|---|---|---|
-| `list` | GET | `/resource/{param}?{param}` | { doctype, fields, filters, orderBy, limit = 20, offset = 0 }: ListParams |
-| `get` | GET | `/resource/{param}/{param}` | doctype: string, name: string |
-| `create` | POST | `/resource/{param}` | doctype: string, data: Record<string, any> |
-| `update` | PUT | `/resource/{param}/{param}` | doctype: string, name: string, data: Record<string, any> |
-| `delete` | DELETE | `/resource/{param}/{param}` | doctype: string, name: string |
-| `count` | GET | `/method/frappe.client.get_count?doctype={param}&{param}` | doctype: string, filters?: Record<string, any>[] |
+
+### `purchasesApi`
+
+| Method | HTTP | Endpoint | Parameters |
+|---|---|---|---|
 
 ### `inventoryApi`
 
 | Method | HTTP | Endpoint | Parameters |
 |---|---|---|---|
-| `getStockSummary` | GET | `/method/trader_app.api.inventory.get_stock_summary{param}` | warehouse?: string |
-| `getLowStockItems` | GET | `/method/trader_app.api.inventory.get_low_stock_items?limit={param}` | limit = 50 |
-| `getWarehouseStock` | GET | `/method/trader_app.api.inventory.get_warehouse_stock?warehouse={param}` | warehouse: string |
+
+### `customersApi`
+
+| Method | HTTP | Endpoint | Parameters |
+|---|---|---|---|
+
+### `suppliersApi`
+
+| Method | HTTP | Endpoint | Parameters |
+|---|---|---|---|
+
+### `settingsApi`
+
+| Method | HTTP | Endpoint | Parameters |
+|---|---|---|---|
+
+### `financeApi`
+
+| Method | HTTP | Endpoint | Parameters |
+|---|---|---|---|
 
 ### `reportsApi`
 
 | Method | HTTP | Endpoint | Parameters |
 |---|---|---|---|
-| `getAccountsReceivable` | GET | `/method/trader_app.api.reports.get_accounts_receivable?limit={param}` | limit = 50 |
-| `getAccountsPayable` | GET | `/method/trader_app.api.reports.get_accounts_payable?limit={param}` | limit = 50 |
-| `getProfitAndLoss` | GET | `/method/trader_app.api.reports.get_profit_and_loss?{param}` | fromDate?: string, toDate?: string |
-| `getReceivableAgingSummary` | GET | `/method/trader_app.api.reports.get_receivable_aging_summary` | — |
-| `getMonthlySalesReport` | GET | `/method/trader_app.api.reports.get_monthly_sales_report{param}` | year?: number |
-| `getSupplierBalances` | GET | `/method/trader_app.api.reports.get_supplier_balances?limit={param}` | limit = 50 |
 
 ## Page → API Usage Map
 

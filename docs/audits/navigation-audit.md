@@ -21,13 +21,17 @@ All `navItems` and `bottomItems` arrays — 2026-03-16
 |---|---|---|---|---|---|---|---|
 | 1 | Main Menu | Dashboard | `/` | LayoutDashboard | ✅ | ✅ | ✅ |
 | 2 | Main Menu | Sales | `/sales` | TrendingUp | ✅ | ✅ | ✅ |
-| 3 | Main Menu | Purchases | `/purchases` | TrendingDown | ✅ | ✅ | ✅ |
-| 4 | Main Menu | Inventory | `/inventory` | Warehouse | ✅ | ✅ | ✅ |
-| 5 | Main Menu | Customers | `/customers` | Users | ✅ | ✅ | ✅ |
-| 6 | Main Menu | Suppliers | `/suppliers` | Truck | ✅ | ✅ | ✅ |
-| 7 | Main Menu | Finance | `/finance` | DollarSign | ✅ | ✅ | ✅ |
-| 8 | Main Menu | Reports | `/reports` | BarChart2 | ✅ | ✅ | ✅ |
-| 9 | System | Settings | `/settings` | Settings | ✅ | ✅ | ✅ |
+| 3 | Main Menu | Quotations | `/sales/quotations` | FileText | ❌ | ✅ | ✅ |
+| 4 | Main Menu | Sales Orders | `/sales/orders` | ShoppingCart | ❌ | ✅ | ✅ |
+| 5 | Main Menu | Purchases | `/purchases` | TrendingDown | ✅ | ✅ | ✅ |
+| 6 | Main Menu | Purchase Orders | `/purchases/orders` | ShoppingCart | ❌ | ✅ | ✅ |
+| 7 | Main Menu | Inventory | `/inventory` | Warehouse | ✅ | ✅ | ✅ |
+| 8 | Main Menu | Customers | `/customers` | Users | ✅ | ✅ | ✅ |
+| 9 | Main Menu | Suppliers | `/suppliers` | Truck | ✅ | ✅ | ✅ |
+| 10 | Main Menu | Finance | `/finance` | DollarSign | ✅ | ✅ | ✅ |
+| 11 | Main Menu | Reports | `/reports` | BarChart2 | ✅ | ✅ | ✅ |
+| 12 | Main Menu | Operations | `/operations` | ShoppingCart | ❌ | ✅ | ✅ |
+| 13 | System | Settings | `/settings` | Settings | ✅ | ✅ | ✅ |
 
 ## Routes Without Navigation
 
