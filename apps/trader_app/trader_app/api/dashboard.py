@@ -91,14 +91,18 @@ def get_kpis(company=None):
         WHERE company = %s AND docstatus = 1 AND posting_date = %s
     """, (company, today))[0][0])
 
+    # Count submitted/open Quotations not yet converted to a Sales Order.
+    # ERPNext v15 links Quotations to Sales Orders via tabSales Order Item.prevdoc_docname,
+    # not via a direct column on tabSales Order — so we use that child table instead.
     quotations_awaiting_conversion = cint(frappe.db.sql("""
         SELECT COUNT(*)
         FROM `tabQuotation` q
         WHERE q.company = %s AND q.docstatus IN (0, 1)
           AND NOT EXISTS (
               SELECT 1
-              FROM `tabSales Order` so
-              WHERE so.quotation = q.name AND so.docstatus < 2
+              FROM `tabSales Order Item` soi
+              INNER JOIN `tabSales Order` so ON so.name = soi.parent
+              WHERE soi.prevdoc_docname = q.name AND so.docstatus < 2
           )
     """, (company,))[0][0])
 

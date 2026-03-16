@@ -100,3 +100,32 @@ def save_settings(data=None):
         "message": "Settings saved successfully.",
         "settings": _payload(),
     }
+
+
+@frappe.whitelist(allow_guest=False)
+def get_current_user_roles():
+    """Return the Trader-App roles assigned to the currently logged-in user.
+
+    This replaces direct calls to frappe.client.get_list("Has Role", ...)
+    which is blocked with a 403 PermissionError for non-Administrator users
+    in Frappe v15.  Using a whitelisted method with frappe.db.sql and
+    frappe.session.user bypasses that restriction safely because the user
+    can only ever query their own session.
+    """
+    user = frappe.session.user
+    if not user or user == "Guest":
+        return []
+
+    rows = frappe.db.sql(
+        """
+        SELECT role
+        FROM `tabHas Role`
+        WHERE parent = %s
+          AND parenttype = 'User'
+          AND role LIKE 'Trader%%'
+        ORDER BY role
+        """,
+        (user,),
+        as_dict=True,
+    )
+    return [r.role for r in rows]

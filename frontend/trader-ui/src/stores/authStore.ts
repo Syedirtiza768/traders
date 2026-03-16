@@ -30,28 +30,22 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       await authApi.login(username, password);
       const res = await authApi.getLoggedUser();
-      const rolesRes = await fetch('/api/method/frappe.client.get_list', {
-        method: 'POST',
+      const rolesRes = await fetch('/api/method/trader_app.api.settings.get_current_user_roles', {
+        method: 'GET',
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
           'X-Frappe-CSRF-Token': document.cookie
             .split('; ')
             .find((c) => c.startsWith('csrf_token='))
             ?.split('=')[1] || '',
         },
-        body: JSON.stringify({
-          doctype: 'Has Role',
-          fields: ['role'],
-          filters: [['parent', '=', res.data.message]],
-          limit_page_length: 100,
-        }),
       }).then((r) => r.json());
 
       set({
         isAuthenticated: true,
         user: res.data.message,
         fullName: res.data.message,
-        roles: (rolesRes.message || []).map((entry: { role: string }) => entry.role),
+        roles: rolesRes.message || [],
         loading: false,
         initialized: true,
       });
@@ -77,28 +71,22 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const res = await authApi.getLoggedUser();
       if (res.data.message && res.data.message !== 'Guest') {
-        const rolesRes = await fetch('/api/method/frappe.client.get_list', {
-          method: 'POST',
+        const rolesRes = await fetch('/api/method/trader_app.api.settings.get_current_user_roles', {
+          method: 'GET',
+          credentials: 'include',
           headers: {
-            'Content-Type': 'application/json',
             'X-Frappe-CSRF-Token': document.cookie
               .split('; ')
               .find((c) => c.startsWith('csrf_token='))
               ?.split('=')[1] || '',
           },
-          body: JSON.stringify({
-            doctype: 'Has Role',
-            fields: ['role'],
-            filters: [['parent', '=', res.data.message]],
-            limit_page_length: 100,
-          }),
         }).then((r) => r.json());
 
         set({
           isAuthenticated: true,
           user: res.data.message,
           fullName: res.data.message,
-          roles: (rolesRes.message || []).map((entry: { role: string }) => entry.role),
+          roles: rolesRes.message || [],
           loading: false,
           initialized: true,
         });
