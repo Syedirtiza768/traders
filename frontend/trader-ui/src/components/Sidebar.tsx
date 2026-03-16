@@ -2,7 +2,6 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   ShoppingCart,
-  Package,
   Warehouse,
   Users,
   Truck,
@@ -13,24 +12,33 @@ import {
   TrendingDown,
   FileText,
 } from 'lucide-react';
+import { useAuthStore } from '../stores/authStore';
+import { hasCapability, type AppCapability } from '../lib/permissions';
 
 const navItems = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, exact: true },
-  { to: '/sales', label: 'Sales', icon: TrendingUp },
-  { to: '/purchases', label: 'Purchases', icon: TrendingDown },
-  { to: '/inventory', label: 'Inventory', icon: Warehouse },
-  { to: '/customers', label: 'Customers', icon: Users },
-  { to: '/suppliers', label: 'Suppliers', icon: Truck },
-  { to: '/finance', label: 'Finance', icon: DollarSign },
-  { to: '/reports', label: 'Reports', icon: BarChart2 },
+  { to: '/', label: 'Dashboard', icon: LayoutDashboard, exact: true, capability: 'dashboard:view' },
+  { to: '/sales', label: 'Sales', icon: TrendingUp, capability: 'sales:view' },
+  { to: '/sales/quotations', label: 'Quotations', icon: FileText, capability: 'sales:view' },
+  { to: '/sales/orders', label: 'Sales Orders', icon: ShoppingCart, capability: 'sales:view' },
+  { to: '/purchases', label: 'Purchases', icon: TrendingDown, capability: 'purchases:view' },
+  { to: '/purchases/orders', label: 'Purchase Orders', icon: ShoppingCart, capability: 'purchases:view' },
+  { to: '/inventory', label: 'Inventory', icon: Warehouse, capability: 'inventory:view' },
+  { to: '/customers', label: 'Customers', icon: Users, capability: 'customers:view' },
+  { to: '/suppliers', label: 'Suppliers', icon: Truck, capability: 'suppliers:view' },
+  { to: '/finance', label: 'Finance', icon: DollarSign, capability: 'finance:view' },
+  { to: '/reports', label: 'Reports', icon: BarChart2, capability: 'reports:view' },
+  { to: '/operations', label: 'Operations', icon: ShoppingCart, capability: 'operations:view' },
 ];
 
 const bottomItems = [
-  { to: '/settings', label: 'Settings', icon: Settings },
+  { to: '/settings', label: 'Settings', icon: Settings, capability: 'settings:view' },
 ];
 
 export default function Sidebar() {
   const location = useLocation();
+  const roles = useAuthStore((state) => state.roles);
+  const visibleNavItems = navItems.filter((item) => hasCapability(roles, item.capability as AppCapability));
+  const visibleBottomItems = bottomItems.filter((item) => hasCapability(roles, item.capability as AppCapability));
 
   return (
     <aside className="fixed left-0 top-16 bottom-0 w-[260px] bg-white border-r border-gray-200 z-40 flex flex-col">
@@ -39,7 +47,7 @@ export default function Sidebar() {
         <p className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
           Main Menu
         </p>
-        {navItems.map((item) => {
+  {visibleNavItems.map((item) => {
           const isActive = item.exact
             ? location.pathname === item.to
             : location.pathname.startsWith(item.to);
@@ -61,7 +69,7 @@ export default function Sidebar() {
         <p className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
           System
         </p>
-        {bottomItems.map((item) => {
+  {visibleBottomItems.map((item) => {
           const isActive = location.pathname.startsWith(item.to);
           return (
             <NavLink

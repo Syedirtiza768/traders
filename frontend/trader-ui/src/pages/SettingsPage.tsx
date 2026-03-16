@@ -1,255 +1,411 @@
-import { useState } from 'react';
-import { Settings, Globe, Building2, Database, Shield, Bell, Palette, Save } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Bell, Building2, Globe, Moon, RefreshCw, RotateCcw, Save, Shield, Users } from 'lucide-react';
+import { settingsApi } from '../lib/api';
+
+type SettingsState = {
+  company: Record<string, any> | null;
+  ui: {
+    language: string;
+    time_zone: string;
+    date_format: string;
+    number_format: string;
+    float_precision: number;
+    session_expiry: number;
+    enable_two_factor: number;
+    dark_mode: number;
+    compact_tables: number;
+    email_notifications: number;
+  };
+};
+
+const DEFAULT_SETTINGS: SettingsState = {
+  company: null,
+  ui: {
+    language: 'en',
+    time_zone: 'Asia/Karachi',
+    date_format: 'dd-mm-yyyy',
+    number_format: '#,###.##',
+    float_precision: 3,
+    session_expiry: 240,
+    enable_two_factor: 0,
+    dark_mode: 0,
+    compact_tables: 0,
+    email_notifications: 1,
+  },
+};
 
 export default function SettingsPage() {
-  const [activeSection, setActiveSection] = useState('general');
+  const [settings, setSettings] = useState<SettingsState>(DEFAULT_SETTINGS);
+  const [initialSettings, setInitialSettings] = useState<SettingsState>(DEFAULT_SETTINGS);
+  const [roles, setRoles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  const sections = [
-    { key: 'general', label: 'General', icon: Settings },
-    { key: 'company', label: 'Company', icon: Building2 },
-    { key: 'localization', label: 'Localization', icon: Globe },
-    { key: 'security', label: 'Security', icon: Shield },
-    { key: 'notifications', label: 'Notifications', icon: Bell },
-    { key: 'appearance', label: 'Appearance', icon: Palette },
-    { key: 'system', label: 'System', icon: Database },
-  ];
+  const validationMessage = useMemo(() => {
+    if (!settings.ui.language.trim()) return 'Language is required.';
+    if (!settings.ui.time_zone.trim()) return 'Time zone is required.';
+    if (!settings.ui.date_format.trim()) return 'Date format is required.';
+    if (!settings.ui.number_format.trim()) return 'Number format is required.';
+    if (settings.ui.float_precision < 0 || settings.ui.float_precision > 9) return 'Float precision must be between 0 and 9.';
+    if (settings.ui.session_expiry < 15) return 'Session expiry must be at least 15 minutes.';
+    return null;
+  }, [settings]);
+
+  const isDirty = JSON.stringify(settings.ui) !== JSON.stringify(initialSettings.ui);
+
+  useEffect(() => {
+    void loadSettings();
+  }, []);
+
+  const hydrateSettings = (payload: any) => {
+    const nextSettings = {
+      company: payload?.company || null,
+      ui: {
+        ...DEFAULT_SETTINGS.ui,
+        ...(payload?.ui || {}),
+      },
+    };
+
+    setSettings(nextSettings);
+    setInitialSettings(nextSettings);
+  };
+
+  const loadSettings = async (options?: { preserveFeedback?: boolean }) => {
+    setLoading(true);
+    if (!options?.preserveFeedback) {
+      setFeedback(null);
+    }
+
+    try {
+      const [settingsRes, rolesRes] = await Promise.all([
+        settingsApi.get(),
+        fetch('/api/method/frappe.client.get_list', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': getCsrfToken() },
+          body: JSON.stringify({
+            doctype: 'Role',
+            fields: ['name', 'disabled'],
+            filters: [['name', 'like', '%Trader%']],
+            limit_page_length: 20,
+          }),
+        }).then((r) => r.json()),
+      ]);
+
+      const payload = settingsRes.data.message;
+      hydrateSettings(payload);
+      setRoles(rolesRes.message || []);
+    } catch (error) {
+      console.error('Failed to load settings:', error);
+      setFeedback({ type: 'error', message: 'Could not load settings right now.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getCsrfToken = () =>
+    document.cookie
+      .split('; ')
+      .find((c) => c.startsWith('csrf_token='))
+      ?.split('=')[1] || '';
+
+  const updateUi = <K extends keyof SettingsState['ui']>(key: K, value: SettingsState['ui'][K]) => {
+    setSettings((current) => ({
+      ...current,
+      ui: {
+        ...current.ui,
+        [key]: value,
+      },
+    }));
+  };
+
+  const handleSave = async () => {
+    if (validationMessage) {
+      setFeedback({ type: 'error', message: validationMessage });
+      return;
+    }
+
+    if (!isDirty) {
+      setFeedback({ type: 'success', message: 'No changes to save.' });
+      return;
+    }
+
+    setSaving(true);
+    setFeedback(null);
+    try {
+      const response = await settingsApi.save({ ui: settings.ui });
+      const payload = response.data.message;
+      hydrateSettings(payload?.settings || payload);
+      setFeedback({ type: 'success', message: payload?.message || 'Settings saved successfully.' });
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+      setFeedback({ type: 'error', message: 'Could not save settings. Please try again.' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleReset = () => {
+    setSettings(initialSettings);
+    setFeedback(null);
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div><h1 className="text-2xl font-bold text-gray-900">Settings</h1></div>
+        <div className="flex items-center justify-center h-64"><div className="spinner" /></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-        <p className="text-gray-500 mt-1">Configure your trader business system</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+          <p className="text-gray-500 mt-1">System configuration and information</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={() => void loadSettings()} disabled={loading || saving} className="btn-secondary flex items-center gap-2 disabled:opacity-60">
+            <RefreshCw size={14} /> Refresh
+          </button>
+          <button onClick={handleReset} disabled={!isDirty || saving} className="btn-secondary flex items-center gap-2 disabled:opacity-60">
+            <RotateCcw size={14} /> Reset
+          </button>
+          <button onClick={handleSave} disabled={saving || !!validationMessage} className="btn-primary flex items-center gap-2 disabled:opacity-60">
+            <Save size={14} /> {saving ? 'Saving…' : 'Save Changes'}
+          </button>
+        </div>
       </div>
 
-      <div className="flex gap-6">
-        {/* Sidebar Navigation */}
-        <div className="w-56 shrink-0">
-          <nav className="space-y-1">
-            {sections.map((s) => (
-              <button
-                key={s.key}
-                onClick={() => setActiveSection(s.key)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
-                  activeSection === s.key ? 'bg-brand-50 text-brand-700 font-medium' : 'text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                <s.icon className="w-4 h-4" />
-                {s.label}
-              </button>
-            ))}
-          </nav>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <p className="text-sm text-gray-500">
+          Changes to localization and session fields persist for the current Trader UI user and update shared system defaults where supported.
+        </p>
+        <div className="flex items-center gap-2 text-sm">
+          <span className={`inline-flex rounded-full px-2.5 py-1 font-medium ${isDirty ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
+            {isDirty ? 'Unsaved changes' : 'All changes saved'}
+          </span>
+          {validationMessage && <span className="text-red-600">{validationMessage}</span>}
+        </div>
+      </div>
+
+      {feedback && (
+        <div className={`rounded-lg px-4 py-3 text-sm ${feedback.type === 'success' ? 'border border-green-200 bg-green-50 text-green-700' : 'border border-red-200 bg-red-50 text-red-700'}`}>
+          {feedback.message}
+        </div>
+      )}
+
+      <div className="card p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-lg bg-brand-100 flex items-center justify-center">
+            <Building2 size={20} className="text-brand-700" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold">Company Information</h2>
+            <p className="text-sm text-gray-500">Primary company details from ERPNext</p>
+          </div>
+        </div>
+        {settings.company ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+            <InfoRow label="Company Name" value={settings.company.name} />
+            <InfoRow label="Abbreviation" value={settings.company.abbr} />
+            <InfoRow label="Country" value={settings.company.country} />
+            <InfoRow label="Currency" value={settings.company.default_currency} />
+            <InfoRow label="Domain" value={settings.company.domain} />
+            <InfoRow label="Chart of Accounts" value={settings.company.chart_of_accounts} />
+          </div>
+        ) : (
+          <p className="text-gray-500 text-sm">No company configured. Run the setup wizard first.</p>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="card p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+              <Globe size={20} className="text-blue-700" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold">Localization</h2>
+              <p className="text-sm text-gray-500">Regional defaults used by the Trader UI</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="Language"><input value={settings.ui.language} onChange={(e) => updateUi('language', e.target.value)} className="input-field" /></Field>
+            <Field label="Time Zone"><input value={settings.ui.time_zone} onChange={(e) => updateUi('time_zone', e.target.value)} className="input-field" /></Field>
+            <Field label="Date Format"><input value={settings.ui.date_format} onChange={(e) => updateUi('date_format', e.target.value)} className="input-field" /></Field>
+            <Field label="Number Format"><input value={settings.ui.number_format} onChange={(e) => updateUi('number_format', e.target.value)} className="input-field" /></Field>
+          </div>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 max-w-2xl">
-          {activeSection === 'general' && (
-            <div className="card p-6 space-y-6">
-              <h2 className="text-lg font-semibold text-gray-900">General Settings</h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">System Name</label>
-                  <input type="text" defaultValue="Trader Business System" className="input-field w-full" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Default Company</label>
-                  <input type="text" defaultValue="Global Trading Company Ltd" className="input-field w-full" readOnly />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Items per Page</label>
-                  <select className="input-field w-full">
-                    <option>20</option>
-                    <option>50</option>
-                    <option>100</option>
-                  </select>
-                </div>
-              </div>
-              <div className="pt-4 border-t">
-                <button className="btn-primary flex items-center gap-2">
-                  <Save className="w-4 h-4" /> Save Changes
-                </button>
-              </div>
+        <div className="card p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
+              <Shield size={20} className="text-purple-700" />
             </div>
-          )}
+            <div>
+              <h2 className="text-lg font-semibold">Security & Session</h2>
+              <p className="text-sm text-gray-500">Session and access controls</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="Float Precision"><input type="number" min={0} max={9} value={settings.ui.float_precision} onChange={(e) => updateUi('float_precision', Number(e.target.value))} className="input-field" /></Field>
+            <Field label="Session Expiry (mins)"><input type="number" min={15} step={15} value={settings.ui.session_expiry} onChange={(e) => updateUi('session_expiry', Number(e.target.value))} className="input-field" /></Field>
+            <ToggleField label="Enable Two-Factor" checked={Boolean(settings.ui.enable_two_factor)} onChange={(checked) => updateUi('enable_two_factor', checked ? 1 : 0)} />
+          </div>
+        </div>
 
-          {activeSection === 'company' && (
-            <div className="card p-6 space-y-6">
-              <h2 className="text-lg font-semibold text-gray-900">Company Settings</h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
-                  <input type="text" defaultValue="Global Trading Company Ltd" className="input-field w-full" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Default Currency</label>
-                  <input type="text" defaultValue="PKR" className="input-field w-full" readOnly />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tax ID</label>
-                  <input type="text" placeholder="NTN Number" className="input-field w-full" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-                  <textarea rows={3} defaultValue="Office 301, Trade Tower, Mall Road, Lahore, Pakistan" className="input-field w-full" />
-                </div>
-              </div>
-              <div className="pt-4 border-t">
-                <button className="btn-primary flex items-center gap-2">
-                  <Save className="w-4 h-4" /> Save Changes
-                </button>
-              </div>
+        <div className="card p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center">
+              <Bell size={20} className="text-amber-700" />
             </div>
-          )}
+            <div>
+              <h2 className="text-lg font-semibold">Notifications</h2>
+              <p className="text-sm text-gray-500">Personal UI notification preferences</p>
+            </div>
+          </div>
+          <ToggleField label="Email Notifications" checked={Boolean(settings.ui.email_notifications)} onChange={(checked) => updateUi('email_notifications', checked ? 1 : 0)} />
+        </div>
 
-          {activeSection === 'localization' && (
-            <div className="card p-6 space-y-6">
-              <h2 className="text-lg font-semibold text-gray-900">Localization</h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
-                  <input type="text" defaultValue="Pakistan" className="input-field w-full" readOnly />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Date Format</label>
-                  <select className="input-field w-full">
-                    <option>dd-mm-yyyy</option>
-                    <option>mm-dd-yyyy</option>
-                    <option>yyyy-mm-dd</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Number Format</label>
-                  <select className="input-field w-full">
-                    <option>#,###.##</option>
-                    <option>#.###,##</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Fiscal Year Start</label>
-                  <input type="text" defaultValue="July 1" className="input-field w-full" readOnly />
-                </div>
-              </div>
+        <div className="card p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
+              <Moon size={20} className="text-slate-700" />
             </div>
-          )}
+            <div>
+              <h2 className="text-lg font-semibold">Appearance</h2>
+              <p className="text-sm text-gray-500">Lightweight UI preferences stored for the current user</p>
+            </div>
+          </div>
+          <div className="space-y-4">
+            <ToggleField label="Dark Mode" checked={Boolean(settings.ui.dark_mode)} onChange={(checked) => updateUi('dark_mode', checked ? 1 : 0)} />
+            <ToggleField label="Compact Tables" checked={Boolean(settings.ui.compact_tables)} onChange={(checked) => updateUi('compact_tables', checked ? 1 : 0)} />
+          </div>
+        </div>
+      </div>
 
-          {activeSection === 'security' && (
-            <div className="card p-6 space-y-6">
-              <h2 className="text-lg font-semibold text-gray-900">Security</h2>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">Two-Factor Authentication</p>
-                    <p className="text-xs text-gray-500">Require 2FA for all admin users</p>
-                  </div>
-                  <div className="w-10 h-5 bg-gray-300 rounded-full relative cursor-pointer">
-                    <div className="w-4 h-4 bg-white rounded-full absolute top-0.5 left-0.5 shadow-sm" />
-                  </div>
-                </div>
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">Session Timeout</p>
-                    <p className="text-xs text-gray-500">Auto-logout after inactivity</p>
-                  </div>
-                  <select className="input-field w-32">
-                    <option>30 min</option>
-                    <option>1 hour</option>
-                    <option>4 hours</option>
-                    <option>8 hours</option>
-                  </select>
-                </div>
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">Password Policy</p>
-                    <p className="text-xs text-gray-500">Minimum password requirements</p>
-                  </div>
-                  <select className="input-field w-32">
-                    <option>Standard</option>
-                    <option>Strong</option>
-                    <option>Custom</option>
-                  </select>
-                </div>
+      <div className="card p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center">
+            <Shield size={20} className="text-emerald-700" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold">Trader Roles</h2>
+            <p className="text-sm text-gray-500">Custom roles created by the Trader module</p>
+          </div>
+        </div>
+        {roles.length > 0 ? (
+          <div className="divide-y divide-gray-100">
+            {roles.map((role) => (
+              <div key={role.name} className="flex items-center justify-between py-3">
+                <span className="text-sm font-medium text-gray-800">{role.name}</span>
+                <span
+                  className={`px-2 py-0.5 rounded text-xs font-medium ${
+                    role.disabled ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                  }`}
+                >
+                  {role.disabled ? 'Disabled' : 'Active'}
+                </span>
               </div>
-            </div>
-          )}
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-500 text-sm">
+            No custom Trader roles found. Roles are created during app installation.
+          </p>
+        )}
+      </div>
 
-          {activeSection === 'notifications' && (
-            <div className="card p-6 space-y-6">
-              <h2 className="text-lg font-semibold text-gray-900">Notifications</h2>
-              <div className="space-y-3">
-                {[
-                  { label: 'New Sales Invoice', desc: 'When a new sales invoice is created' },
-                  { label: 'Low Stock Alert', desc: 'When item stock falls below reorder level' },
-                  { label: 'Payment Received', desc: 'When a payment is received from customer' },
-                  { label: 'Overdue Invoice', desc: 'Daily digest of overdue invoices' },
-                ].map((n) => (
-                  <div key={n.label} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{n.label}</p>
-                      <p className="text-xs text-gray-500">{n.desc}</p>
-                    </div>
-                    <div className="w-10 h-5 bg-brand-500 rounded-full relative cursor-pointer">
-                      <div className="w-4 h-4 bg-white rounded-full absolute top-0.5 right-0.5 shadow-sm" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+      <div className="card p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
+            <Globe size={20} className="text-purple-700" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold">System Information</h2>
+            <p className="text-sm text-gray-500">Application and environment details</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+          <InfoRow label="Application" value="Trader App v1.0.0" />
+          <InfoRow label="Framework" value="Frappe v15 / ERPNext v15" />
+          <InfoRow label="Frontend" value="React 18 + TypeScript + Vite" />
+          <InfoRow label="CSS Framework" value="Tailwind CSS 3" />
+          <InfoRow label="Database" value="MariaDB 10.11" />
+          <InfoRow label="Cache" value="Redis 7" />
+        </div>
+      </div>
 
-          {activeSection === 'appearance' && (
-            <div className="card p-6 space-y-6">
-              <h2 className="text-lg font-semibold text-gray-900">Appearance</h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Brand Color</label>
-                  <div className="flex gap-3">
-                    {['#1e40af', '#16a34a', '#dc2626', '#7c3aed', '#0891b2', '#ea580c'].map((color) => (
-                      <button
-                        key={color}
-                        className="w-8 h-8 rounded-full border-2 border-gray-200 hover:scale-110 transition-transform"
-                        style={{ backgroundColor: color }}
-                      />
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Sidebar Style</label>
-                  <select className="input-field w-full">
-                    <option>Dark</option>
-                    <option>Light</option>
-                    <option>Colored</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeSection === 'system' && (
-            <div className="card p-6 space-y-6">
-              <h2 className="text-lg font-semibold text-gray-900">System Info</h2>
-              <div className="space-y-3">
-                {[
-                  { label: 'ERPNext Version', value: 'v15.37.2' },
-                  { label: 'Frappe Version', value: 'v15.47.4' },
-                  { label: 'Trader App', value: 'v1.0.0' },
-                  { label: 'Python', value: '3.11' },
-                  { label: 'MariaDB', value: '10.11' },
-                  { label: 'Redis', value: '7.x' },
-                ].map((s) => (
-                  <div key={s.label} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-                    <span className="text-sm text-gray-600">{s.label}</span>
-                    <span className="text-sm font-medium text-gray-900 font-mono">{s.value}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="pt-4">
-                <button className="btn-secondary text-sm text-red-600 border-red-200 hover:bg-red-50">
-                  Clear Cache
-                </button>
-              </div>
-            </div>
-          )}
+      <div className="card p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center">
+            <Users size={20} className="text-amber-700" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold">Administration Links</h2>
+            <p className="text-sm text-gray-500">Jump to ERPNext admin panels</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <AdminLink href="/app/user" label="User Management" description="Manage user accounts and permissions" />
+          <AdminLink href="/app/role" label="Role Management" description="Configure roles and access levels" />
+          <AdminLink href="/app/company" label="Company Settings" description="Edit company details and defaults" />
+          <AdminLink href="/app/fiscal-year" label="Fiscal Year" description="Set active fiscal year period" />
+          <AdminLink href="/app/warehouse" label="Warehouses" description="Configure warehouse structure" />
+          <AdminLink href="/app/accounts-settings" label="Accounting" description="Configure accounting defaults" />
         </div>
       </div>
     </div>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value?: string | null }) {
+  return (
+    <div>
+      <dt className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</dt>
+      <dd className="text-sm text-gray-900 mt-0.5">{value || '—'}</dd>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function ToggleField({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
+  return (
+    <label className="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3">
+      <span className="text-sm font-medium text-gray-800">{label}</span>
+      <button
+        type="button"
+        aria-pressed={checked}
+        onClick={() => onChange(!checked)}
+        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${checked ? 'bg-brand-600' : 'bg-gray-300'}`}
+      >
+        <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${checked ? 'translate-x-5' : 'translate-x-1'}`} />
+      </button>
+    </label>
+  );
+}
+
+function AdminLink({ href, label, description }: { href: string; label: string; description: string }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block p-4 rounded-lg border border-gray-200 hover:border-brand-300 hover:shadow-sm transition-all"
+    >
+      <h4 className="text-sm font-medium text-brand-700">{label}</h4>
+      <p className="text-xs text-gray-500 mt-1">{description}</p>
+    </a>
   );
 }

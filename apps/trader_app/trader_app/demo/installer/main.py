@@ -151,6 +151,29 @@ class DemoInstaller:
 
         for dt in doctypes_to_clean:
             try:
+                if dt == "Bin":
+                    count = frappe.db.sql(
+                        """
+                        SELECT COUNT(*)
+                        FROM `tabBin` b
+                        INNER JOIN `tabWarehouse` w ON w.name = b.warehouse
+                        WHERE w.company = %s
+                        """,
+                        (company,),
+                    )[0][0]
+                    if count > 0:
+                        frappe.db.sql(
+                            """
+                            DELETE b
+                            FROM `tabBin` b
+                            INNER JOIN `tabWarehouse` w ON w.name = b.warehouse
+                            WHERE w.company = %s
+                            """,
+                            (company,),
+                        )
+                        print(f"  🗑️  Deleted {count} {dt} records")
+                    continue
+
                 count = frappe.db.count(dt, filters={"company": company})
                 if count > 0:
                     frappe.db.sql(f"DELETE FROM `tab{dt}` WHERE company = %s", (company,))

@@ -25,7 +25,7 @@ RUN bench get-app --branch ${ERPNEXT_VERSION} erpnext
 
 # Copy and install trader_app
 COPY --chown=frappe:frappe apps/trader_app /home/frappe/frappe-bench/apps/trader_app
-RUN cd apps/trader_app && pip install -e .
+RUN cd apps/trader_app && /home/frappe/frappe-bench/env/bin/pip install -e .
 
 # Expose ports
 EXPOSE 8000 9000

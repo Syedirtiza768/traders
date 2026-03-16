@@ -1,0 +1,17 @@
+{
+  "name": "traders",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Traders Business Management System — Monorepo",
+  "type": "module",
+  "scripts": {
+    "audit:architecture": "node scripts/architecture-audit/run-audit.mjs --full",
+    "audit:frontend": "node scripts/architecture-audit/run-audit.mjs --frontend",
+    "audit:backend": "node scripts/architecture-audit/run-audit.mjs --backend",
+    "audit:workflows": "node scripts/architecture-audit/run-audit.mjs --workflows",
+    "audit:graphs": "node scripts/architecture-audit/run-audit.mjs --graphs"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

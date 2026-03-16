@@ -18,6 +18,7 @@ from trader_app.demo.seed_engine.base import BaseGenerator
 class PurchaseGenerator(BaseGenerator):
     name = "Purchases"
     depends_on = ["Company", "Suppliers", "Items"]
+    debug_single_doc = False
 
     def generate(self):
         self._suppress_notifications()
@@ -36,6 +37,8 @@ class PurchaseGenerator(BaseGenerator):
                 limit_page_length=0,
             )
 
+            self._ensure_item_procurement_flags([item["name"] for item in items])
+
             if not suppliers or not items:
                 print("  ⚠️  No suppliers or items found. Skipping purchase generation.")
                 return
@@ -49,12 +52,6 @@ class PurchaseGenerator(BaseGenerator):
                 item_prices[ip.item_code] = float(ip.price_list_rate)
 
             # Get tax template for purchases
-            tax_template = frappe.db.get_value(
-                "Purchase Taxes and Charges Template",
-                filters={"company": company},
-                fieldname="name"
-            )
-
             num_orders = random.randint(*self.config["num_purchase_orders"])
             total_days = (end_date - start_date).days
 
@@ -78,31 +75,37 @@ class PurchaseGenerator(BaseGenerator):
                     item_prices=item_prices,
                     posting_date=posting_date,
                     warehouse=warehouse,
-                    tax_template=tax_template,
                 )
 
                 if i % 50 == 0:
                     frappe.db.commit()
                     print(f"    ... {i + 1}/{num_orders} purchases created")
 
+                if self.debug_single_doc:
+                    frappe.db.commit()
+                    return
+
             frappe.db.commit()
             print(f"  ✅ Created {len(self.created_records)} purchase transactions")
+            for error in self.errors[:5]:
+                print(f"  ⚠️  {error}")
         finally:
             self._restore_notifications()
 
     def _create_purchase_invoice(self, company, supplier, items, item_prices,
-                                  posting_date, warehouse, tax_template):
+                                  posting_date, warehouse):
         """Create a Purchase Invoice."""
         pi = frappe.get_doc({
             "doctype": "Purchase Invoice",
             "company": company,
             "supplier": supplier,
             "posting_date": posting_date,
-            "due_date": add_days(posting_date, random.choice([7, 15, 30, 45, 60])),
+            "due_date": posting_date,
             "currency": self.config["currency"],
             "buying_price_list": "Standard Buying",
-            "update_stock": 1,
+            "update_stock": 0,
             "set_warehouse": warehouse,
+            "bill_date": posting_date,
         })
 
         for item in items:
@@ -127,7 +130,21 @@ class PurchaseGenerator(BaseGenerator):
             pi.submit()
             self.created_records.append(("Purchase Invoice", pi.name))
         except Exception as e:
+            if len(self.errors) < 10:
+                print(f"  ⚠️  Purchase Invoice failed for {supplier}: {str(e)}")
             self.errors.append(f"Purchase Invoice: {str(e)}")
+
+    def _ensure_item_procurement_flags(self, item_codes):
+        if not item_codes:
+            return
+
+        for item_code in item_codes:
+            frappe.db.set_value("Item", item_code, {
+                "is_purchase_item": 1,
+                "is_sales_item": 1,
+            }, update_modified=False)
+        frappe.db.commit()
+
 
     def validate(self):
         count = frappe.db.count("Purchase Invoice", filters={"docstatus": 1})

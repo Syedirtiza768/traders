@@ -72,6 +72,17 @@ class CustomerGenerator(BaseGenerator):
 
     def _ensure_customer_groups(self):
         """Create customer groups if they don't exist."""
+        if not frappe.db.exists("Customer Group", "All Customer Groups"):
+            root = frappe.get_doc({
+                "doctype": "Customer Group",
+                "customer_group_name": "All Customer Groups",
+                "is_group": 1,
+            })
+            try:
+                root.insert(ignore_permissions=True)
+            except frappe.DuplicateEntryError:
+                pass
+
         groups = ["Premium Retailers", "Regular Retailers", "Small Shops"]
         for g in groups:
             if not frappe.db.exists("Customer Group", g):
@@ -88,6 +99,17 @@ class CustomerGenerator(BaseGenerator):
 
     def _ensure_territories(self):
         """Create territories if they don't exist."""
+        if not frappe.db.exists("Territory", "All Territories"):
+            root = frappe.get_doc({
+                "doctype": "Territory",
+                "territory_name": "All Territories",
+                "is_group": 1,
+            })
+            try:
+                root.insert(ignore_permissions=True)
+            except frappe.DuplicateEntryError:
+                pass
+
         for territory in self.config["territories"]:
             if not frappe.db.exists("Territory", territory):
                 doc = frappe.get_doc({

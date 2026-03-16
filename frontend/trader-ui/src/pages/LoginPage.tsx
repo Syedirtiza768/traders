@@ -1,30 +1,46 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { BarChart3, Eye, EyeOff } from 'lucide-react';
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { login, isAuthenticated, loading, error, clearError } = useAuthStore();
+  const location = useLocation();
+  const { login, isAuthenticated, loading, initialized, error, clearError } = useAuthStore();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname || '/';
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/', { replace: true });
+      navigate(from, { replace: true });
     }
-  }, [isAuthenticated, navigate]);
+  }, [from, isAuthenticated, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       await login(username, password);
-      navigate('/', { replace: true });
     } catch {
       // Error handled in store
     }
   };
+
+  if (initialized && isAuthenticated) {
+    return <Navigate to={from} replace />;
+  }
+
+  if (!initialized && loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="flex items-center gap-3 text-sm text-gray-500">
+          <div className="spinner" />
+          Checking your session...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex">

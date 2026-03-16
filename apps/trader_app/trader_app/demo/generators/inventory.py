@@ -19,6 +19,7 @@ from trader_app.demo.seed_engine.base import BaseGenerator
 class InventoryGenerator(BaseGenerator):
     name = "Inventory"
     depends_on = ["Company", "Items"]
+    debug_single_doc = False
 
     def generate(self):
         self._suppress_notifications()
@@ -26,6 +27,8 @@ class InventoryGenerator(BaseGenerator):
             company = self.config["company_name"]
             abbr = self.config["company_abbr"]
             start_date = getdate(self.config["demo_start_date"])
+
+            self._ensure_stock_entry_type()
 
             warehouses = [f"{wh['name']} - {abbr}" for wh in self.config["warehouses"]]
 
@@ -37,7 +40,7 @@ class InventoryGenerator(BaseGenerator):
             )
 
             # Process items in batches for stock entry
-            batch_size = 20
+            batch_size = 1 if self.debug_single_doc else 20
             for batch_start in range(0, len(items), batch_size):
                 batch = items[batch_start:batch_start + batch_size]
                 warehouse = random.choice(warehouses)
@@ -45,24 +48,44 @@ class InventoryGenerator(BaseGenerator):
                 self._create_stock_entry(batch, company, warehouse, start_date)
                 self._commit_batch()
 
-            # Create secondary warehouse stock for some items
-            secondary_items = random.sample(items, min(len(items) // 3, 100))
-            for batch_start in range(0, len(secondary_items), batch_size):
-                batch = secondary_items[batch_start:batch_start + batch_size]
-                warehouse = f"Secondary Warehouse - {abbr}"
+                if self.debug_single_doc:
+                    frappe.db.commit()
+                    return
 
-                self._create_stock_entry(batch, company, warehouse, start_date)
-                self._commit_batch()
+            # Create secondary warehouse stock for some items
+            if not self.debug_single_doc:
+                secondary_items = random.sample(items, min(len(items) // 3, 100))
+                for batch_start in range(0, len(secondary_items), batch_size):
+                    batch = secondary_items[batch_start:batch_start + batch_size]
+                    warehouse = f"Secondary Warehouse - {abbr}"
+
+                    self._create_stock_entry(batch, company, warehouse, start_date)
+                    self._commit_batch()
 
             frappe.db.commit()
             print(f"  ✅ Created opening stock for {len(items)} items")
+            for error in self.errors[:5]:
+                print(f"  ⚠️  {error}")
         finally:
             self._restore_notifications()
+
+    def _ensure_stock_entry_type(self):
+        if frappe.db.exists("Stock Entry Type", "Material Receipt"):
+            return
+
+        doc = frappe.get_doc({
+            "doctype": "Stock Entry Type",
+            "name": "Material Receipt",
+            "stock_entry_type": "Material Receipt",
+            "purpose": "Material Receipt",
+        })
+        doc.insert(ignore_permissions=True)
 
     def _create_stock_entry(self, items, company, warehouse, posting_date):
         """Create a stock entry (Material Receipt) for a batch of items."""
         se = frappe.get_doc({
             "doctype": "Stock Entry",
+            "purpose": "Material Receipt",
             "stock_entry_type": "Material Receipt",
             "company": company,
             "posting_date": posting_date,
@@ -89,6 +112,8 @@ class InventoryGenerator(BaseGenerator):
             se.submit()
             self.created_records.append(("Stock Entry", se.name))
         except Exception as e:
+            if len(self.errors) < 10:
+                print(f"  ⚠️  Stock Entry failed: {str(e)}")
             self.errors.append(f"Stock Entry: {str(e)}")
 
     def _get_opening_qty(self, item_group):

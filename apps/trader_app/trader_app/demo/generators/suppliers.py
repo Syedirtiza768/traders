@@ -80,12 +80,24 @@ class SupplierGenerator(BaseGenerator):
 
     def _ensure_supplier_groups(self):
         """Create supplier groups if they don't exist."""
+        if not frappe.db.exists("Supplier Group", "All Supplier Groups"):
+            root = frappe.get_doc({
+                "doctype": "Supplier Group",
+                "supplier_group_name": "All Supplier Groups",
+                "is_group": 1,
+            })
+            try:
+                root.insert(ignore_permissions=True)
+            except frappe.DuplicateEntryError:
+                pass
+
         groups = ["Manufacturer", "Distributor", "Importer", "Local Supplier"]
         for g in groups:
             if not frappe.db.exists("Supplier Group", g):
                 doc = frappe.get_doc({
                     "doctype": "Supplier Group",
                     "supplier_group_name": g,
+                    "parent_supplier_group": "All Supplier Groups",
                 })
                 try:
                     doc.insert(ignore_permissions=True)

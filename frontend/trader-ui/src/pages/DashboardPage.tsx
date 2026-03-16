@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   DollarSign,
   TrendingUp,
@@ -8,6 +9,7 @@ import {
   AlertTriangle,
   Users,
   ShoppingCart,
+  FileText,
 } from 'lucide-react';
 import {
   BarChart,
@@ -36,10 +38,16 @@ interface DashboardKPIs {
   low_stock_items: number;
   total_customers: number;
   total_orders_today: number;
+  quotations_awaiting_conversion: number;
+  sales_orders_awaiting_invoice?: number;
+  purchase_orders_awaiting_invoice?: number;
+  sales_orders_with_unpaid_invoices: number;
+  purchase_orders_with_unpaid_invoices: number;
   currency: string;
 }
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
   const [kpis, setKpis] = useState<DashboardKPIs | null>(null);
   const [salesTrend, setSalesTrend] = useState<any[]>([]);
   const [topCustomers, setTopCustomers] = useState<any[]>([]);
@@ -82,6 +90,10 @@ export default function DashboardPage() {
       </div>
 
       {/* KPI Cards */}
+      <div className="flex justify-end">
+        <button onClick={() => navigate('/operations')} className="btn-secondary">Open Operations Queues</button>
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard
           title="Today's Sales"
@@ -149,6 +161,54 @@ export default function DashboardPage() {
           format="number"
           color="green"
           loading={loading}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <KPICard
+          title="Quotations Awaiting Conversion"
+          value={kpis?.quotations_awaiting_conversion || 0}
+          icon={FileText}
+          format="number"
+          color="yellow"
+          loading={loading}
+          onClick={() => navigate('/sales/quotations?workflow=awaiting-conversion')}
+        />
+        <KPICard
+          title="Sales Orders Awaiting Invoice"
+          value={kpis?.sales_orders_awaiting_invoice || 0}
+          icon={ShoppingCart}
+          format="number"
+          color="blue"
+          loading={loading}
+          onClick={() => navigate('/sales/orders?workflow=awaiting-invoice')}
+        />
+        <KPICard
+          title="Sales Orders With Unpaid Invoices"
+          value={kpis?.sales_orders_with_unpaid_invoices || 0}
+          icon={CreditCard}
+          format="number"
+          color="red"
+          loading={loading}
+          onClick={() => navigate('/sales/orders?workflow=unpaid-invoices')}
+        />
+        <KPICard
+          title="Purchase Orders Awaiting Invoice"
+          value={kpis?.purchase_orders_awaiting_invoice || 0}
+          icon={Wallet}
+          format="number"
+          color="yellow"
+          loading={loading}
+          onClick={() => navigate('/purchases/orders?workflow=awaiting-invoice')}
+        />
+        <KPICard
+          title="Purchase Orders With Unpaid Invoices"
+          value={kpis?.purchase_orders_with_unpaid_invoices || 0}
+          icon={Wallet}
+          format="number"
+          color="red"
+          loading={loading}
+          onClick={() => navigate('/purchases/orders?workflow=unpaid-invoices')}
         />
       </div>
 

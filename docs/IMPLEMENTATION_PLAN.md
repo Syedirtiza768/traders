@@ -74,6 +74,17 @@
 
 ## Validation Checklist
 
+## Delivered depth beyond baseline
+
+- [x] Role-aware route and navigation visibility
+- [x] Navbar global search and notifications center
+- [x] Approval-focused operations queue filtering
+- [x] Purchase requisition draft workflow
+- [x] Supplier quotation / RFQ draft workflow
+- [x] Purchase receipt draft workflow from purchase orders
+- [x] Sales dispatch draft workflow from sales orders
+- [x] Sales return draft workflow from sales invoices
+
 After seeding, verify:
 - [ ] Dashboard shows real numbers (Today's Sales, Monthly Revenue, etc.)
 - [ ] 80–120 customers exist with contacts

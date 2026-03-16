@@ -37,18 +37,21 @@ class FinancialGenerator(BaseGenerator):
         try:
             company = self.config["company_name"]
             abbr = self.config["company_abbr"]
+            currency = self.config["currency"]
             start_date = getdate(self.config["demo_start_date"])
             end_date = getdate(self.config["demo_end_date"])
 
             # Create expense accounts if they don't exist
-            expense_accounts = self._ensure_expense_accounts(company, abbr)
+            expense_accounts = self._ensure_expense_accounts(company, abbr, currency)
+
+            cost_center = frappe.db.get_value(
+                "Cost Center",
+                filters={"company": company, "is_group": 0},
+                fieldname="name",
+            ) or f"Main - {abbr}"
 
             # Find cash/bank accounts
-            cash_account = frappe.db.get_value(
-                "Account",
-                filters={"account_type": "Cash", "company": company, "is_group": 0},
-                fieldname="name"
-            )
+            cash_account = self._get_cash_or_bank_account(company)
 
             if not cash_account:
                 print("  ⚠️  No cash account found. Skipping financial generation.")
@@ -77,6 +80,8 @@ class FinancialGenerator(BaseGenerator):
                         credit_account=cash_account,
                         amount=amount,
                         posting_date=posting_date,
+                        cost_center=cost_center,
+                        currency=currency,
                         remark=f"{expense['name']} for {current_date.strftime('%B %Y')}",
                     )
 
@@ -85,10 +90,28 @@ class FinancialGenerator(BaseGenerator):
 
             frappe.db.commit()
             print(f"  ✅ Created {len(self.created_records)} financial entries")
+            for error in self.errors[:5]:
+                print(f"  ⚠️  {error}")
         finally:
             self._restore_notifications()
 
-    def _ensure_expense_accounts(self, company, abbr):
+    def _get_cash_or_bank_account(self, company):
+        for account_type in ("Cash", "Bank"):
+            account = frappe.db.get_value(
+                "Account",
+                filters={"account_type": account_type, "company": company, "is_group": 0, "disabled": 0},
+                fieldname="name",
+            )
+            if account:
+                return account
+
+        return frappe.db.get_value(
+            "Account",
+            filters={"root_type": "Asset", "company": company, "is_group": 0, "disabled": 0},
+            fieldname="name",
+        )
+
+    def _ensure_expense_accounts(self, company, abbr, currency):
         """Ensure expense sub-accounts exist."""
         accounts = {}
 
@@ -140,8 +163,10 @@ class FinancialGenerator(BaseGenerator):
                     "parent_account": parent,
                     "company": company,
                     "root_type": "Expense",
-                    "account_type": "Expense Account",
+                    "report_type": "Profit and Loss",
+                    "account_currency": currency,
                     "is_group": 0,
+                    "freeze_account": "No",
                 })
                 acc.insert(ignore_permissions=True)
                 accounts[expense["name"]] = acc.name
@@ -153,8 +178,11 @@ class FinancialGenerator(BaseGenerator):
         return accounts
 
     def _create_journal_entry(self, company, debit_account, credit_account,
-                               amount, posting_date, remark):
+                               amount, posting_date, cost_center, currency, remark):
         """Create a Journal Entry."""
+        debit_currency = frappe.db.get_value("Account", debit_account, "account_currency") or currency
+        credit_currency = frappe.db.get_value("Account", credit_account, "account_currency") or currency
+
         je = frappe.get_doc({
             "doctype": "Journal Entry",
             "company": company,
@@ -164,13 +192,17 @@ class FinancialGenerator(BaseGenerator):
             "accounts": [
                 {
                     "account": debit_account,
+                    "account_currency": debit_currency,
                     "debit_in_account_currency": amount,
                     "credit_in_account_currency": 0,
+                    "cost_center": cost_center,
                 },
                 {
                     "account": credit_account,
+                    "account_currency": credit_currency,
                     "debit_in_account_currency": 0,
                     "credit_in_account_currency": amount,
+                    "cost_center": cost_center,
                 },
             ],
         })
@@ -180,6 +212,8 @@ class FinancialGenerator(BaseGenerator):
             je.submit()
             self.created_records.append(("Journal Entry", je.name))
         except Exception as e:
+            if len(self.errors) < 10:
+                print(f"  ⚠️  Journal Entry failed for {remark}: {str(e)}")
             self.errors.append(f"Journal Entry: {str(e)}")
 
     def validate(self):

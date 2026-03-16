@@ -1,98 +1,220 @@
-import { useState, useEffect } from 'react';
-import { ShoppingCart, Plus, Download, Filter } from 'lucide-react';
-import { resourceApi } from '../lib/api';
-import { formatCurrency, formatDate, getStatusColor } from '../lib/utils';
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Download, FilePlus2, FileText, DollarSign, Truck, AlertCircle, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { purchasesApi } from '../lib/api';
+import { appendPreservedListQuery, debounce, downloadTextFile, formatCurrency, formatDate, formatCompact, getStatusColor, toCsv } from '../lib/utils';
+
+const STATUS_TABS = ['All', 'Unpaid', 'Paid', 'Overdue', 'Draft'];
 
 export default function PurchasesPage() {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [invoices, setInvoices] = useState<any[]>([]);
+  const [summary, setSummary] = useState<any>(null);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(0);
 
-  useEffect(() => { loadInvoices(); }, [page]);
+  const page = Math.max(1, Number(searchParams.get('page') || '1') || 1);
+  const status = searchParams.get('status') || 'All';
+  const search = searchParams.get('search') || '';
+  const listSearch = searchParams.toString();
 
-  const loadInvoices = async () => {
+  const pageSize = 15;
+
+  const updateSearchParams = (updates: Record<string, string | null>) => {
+    const nextParams = new URLSearchParams(searchParams);
+
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === null || value === '') {
+        nextParams.delete(key);
+      } else {
+        nextParams.set(key, value);
+      }
+    });
+
+    setSearchParams(nextParams);
+  };
+
+  const buildDetailPath = (invoiceName: string) => {
+    return appendPreservedListQuery(`/purchases/${encodeURIComponent(invoiceName)}`, listSearch);
+  };
+
+  const handleExport = () => {
+    const content = toCsv(
+      invoices.map((invoice) => ({
+        invoice: invoice.name,
+        supplier: invoice.supplier_name || invoice.supplier,
+        posting_date: invoice.posting_date,
+        status: invoice.status,
+        grand_total: invoice.grand_total,
+        outstanding_amount: invoice.outstanding_amount,
+      })),
+    );
+
+    downloadTextFile(`purchase-invoices-page-${page}.csv`, content || '');
+  };
+
+  const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await resourceApi.list({
-        doctype: 'Purchase Invoice',
-        fields: ['name', 'supplier', 'supplier_name', 'posting_date', 'grand_total', 'outstanding_amount', 'status'],
-        orderBy: 'posting_date desc',
-        limit: 20,
-        offset: page * 20,
-      });
-      setInvoices(res.data.data || []);
+      const params: Record<string, any> = { page, page_size: pageSize };
+      if (status !== 'All') params.status = status;
+      if (search) params.search = search;
+
+      const [invoiceRes, summaryRes] = await Promise.all([
+        purchasesApi.getInvoices(params),
+        purchasesApi.getSummary(),
+      ]);
+
+      const d = invoiceRes.data.message;
+      setInvoices(d.data || []);
+      setTotal(d.total || 0);
+      setSummary(summaryRes.data.message);
     } catch (err) {
-      console.error('Failed to load purchase invoices:', err);
+      console.error('Failed to load purchases data:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, status, search]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const debouncedSearch = useCallback(
+    debounce((value: string) => {
+      updateSearchParams({ search: value || null, page: null });
+    }, 400),
+    [searchParams],
+  );
+
+  const totalPages = Math.ceil(total / pageSize);
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Purchases</h1>
-          <p className="text-gray-500 mt-1">Manage purchase invoices and supplier orders</p>
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Purchases</h1>
+        <p className="text-gray-500 mt-1">Manage purchase invoices and orders</p>
+      </div>
+
+      <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+        <button onClick={handleExport} disabled={loading || invoices.length === 0} className="btn-secondary flex items-center gap-2 disabled:opacity-60">
+          <Download className="h-4 w-4" /> Export Visible
+        </button>
+        <button onClick={() => navigate(appendPreservedListQuery('/purchases/new', listSearch))} className="btn-primary flex items-center gap-2">
+          <FilePlus2 className="h-4 w-4" /> New Purchase Invoice
+        </button>
+      </div>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard icon={FileText} label="Total Invoices" value={summary?.total_invoices} color="blue" />
+        <StatCard icon={DollarSign} label="Monthly Purchases" value={summary?.monthly_purchases} format="currency" color="green" />
+        <StatCard icon={AlertCircle} label="Outstanding Payable" value={summary?.total_outstanding} format="currency" color="red" />
+        <StatCard icon={Truck} label="Active Suppliers" value={summary?.total_suppliers} color="purple" />
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+        <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
+          {STATUS_TABS.map((s) => (
+            <button
+              key={s}
+              onClick={() => {
+                updateSearchParams({ status: s === 'All' ? null : s, page: null });
+              }}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                status === s ? 'bg-white shadow text-brand-700' : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              {s}
+            </button>
+          ))}
         </div>
-        <div className="flex items-center gap-2">
-          <button className="btn-secondary flex items-center gap-2">
-            <Filter className="w-4 h-4" /> Filter
-          </button>
-          <button className="btn-secondary flex items-center gap-2">
-            <Download className="w-4 h-4" /> Export
-          </button>
-          <button className="btn-primary flex items-center gap-2">
-            <Plus className="w-4 h-4" /> New Purchase
-          </button>
+
+        <div className="relative w-full sm:w-72">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search purchases..."
+            defaultValue={search}
+            onChange={(e) => debouncedSearch(e.target.value)}
+            className="input-field pl-9"
+          />
         </div>
       </div>
 
-      <div className="card">
-        <div className="table-container">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Invoice #</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Supplier</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Date</th>
-                <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Total</th>
-                <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Outstanding</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {invoices.map((inv) => (
-                <tr key={inv.name} className="hover:bg-gray-50 transition-colors cursor-pointer">
+      {/* Table */}
+      <div className="table-container">
+        <table className="w-full">
+          <thead>
+            <tr className="bg-gray-50">
+              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Invoice</th>
+              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Supplier</th>
+              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Date</th>
+              <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Amount</th>
+              <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Outstanding</th>
+              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {loading ? (
+              <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-400"><div className="spinner mx-auto" /></td></tr>
+            ) : invoices.length === 0 ? (
+              <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-400">No invoices found.</td></tr>
+            ) : (
+              invoices.map((inv) => (
+                <tr
+                  key={inv.name}
+                  className="hover:bg-gray-50 transition-colors cursor-pointer"
+                  onClick={() => navigate(buildDetailPath(inv.name))}
+                >
                   <td className="px-6 py-3 text-sm font-medium text-brand-700">{inv.name}</td>
                   <td className="px-6 py-3 text-sm text-gray-700">{inv.supplier_name || inv.supplier}</td>
                   <td className="px-6 py-3 text-sm text-gray-500">{formatDate(inv.posting_date)}</td>
                   <td className="px-6 py-3 text-sm text-gray-900 text-right font-medium">{formatCurrency(inv.grand_total)}</td>
-                  <td className="px-6 py-3 text-sm text-right font-medium">
-                    <span className={inv.outstanding_amount > 0 ? 'text-orange-600' : 'text-green-600'}>
-                      {formatCurrency(inv.outstanding_amount)}
-                    </span>
-                  </td>
+                  <td className="px-6 py-3 text-sm text-right font-medium text-red-600">{formatCurrency(inv.outstanding_amount)}</td>
                   <td className="px-6 py-3">
                     <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(inv.status)}`}>
                       {inv.status}
                     </span>
                   </td>
                 </tr>
-              ))}
-              {loading && (
-                <tr><td colSpan={6} className="px-6 py-8 text-center text-gray-400"><div className="spinner mx-auto" /></td></tr>
-              )}
-              {!loading && invoices.length === 0 && (
-                <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-400">No purchase invoices found</td></tr>
-              )}
-            </tbody>
-          </table>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between text-sm text-gray-500">
+          <span>Showing {((page - 1) * pageSize) + 1}–{Math.min(page * pageSize, total)} of {total}</span>
+          <div className="flex gap-1">
+            <button onClick={() => updateSearchParams({ page: page > 2 ? String(page - 1) : null })} disabled={page === 1} className="btn-secondary px-2 py-1 text-xs">
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button onClick={() => updateSearchParams({ page: String(Math.min(totalPages, page + 1)) })} disabled={page === totalPages} className="btn-secondary px-2 py-1 text-xs">
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
-        <div className="flex items-center justify-between px-6 py-3 border-t border-gray-100">
-          <button onClick={() => setPage(Math.max(0, page - 1))} disabled={page === 0} className="btn-secondary text-sm">Previous</button>
-          <span className="text-sm text-gray-500">Page {page + 1}</span>
-          <button onClick={() => setPage(page + 1)} disabled={invoices.length < 20} className="btn-secondary text-sm">Next</button>
+      )}
+    </div>
+  );
+}
+
+function StatCard({ icon: Icon, label, value, format, color = 'blue' }: {
+  icon: any; label: string; value: any; format?: string; color?: string;
+}) {
+  const bg = `bg-${color}-50`;
+  const ic = `text-${color}-600`;
+  const display = value == null ? '—' : format === 'currency' ? formatCompact(value) : (value ?? 0).toLocaleString();
+  return (
+    <div className="card p-5">
+      <div className="flex items-center gap-3">
+        <div className={`p-2 ${bg} rounded-lg`}><Icon className={`w-5 h-5 ${ic}`} /></div>
+        <div>
+          <p className="text-xs text-gray-500">{label}</p>
+          <p className="text-lg font-bold text-gray-900">{display}</p>
         </div>
       </div>
     </div>

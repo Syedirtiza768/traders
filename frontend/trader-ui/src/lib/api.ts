@@ -1,162 +1,410 @@
-import axios from 'axios';
+/**
+ * Trader App — API Client
+ *
+ * Axios-based wrapper around the Frappe / ERPNext REST API.
+ * All backend calls go through this module so every page can stay thin.
+ */
 
-const api = axios.create({
-  baseURL: '/api',
+import axios, { type AxiosInstance, type AxiosResponse } from 'axios';
+
+// ─── Axios Instance ──────────────────────────────────────────────
+
+const http: AxiosInstance = axios.create({
+  baseURL: '/',
   withCredentials: true,
   headers: {
+    Accept: 'application/json',
     'Content-Type': 'application/json',
-    'Accept': 'application/json',
     'X-Frappe-CSRF-Token': getCsrfToken(),
   },
 });
 
-function getCsrfToken(): string {
-  const cookie = document.cookie
-    .split('; ')
-    .find((row) => row.startsWith('csrf_token='));
-  return cookie ? cookie.split('=')[1] : '';
-}
-
-// Request interceptor to update CSRF token
-api.interceptors.request.use((config) => {
-  const token = getCsrfToken();
-  if (token) {
-    config.headers['X-Frappe-CSRF-Token'] = token;
-  }
-  return config;
-});
-
-// Response interceptor for auth errors
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 403 || error.response?.status === 401) {
-      // Redirect to login if session expired
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
+// On every response, grab the latest CSRF token if returned
+http.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    if (err.response?.status === 403) {
+      // Token might have expired — refresh & retry once
+      const token = getCsrfToken();
+      if (token) {
+        err.config.headers['X-Frappe-CSRF-Token'] = token;
+        return http.request(err.config);
       }
     }
-    return Promise.reject(error);
-  }
+    return Promise.reject(err);
+  },
 );
 
-// ============ AUTH API ============
+function getCsrfToken(): string {
+  return (
+    document.cookie
+      .split('; ')
+      .find((c) => c.startsWith('csrf_token='))
+      ?.split('=')[1] || ''
+  );
+}
+
+// ─── Generic Frappe call helper ──────────────────────────────────
+
+function call<T = any>(method: string, params?: Record<string, any>): Promise<AxiosResponse<{ message: T }>> {
+  return http.post('/api/method/' + method, params);
+}
+
+function get<T = any>(method: string, params?: Record<string, any>): Promise<AxiosResponse<{ message: T }>> {
+  return http.get('/api/method/' + method, { params });
+}
+
+function read<T = any>(method: string, params?: Record<string, any>): Promise<AxiosResponse<{ message: T }>> {
+  return get(method, params);
+}
+
+// ─── Auth API ────────────────────────────────────────────────────
 
 export const authApi = {
   login: (usr: string, pwd: string) =>
-    api.post('/method/login', { usr, pwd }),
+    http.post('/api/method/login', { usr, pwd }),
 
   logout: () =>
-    api.post('/method/logout'),
+    http.get('/api/method/logout'),
 
   getLoggedUser: () =>
-    api.get('/method/frappe.auth.get_logged_user'),
+    http.get('/api/method/frappe.auth.get_logged_user'),
 };
 
-// ============ DASHBOARD API ============
+// ─── Dashboard API ───────────────────────────────────────────────
 
 export const dashboardApi = {
-  getKPIs: () =>
-    api.get('/method/trader_app.api.dashboard.get_dashboard_kpis'),
+  getKPIs: (company?: string) =>
+    read('trader_app.api.dashboard.get_kpis', { company }),
 
-  getSalesTrend: () =>
-    api.get('/method/trader_app.api.dashboard.get_sales_trend'),
+  getSalesTrend: (company?: string, months?: number) =>
+    read('trader_app.api.dashboard.get_sales_trend', { company, months }),
 
-  getTopCustomers: (limit = 10) =>
-    api.get(`/method/trader_app.api.dashboard.get_top_customers?limit=${limit}`),
+  getTopCustomers: (limit?: number, company?: string) =>
+    read('trader_app.api.dashboard.get_top_customers', { company, limit }),
 
-  getRecentOrders: (limit = 20) =>
-    api.get(`/method/trader_app.api.dashboard.get_recent_orders?limit=${limit}`),
+  getRecentOrders: (limit?: number, company?: string) =>
+    read('trader_app.api.dashboard.get_recent_orders', { company, limit }),
 
-  getSalesByItemGroup: () =>
-    api.get('/method/trader_app.api.dashboard.get_sales_by_item_group'),
+  getCashFlowSummary: (company?: string, months?: number) =>
+    read('trader_app.api.dashboard.get_cash_flow_summary', { company, months }),
 
-  getCashFlowSummary: () =>
-    api.get('/method/trader_app.api.dashboard.get_cash_flow_summary'),
+  getInventorySummary: (company?: string) =>
+    read('trader_app.api.dashboard.get_inventory_summary', { company }),
 };
 
-// ============ RESOURCE API ============
+// ─── Sales API ───────────────────────────────────────────────────
 
-interface ListParams {
-  doctype: string;
-  fields?: string[];
-  filters?: Record<string, any>[];
-  orderBy?: string;
-  limit?: number;
-  offset?: number;
-}
+export const salesApi = {
+  getInvoices: (params?: Record<string, any>) =>
+    read('trader_app.api.sales.get_sales_invoices', params),
 
-export const resourceApi = {
-  list: ({ doctype, fields, filters, orderBy, limit = 20, offset = 0 }: ListParams) => {
-    const params = new URLSearchParams();
-    if (fields) params.set('fields', JSON.stringify(fields));
-    if (filters) params.set('filters', JSON.stringify(filters));
-    if (orderBy) params.set('order_by', orderBy);
-    params.set('limit_page_length', String(limit));
-    params.set('limit_start', String(offset));
-    return api.get(`/resource/${doctype}?${params.toString()}`);
-  },
+  getInvoiceDetail: (name: string) =>
+    read('trader_app.api.sales.get_sales_invoice_detail', { name }),
 
-  get: (doctype: string, name: string) =>
-    api.get(`/resource/${doctype}/${name}`),
+  getQuotations: (params?: Record<string, any>) =>
+    read('trader_app.api.sales.get_quotations', params),
 
-  create: (doctype: string, data: Record<string, any>) =>
-    api.post(`/resource/${doctype}`, data),
+  getQuotationDetail: (name: string) =>
+    read('trader_app.api.sales.get_quotation_detail', { name }),
 
-  update: (doctype: string, name: string, data: Record<string, any>) =>
-    api.put(`/resource/${doctype}/${name}`, data),
+  getOrders: (params?: Record<string, any>) =>
+    read('trader_app.api.sales.get_sales_orders', params),
 
-  delete: (doctype: string, name: string) =>
-    api.delete(`/resource/${doctype}/${name}`),
+  getOrderDetail: (name: string) =>
+    read('trader_app.api.sales.get_sales_order_detail', { name }),
 
-  count: (doctype: string, filters?: Record<string, any>[]) => {
-    const params = new URLSearchParams();
-    if (filters) params.set('filters', JSON.stringify(filters));
-    return api.get(`/method/frappe.client.get_count?doctype=${doctype}&${params.toString()}`);
-  },
+  createOrder: (data: Record<string, any>) =>
+    call('trader_app.api.sales.create_sales_order', data),
+
+  submitOrder: (name: string) =>
+    call('trader_app.api.sales.submit_sales_order', { name }),
+
+  createInvoice: (data: Record<string, any>) =>
+    call('trader_app.api.sales.create_sales_invoice', data),
+
+  createReturnInvoice: (data: Record<string, any>) =>
+    call('trader_app.api.sales.create_sales_invoice', {
+      ...data,
+      is_return: 1,
+      update_stock: 1,
+    }),
+
+  submitInvoice: (name: string) =>
+    call('trader_app.api.sales.submit_sales_invoice', { name }),
+
+  cancelInvoice: (name: string) =>
+    call('trader_app.api.sales.cancel_sales_invoice', { name }),
+
+  cancelOrder: (name: string) =>
+    call('trader_app.api.sales.cancel_sales_order', { name }),
+
+  createQuotation: (data: Record<string, any>) =>
+    call('trader_app.api.sales.create_quotation', data),
+
+  submitQuotation: (name: string) =>
+    call('trader_app.api.sales.submit_quotation', { name }),
+
+  getSummary: (company?: string) =>
+    read('trader_app.api.sales.get_sales_summary', { company }),
 };
 
-// ============ INVENTORY API ============
+// ─── Purchases API ───────────────────────────────────────────────
+
+export const purchasesApi = {
+  getInvoices: (params?: Record<string, any>) =>
+    read('trader_app.api.purchases.get_purchase_invoices', params),
+
+  getInvoiceDetail: (name: string) =>
+    read('trader_app.api.purchases.get_purchase_invoice_detail', { name }),
+
+  getOrders: (params?: Record<string, any>) =>
+    read('trader_app.api.purchases.get_purchase_orders', params),
+
+  getRequisitions: (params?: Record<string, any>) =>
+    read('trader_app.api.purchases.get_material_requests', params),
+
+  getRequisitionDetail: (name: string) =>
+    read('trader_app.api.purchases.get_material_request_detail', { name }),
+
+  getRfqs: (params?: Record<string, any>) =>
+    read('trader_app.api.purchases.get_supplier_quotations', params),
+
+  getRfqDetail: (name: string) =>
+    read('trader_app.api.purchases.get_supplier_quotation_detail', { name }),
+
+  getOrderDetail: (name: string) =>
+    read('trader_app.api.purchases.get_purchase_order_detail', { name }),
+
+  createOrder: (data: Record<string, any>) =>
+    call('trader_app.api.purchases.create_purchase_order', data),
+
+  createRequisition: (data: Record<string, any>) =>
+    call('trader_app.api.purchases.create_material_request', data),
+
+  createRfq: (data: Record<string, any>) =>
+    call('trader_app.api.purchases.create_supplier_quotation', data),
+
+  createOrderFromRfq: (name: string, data?: Record<string, any>) =>
+    call('trader_app.api.purchases.create_purchase_order_from_supplier_quotation', { name, ...(data || {}) }),
+
+  submitOrder: (name: string) =>
+    call('trader_app.api.purchases.submit_purchase_order', { name }),
+
+  submitRequisition: (name: string) =>
+    call('trader_app.api.purchases.submit_material_request', { name }),
+
+  submitRfq: (name: string) =>
+    call('trader_app.api.purchases.submit_supplier_quotation', { name }),
+
+  createInvoice: (data: Record<string, any>) =>
+    call('trader_app.api.purchases.create_purchase_invoice', data),
+
+  submitInvoice: (name: string) =>
+    call('trader_app.api.purchases.submit_purchase_invoice', { name }),
+
+  cancelInvoice: (name: string) =>
+    call('trader_app.api.purchases.cancel_purchase_invoice', { name }),
+
+  cancelOrder: (name: string) =>
+    call('trader_app.api.purchases.cancel_purchase_order', { name }),
+
+  getSummary: (company?: string) =>
+    read('trader_app.api.purchases.get_purchase_summary', { company }),
+};
+
+// ─── Inventory API ───────────────────────────────────────────────
 
 export const inventoryApi = {
-  getStockSummary: (warehouse?: string) => {
-    const params = warehouse ? `?warehouse=${warehouse}` : '';
-    return api.get(`/method/trader_app.api.inventory.get_stock_summary${params}`);
-  },
+  getStockBalance: (params?: Record<string, any>) =>
+    read('trader_app.api.inventory.get_stock_balance', params),
 
-  getLowStockItems: (limit = 50) =>
-    api.get(`/method/trader_app.api.inventory.get_low_stock_items?limit=${limit}`),
+  getStockLedger: (params?: Record<string, any>) =>
+    read('trader_app.api.inventory.get_stock_ledger', params),
 
-  getWarehouseStock: (warehouse: string) =>
-    api.get(`/method/trader_app.api.inventory.get_warehouse_stock?warehouse=${warehouse}`),
+  getItems: (params?: Record<string, any>) =>
+    read('trader_app.api.inventory.get_items', params),
+
+  getWarehouses: (company?: string) =>
+    read('trader_app.api.inventory.get_warehouses', { company }),
+
+  getInventorySummary: (company?: string) =>
+    read('trader_app.api.inventory.get_inventory_summary', { company }),
+
+  getSummary: (company?: string) =>
+    read('trader_app.api.inventory.get_inventory_summary', { company }),
+
+  getLowStockItems: (params?: Record<string, any>) =>
+    read('trader_app.api.inventory.get_low_stock_items', params),
+
+  getItemGroups: () =>
+    read('trader_app.api.inventory.get_item_groups'),
+
+  getItemDetail: (item_code: string) =>
+    read('trader_app.api.inventory.get_item_detail', { item_code }),
+
+  createItem: (data: Record<string, any>) =>
+    call('trader_app.api.inventory.create_item', data),
+
+  updateItem: (data: Record<string, any>) =>
+    call('trader_app.api.inventory.update_item', data),
+
+  createStockEntry: (data: Record<string, any>) =>
+    call('trader_app.api.inventory.create_stock_entry', data),
+
+  createPurchaseReceipt: (data: Record<string, any>) =>
+    call('trader_app.api.inventory.create_stock_entry', {
+      purpose: 'Material Receipt',
+      ...data,
+    }),
+
+  createSalesDispatch: (data: Record<string, any>) =>
+    call('trader_app.api.inventory.create_stock_entry', {
+      purpose: 'Material Issue',
+      ...data,
+    }),
 };
 
-// ============ REPORTS API ============
+// ─── Customers API ───────────────────────────────────────────────
+
+export const customersApi = {
+  getList: (params?: Record<string, any>) =>
+    read('trader_app.api.customers.get_customers', params),
+
+  getDetail: (name: string) =>
+    read('trader_app.api.customers.get_customer_detail', { name }),
+
+  getGroups: () =>
+    read('trader_app.api.customers.get_customer_groups'),
+
+  getTransactions: (customer: string, params?: Record<string, any>) =>
+    read('trader_app.api.customers.get_customer_transactions', { customer, ...params }),
+
+  create: (data: Record<string, any>) =>
+    call('trader_app.api.customers.create_customer', data),
+
+  update: (data: Record<string, any>) =>
+    call('trader_app.api.customers.update_customer', data),
+
+  disable: (name: string) =>
+    call('trader_app.api.customers.disable_customer', { name }),
+
+  enable: (name: string) =>
+    call('trader_app.api.customers.enable_customer', { name }),
+};
+
+// ─── Suppliers API ───────────────────────────────────────────────
+
+export const suppliersApi = {
+  getList: (params?: Record<string, any>) =>
+    read('trader_app.api.suppliers.get_suppliers', params),
+
+  getDetail: (name: string) =>
+    read('trader_app.api.suppliers.get_supplier_detail', { name }),
+
+  getGroups: () =>
+    read('trader_app.api.suppliers.get_supplier_groups'),
+
+  getTransactions: (supplier: string, params?: Record<string, any>) =>
+    read('trader_app.api.suppliers.get_supplier_transactions', { supplier, ...params }),
+
+  create: (data: Record<string, any>) =>
+    call('trader_app.api.suppliers.create_supplier', data),
+
+  update: (data: Record<string, any>) =>
+    call('trader_app.api.suppliers.update_supplier', data),
+
+  disable: (name: string) =>
+    call('trader_app.api.suppliers.disable_supplier', { name }),
+
+  enable: (name: string) =>
+    call('trader_app.api.suppliers.enable_supplier', { name }),
+};
+
+// ─── Settings API ────────────────────────────────────────────────
+
+export const settingsApi = {
+  get: () => read('trader_app.api.settings.get_settings'),
+
+  save: (data: Record<string, any>) =>
+    call('trader_app.api.settings.save_settings', { data }),
+};
+
+// ─── Finance API ─────────────────────────────────────────────────
+
+export const financeApi = {
+  getPaymentEntries: (params?: Record<string, any>) =>
+    read('trader_app.api.finance.get_payment_entries', params),
+
+  getPaymentEntryDetail: (name: string) =>
+    read('trader_app.api.finance.get_payment_entry_detail', { name }),
+
+  getPaymentEntrySetup: (company?: string) =>
+    read('trader_app.api.finance.get_payment_entry_setup', { company }),
+
+  getAccounts: (params?: Record<string, any>) =>
+    read('trader_app.api.finance.get_accounts', params),
+
+  createPaymentEntry: (data: Record<string, any>) =>
+    call('trader_app.api.finance.create_payment_entry', data),
+
+  submitPaymentEntry: (name: string) =>
+    call('trader_app.api.finance.submit_payment_entry', { name }),
+
+  cancelPaymentEntry: (name: string) =>
+    call('trader_app.api.finance.cancel_payment_entry', { name }),
+
+  getJournalEntries: (params?: Record<string, any>) =>
+    read('trader_app.api.finance.get_journal_entries', params),
+
+  getJournalEntryDetail: (name: string) =>
+    read('trader_app.api.finance.get_journal_entry_detail', { name }),
+
+  createJournalEntry: (data: Record<string, any>) =>
+    call('trader_app.api.finance.create_journal_entry', data),
+
+  submitJournalEntry: (name: string) =>
+    call('trader_app.api.finance.submit_journal_entry', { name }),
+
+  cancelJournalEntry: (name: string) =>
+    call('trader_app.api.finance.cancel_journal_entry', { name }),
+
+  getOutstandingSummary: (company?: string) =>
+    read('trader_app.api.finance.get_outstanding_summary', { company }),
+};
+
+// ─── Reports API ─────────────────────────────────────────────────
 
 export const reportsApi = {
-  getAccountsReceivable: (limit = 50) =>
-    api.get(`/method/trader_app.api.reports.get_accounts_receivable?limit=${limit}`),
+  getSalesReport: (params?: Record<string, any>) =>
+    read('trader_app.api.reports.get_sales_report', params),
 
-  getAccountsPayable: (limit = 50) =>
-    api.get(`/method/trader_app.api.reports.get_accounts_payable?limit=${limit}`),
+  getPurchaseReport: (params?: Record<string, any>) =>
+    read('trader_app.api.reports.get_purchase_report', params),
 
-  getProfitAndLoss: (fromDate?: string, toDate?: string) => {
-    const params = new URLSearchParams();
-    if (fromDate) params.set('from_date', fromDate);
-    if (toDate) params.set('to_date', toDate);
-    return api.get(`/method/trader_app.api.reports.get_profit_and_loss?${params.toString()}`);
-  },
+  getItemSalesReport: (params?: Record<string, any>) =>
+    read('trader_app.api.reports.get_item_sales_report', params),
+
+  getCustomerLedger: (customer: string, params?: Record<string, any>) =>
+    read('trader_app.api.reports.get_customer_ledger', { customer, ...params }),
+
+  getSupplierLedger: (supplier: string, params?: Record<string, any>) =>
+    read('trader_app.api.reports.get_supplier_ledger', { supplier, ...params }),
 
   getReceivableAgingSummary: () =>
-    api.get('/method/trader_app.api.reports.get_receivable_aging_summary'),
+    read('trader_app.api.reports.get_receivable_aging'),
 
-  getMonthlySalesReport: (year?: number) => {
-    const params = year ? `?year=${year}` : '';
-    return api.get(`/method/trader_app.api.reports.get_monthly_sales_report${params}`);
-  },
+  getReceivableAgingDetail: (params?: Record<string, any>) =>
+    read('trader_app.api.reports.get_receivable_aging_detail', params),
 
-  getSupplierBalances: (limit = 50) =>
-    api.get(`/method/trader_app.api.reports.get_supplier_balances?limit=${limit}`),
+  getAccountsPayable: () =>
+    read('trader_app.api.reports.get_accounts_payable'),
+
+  getProfitAndLoss: (params?: Record<string, any>) =>
+    read('trader_app.api.reports.get_profit_and_loss', params),
+
+  getGeneralLedger: (params?: Record<string, any>) =>
+    read('trader_app.api.reports.get_general_ledger', params),
 };
 
-export default api;
+export default http;

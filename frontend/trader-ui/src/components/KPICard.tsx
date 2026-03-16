@@ -10,6 +10,7 @@ interface KPICardProps {
   trendLabel?: string;
   color?: 'blue' | 'green' | 'red' | 'yellow' | 'purple';
   loading?: boolean;
+  onClick?: () => void;
 }
 
 const colorMap = {
@@ -49,6 +50,7 @@ export default function KPICard({
   trendLabel,
   color = 'blue',
   loading = false,
+  onClick,
 }: KPICardProps) {
   const colors = colorMap[color];
 
@@ -67,7 +69,12 @@ export default function KPICard({
   })();
 
   return (
-    <div className="kpi-card hover:shadow-md transition-shadow duration-200">
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!onClick}
+      className={`kpi-card w-full text-left transition-shadow duration-200 ${onClick ? 'hover:shadow-md cursor-pointer' : ''}`}
+    >
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <p className="text-sm font-medium text-gray-500">{title}</p>
@@ -93,6 +100,6 @@ export default function KPICard({
           )}
         </div>
       )}
-    </div>
+    </button>
   );
 }

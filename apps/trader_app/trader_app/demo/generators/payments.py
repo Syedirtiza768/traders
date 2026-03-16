@@ -160,6 +160,9 @@ class PaymentGenerator(BaseGenerator):
                                amount, reference_doctype, reference_name, posting_date):
         """Create a Payment Entry."""
         # Don't create future-dated payments
+        invoice_posting_date = frappe.db.get_value(reference_doctype, reference_name, "posting_date")
+        if invoice_posting_date and getdate(posting_date) < getdate(invoice_posting_date):
+            posting_date = invoice_posting_date
         if getdate(posting_date) > getdate(nowdate()):
             posting_date = nowdate()
 

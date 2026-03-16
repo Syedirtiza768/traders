@@ -1,74 +1,37 @@
 # -*- coding: utf-8 -*-
+"""Trader App — Frappe Hooks Configuration.
+
+This file registers the Trader App with the Frappe framework and
+configures all server-side behaviours including API whitelisting,
+workflow hooks, scheduler events, permission overrides, and
+DocType event handlers.
+"""
+
 from __future__ import unicode_literals
 
 app_name = "trader_app"
 app_title = "Trader App"
 app_publisher = "Traders"
-app_description = "Trader Business System — Custom ERPNext Application for wholesale traders and distributors"
-app_email = "dev@traders.local"
+app_description = "Complete trader / distributor business management on ERPNext"
+app_email = "admin@globaltrading.pk"
 app_license = "MIT"
 app_version = "1.0.0"
 
-# Required Apps
+# ── Required Apps ──────────────────────────────────────────────────
 required_apps = ["frappe", "erpnext"]
 
-# --------------------------------------------------------------------------
-# App Includes
-# --------------------------------------------------------------------------
+# ── Includes ───────────────────────────────────────────────────────
+# app_include_css = []
+# app_include_js = []
 
-# app_include_css = "/assets/trader_app/css/trader_app.css"
-# app_include_js = "/assets/trader_app/js/trader_app.js"
+# ── Website / Portal ───────────────────────────────────────────────
+# website_route_rules = []
 
-# Web Includes
-# web_include_css = "/assets/trader_app/css/trader_web.css"
-# web_include_js = "/assets/trader_app/js/trader_web.js"
+# ── Installation ───────────────────────────────────────────────────
+after_install = "trader_app.setup.install.after_install"
+# after_uninstall = ""
 
-# --------------------------------------------------------------------------
-# Website
-# --------------------------------------------------------------------------
-
-# website_route_rules = [
-#     {"from_route": "/trader/<path:app_path>", "to_route": "trader"},
-# ]
-
-# Home Pages
-# home_page = "trader"
-
-# --------------------------------------------------------------------------
-# Permissions
-# --------------------------------------------------------------------------
-
-# has_permission = {
-#     "Sales Order": "trader_app.permissions.sales_order_permission",
-# }
-
-# --------------------------------------------------------------------------
-# DocType Events
-# --------------------------------------------------------------------------
-
-# doc_events = {
-#     "Sales Invoice": {
-#         "on_submit": "trader_app.events.sales_invoice.on_submit",
-#     },
-# }
-
-# --------------------------------------------------------------------------
-# Scheduled Tasks
-# --------------------------------------------------------------------------
-
-# scheduler_events = {
-#     "daily": [
-#         "trader_app.tasks.daily_tasks"
-#     ],
-#     "hourly": [
-#         "trader_app.tasks.hourly_tasks"
-#     ],
-# }
-
-# --------------------------------------------------------------------------
-# Fixtures
-# --------------------------------------------------------------------------
-
+# ── Fixtures — export roles, custom fields, workflows, etc. ──────
 fixtures = [
     {
         "dt": "Role",
@@ -78,41 +41,77 @@ fixtures = [
             "Trader Purchase Manager",
             "Trader Accountant",
             "Trader Warehouse Manager",
-        ]]]
+        ]]],
+    },
+    {
+        "dt": "Workflow",
+        "filters": [["name", "in", [
+            "Trader Sales Order Workflow",
+            "Trader Sales Invoice Workflow",
+            "Trader Purchase Order Workflow",
+            "Trader Purchase Invoice Workflow",
+        ]]],
     },
     {
         "dt": "Custom Field",
-        "filters": [["fieldname", "like", "trader_%"]]
+        "filters": [["module", "=", "Trader"]],
     },
 ]
 
-# --------------------------------------------------------------------------
-# Installation
-# --------------------------------------------------------------------------
+# ── DocType Events ─────────────────────────────────────────────────
+doc_events = {
+    "Sales Invoice": {
+        "validate": "trader_app.api.sales.validate_sales_invoice",
+        "on_submit": "trader_app.api.sales.on_sales_invoice_submit",
+        "on_cancel": "trader_app.api.sales.on_sales_invoice_cancel",
+    },
+    "Purchase Invoice": {
+        "validate": "trader_app.api.purchases.validate_purchase_invoice",
+        "on_submit": "trader_app.api.purchases.on_purchase_invoice_submit",
+    },
+    "Payment Entry": {
+        "on_submit": "trader_app.api.finance.on_payment_entry_submit",
+    },
+    "Stock Entry": {
+        "validate": "trader_app.api.inventory.validate_stock_entry",
+    },
+}
 
-after_install = "trader_app.setup.install.after_install"
-# after_uninstall = "trader_app.setup.install.after_uninstall"
+# ── Scheduler Events ──────────────────────────────────────────────
+scheduler_events = {
+    "daily_long": [
+        "trader_app.api.inventory.update_reorder_levels",
+    ],
+    "cron": {
+        # Recalculate dashboard KPIs cache every 15 minutes
+        "*/15 * * * *": [
+            "trader_app.api.dashboard.refresh_dashboard_cache",
+        ],
+    },
+}
 
-# --------------------------------------------------------------------------
-# Whitelisted Methods (API)
-# --------------------------------------------------------------------------
+# ── Jinja ──────────────────────────────────────────────────────────
+# jinja = { "methods": [], "filters": [] }
 
-# Override whitelisted methods
-override_whitelisted_methods = {}
+# ── Override Whitelisted Methods ───────────────────────────────────
+# override_whitelisted_methods = {}
 
-# --------------------------------------------------------------------------
-# Jinja Environment
-# --------------------------------------------------------------------------
+# ── Override DocType Class ─────────────────────────────────────────
+# override_doctype_class = {}
 
-# jinja = {
-#     "methods": [],
-#     "filters": [],
-# }
+# ── Permissions ────────────────────────────────────────────────────
+permission_query_conditions = {
+    "Sales Invoice": "trader_app.api.permissions.sales_invoice_query",
+    "Purchase Invoice": "trader_app.api.permissions.purchase_invoice_query",
+}
 
-# --------------------------------------------------------------------------
-# User Data Protection
-# --------------------------------------------------------------------------
+has_permission = {
+    "Sales Invoice": "trader_app.api.permissions.has_sales_invoice_permission",
+    "Purchase Invoice": "trader_app.api.permissions.has_purchase_invoice_permission",
+}
 
-# user_data_fields = [
-#     {"doctype": "Customer", "filter_by": "email_id", "redact_fields": ["customer_name"], "partial": 1},
-# ]
+# ── Boot Session ───────────────────────────────────────────────────
+# boot_session = ""
+
+# ── Notification ───────────────────────────────────────────────────
+# notification_config = ""

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { DollarSign, TrendingUp, TrendingDown, CreditCard } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { reportsApi, dashboardApi } from '../lib/api';
@@ -7,6 +8,7 @@ import { formatCurrency, formatCompact } from '../lib/utils';
 const COLORS = ['#16a34a', '#dc2626', '#f59e0b', '#6366f1', '#06b6d4', '#ec4899', '#8b5cf6', '#84cc16'];
 
 export default function FinancePage() {
+  const navigate = useNavigate();
   const [pnl, setPnl] = useState<any>(null);
   const [cashFlow, setCashFlow] = useState<any>(null);
   const [receivable, setReceivable] = useState<any>(null);
@@ -62,6 +64,14 @@ export default function FinancePage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Finance</h1>
         <p className="text-gray-500 mt-1">Financial overview and key metrics</p>
+      </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+        <button onClick={() => navigate('/operations')} className="btn-secondary">Operations Queues</button>
+        <button onClick={() => navigate('/finance/payments')} className="btn-secondary">Payment Entries</button>
+        <button onClick={() => navigate('/finance/journals')} className="btn-secondary">Journal Entries</button>
+        <button onClick={() => navigate('/finance/customer-outstanding?source=finance')} className="btn-secondary">Customer Outstanding</button>
+        <button onClick={() => navigate('/finance/customer-aging?source=finance')} className="btn-secondary">Customer Aging</button>
       </div>
 
       {/* KPI Cards */}

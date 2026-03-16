@@ -95,6 +95,7 @@ class ItemGenerator(BaseGenerator):
         try:
             self._ensure_item_groups()
             self._ensure_uom()
+            self._ensure_price_lists()
 
             suppliers = [s.name for s in frappe.get_all("Supplier", limit_page_length=0)]
 
@@ -116,6 +117,17 @@ class ItemGenerator(BaseGenerator):
 
     def _ensure_item_groups(self):
         """Create item groups if they don't exist."""
+        if not frappe.db.exists("Item Group", "All Item Groups"):
+            root = frappe.get_doc({
+                "doctype": "Item Group",
+                "item_group_name": "All Item Groups",
+                "is_group": 1,
+            })
+            try:
+                root.insert(ignore_permissions=True)
+            except frappe.DuplicateEntryError:
+                pass
+
         for group_cfg in self.config["item_groups"]:
             name = group_cfg["name"]
             if not frappe.db.exists("Item Group", name):
@@ -143,6 +155,28 @@ class ItemGenerator(BaseGenerator):
                 except frappe.DuplicateEntryError:
                     pass
 
+    def _ensure_price_lists(self):
+        """Ensure standard buying/selling price lists exist."""
+        for price_list_name, buying, selling in [
+            ("Standard Buying", 1, 0),
+            ("Standard Selling", 0, 1),
+        ]:
+            if frappe.db.exists("Price List", price_list_name):
+                continue
+
+            doc = frappe.get_doc({
+                "doctype": "Price List",
+                "price_list_name": price_list_name,
+                "currency": self.config["currency"],
+                "enabled": 1,
+                "buying": buying,
+                "selling": selling,
+            })
+            try:
+                doc.insert(ignore_permissions=True)
+            except frappe.DuplicateEntryError:
+                pass
+
     def _create_item(self, group_cfg, templates, suppliers, index):
         """Create a single item."""
         prefix = random.choice(templates["prefixes"])
@@ -161,8 +195,8 @@ class ItemGenerator(BaseGenerator):
         margin = random.uniform(*group_cfg["margin_range"])
         selling_price = round(cost_price * (1 + margin), 2)
 
-        # Generate barcode
-        barcode = ''.join(random.choices(string.digits, k=13))
+        # Generate valid EAN-13 barcode
+        barcode = self._generate_ean13()
 
         item = frappe.get_doc({
             "doctype": "Item",
@@ -171,19 +205,13 @@ class ItemGenerator(BaseGenerator):
             "item_group": group_cfg["name"],
             "stock_uom": templates.get("uom", "Nos"),
             "is_stock_item": 1,
+            "is_purchase_item": 1,
+            "is_sales_item": 1,
             "include_item_in_manufacturing": 0,
             "valuation_method": "FIFO",
             "standard_rate": selling_price,
             "opening_stock": 0,
-            "default_warehouse": f"Main Warehouse - {self.config['company_abbr']}",
             "barcodes": [{"barcode": barcode, "barcode_type": "EAN"}],
-            "item_defaults": [{
-                "company": self.config["company_name"],
-                "default_warehouse": f"Main Warehouse - {self.config['company_abbr']}",
-                "default_price_list": "Standard Selling",
-                "selling_cost_center": f"Main - {self.config['company_abbr']}",
-                "buying_cost_center": f"Main - {self.config['company_abbr']}",
-            }],
         })
 
         # Assign a default supplier
@@ -194,13 +222,33 @@ class ItemGenerator(BaseGenerator):
 
         try:
             item.insert(ignore_permissions=True)
+            frappe.db.set_value("Item", item.name, {
+                "is_purchase_item": 1,
+                "is_sales_item": 1,
+            }, update_modified=False)
             self.created_records.append(("Item", item_code))
 
             # Create price list entries
             self._create_item_price(item_code, "Standard Buying", cost_price)
             self._create_item_price(item_code, "Standard Selling", selling_price)
         except Exception as e:
+            if len(self.errors) < 10:
+                print(f"  ⚠️  Item {item_code} failed: {str(e)}")
             self.errors.append(f"Item {item_code}: {str(e)}")
+
+    def _generate_ean13(self):
+        """Generate a valid EAN-13 barcode with checksum."""
+        base = ''.join(random.choices(string.digits, k=12))
+        checksum = self._ean13_checksum(base)
+        return f"{base}{checksum}"
+
+    @staticmethod
+    def _ean13_checksum(base):
+        digits = [int(d) for d in base]
+        odd_sum = sum(digits[::2])
+        even_sum = sum(digits[1::2])
+        total = odd_sum + (even_sum * 3)
+        return (10 - (total % 10)) % 10
 
     def _create_item_price(self, item_code, price_list, rate):
         """Create item price for buying/selling."""

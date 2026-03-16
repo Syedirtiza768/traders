@@ -25,16 +25,71 @@ class CompanyGenerator(BaseGenerator):
     def generate(self):
         self._suppress_notifications()
         try:
+            self._ensure_warehouse_types()
             self._create_company()
             self._create_fiscal_year()
             self._create_cost_centers()
             self._create_payment_terms()
             self._create_warehouses()
+            self._ensure_address_template()
             self._create_tax_templates()
             self._set_defaults()
             frappe.db.commit()
         finally:
             self._restore_notifications()
+
+    def _ensure_address_template(self):
+        """Ensure there is a default address template for ERPNext print formatting."""
+        existing_default = frappe.db.get_value(
+            "Address Template",
+            {"is_default": 1},
+            "name",
+        )
+        if existing_default:
+            return
+
+        template_name = "Default Traders Address Template"
+        if frappe.db.exists("Address Template", template_name):
+            doc = frappe.get_doc("Address Template", template_name)
+            if not doc.is_default:
+                doc.is_default = 1
+                doc.save(ignore_permissions=True)
+            return
+
+        doc = frappe.get_doc({
+            "doctype": "Address Template",
+            "template_name": template_name,
+            "country": self.config["country"],
+            "is_default": 1,
+            "template": "{{ address_line1 }}{% if address_line2 %}<br>{{ address_line2 }}{% endif %}<br>{{ city }}{% if state %}, {{ state }}{% endif %}<br>{{ country }}{% if pincode %} - {{ pincode }}{% endif %}",
+        })
+        doc.insert(ignore_permissions=True)
+        self.created_records.append(("Address Template", template_name))
+
+    def _ensure_warehouse_types(self):
+        cfg = self.config
+        required_types = {"Transit"}
+
+        for wh in cfg.get("warehouses", []):
+            warehouse_type = wh.get("type")
+            if not warehouse_type:
+                continue
+
+            required_types.add(warehouse_type)
+
+        for warehouse_type in required_types:
+            if frappe.db.exists("Warehouse Type", warehouse_type):
+                continue
+
+            doc = frappe.get_doc({
+                "doctype": "Warehouse Type",
+                "name": warehouse_type,
+            })
+            doc.insert(ignore_permissions=True)
+            self.created_records.append(("Warehouse Type", warehouse_type))
+
+        if cfg.get("warehouses"):
+            print("  ✅ Ensured warehouse types")
 
     def _create_company(self):
         cfg = self.config

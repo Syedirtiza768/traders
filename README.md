@@ -31,6 +31,37 @@ docker compose -f compose/docker-compose.yml exec backend bench --site trader.lo
 
 Access the system at `http://localhost:8080`
 
+## Verified Local Demo Status
+
+The local Docker demo flow has been revalidated against the current repo state.
+
+### Latest verified result
+
+- Demo installer: `✅ DEMO INSTALLED SUCCESSFULLY`
+- Sales generator: `459` created, `13` errors
+- Financial generator: `72` created, `0` errors
+
+### Latest verified counts
+
+| Metric | Count |
+|-------|------:|
+| Bins with stock | 450 |
+| Purchase Invoices | 224 |
+| Sales Invoices | 472 |
+| Payment Entries | 589 |
+| Journal Entries | 72 |
+
+### Verified notes
+
+- HTTP site resolution for `trader.localhost` is fixed in the Docker/Nginx setup.
+- `uninstall_demo()` now cleans `Bin` rows correctly.
+- Demo inventory, purchases, sales, payments, and financial entries all populate successfully.
+- A small number of sales invoices can still be rejected by ERPNext credit-limit rules during seeding; the latest verified run ended with `13` such sales errors while still passing validation.
+
+### Frontend workspace note
+
+If VS Code shows unresolved imports in `frontend/trader-ui`, install the frontend dependencies before relying on editor typecheck results. The app metadata already declares the required packages in `frontend/trader-ui/package.json`.
+
 ## Repository Structure
 
 ```
