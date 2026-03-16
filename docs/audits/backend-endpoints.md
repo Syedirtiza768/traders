@@ -27,7 +27,7 @@ All `@frappe.whitelist()` decorated functions — 2026-03-16
 | 5 | `create_customer` | customers | `/api/method/trader_app.api.customers.create_customer` | customer_name, customer_group=None, territory=None, mobile_no=None, email_id=None | — | 🔍 Unknown |
 | 6 | `disable_customer` | customers | `/api/method/trader_app.api.customers.disable_customer` | name | — | 🔍 Unknown |
 | 7 | `enable_customer` | customers | `/api/method/trader_app.api.customers.enable_customer` | name | — | 🔍 Unknown |
-| 8 | `get_kpis` | dashboard | `/api/method/trader_app.api.dashboard.get_kpis` | company=None | Sales Invoice, Purchase Invoice, Bin, Warehouse, Quotation, Sales Order Item, Sales Order, Purchase Order | 🔍 Unknown |
+| 8 | `get_kpis` | dashboard | `/api/method/trader_app.api.dashboard.get_kpis` | company=None | Sales Invoice, Purchase Invoice, Bin, Warehouse, Quotation, Sales Order Item, Sales Order, Sales Invoice Item, Purchase Order, Purchase Invoice Item | 🔍 Unknown |
 | 9 | `get_sales_trend` | dashboard | `/api/method/trader_app.api.dashboard.get_sales_trend` | company=None, months=12 | Sales Invoice | DashboardPage → dashboardApi.getSalesTrend() |
 | 10 | `get_top_customers` | dashboard | `/api/method/trader_app.api.dashboard.get_top_customers` | company=None, limit=8 | Sales Invoice | DashboardPage → dashboardApi.getTopCustomers() |
 | 11 | `get_recent_orders` | dashboard | `/api/method/trader_app.api.dashboard.get_recent_orders` | company=None, limit=10 | Sales Invoice | DashboardPage → dashboardApi.getRecentOrders() |
