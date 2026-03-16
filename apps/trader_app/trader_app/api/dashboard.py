@@ -106,20 +106,27 @@ def get_kpis(company=None):
           )
     """, (company,))[0][0])
 
+    # Sales Orders that have at least one outstanding (unpaid) Sales Invoice.
+    # In ERPNext v15 the SO→SI link lives on tabSales Invoice Item.sales_order,
+    # NOT as a direct column on tabSales Invoice.
     sales_orders_with_unpaid_invoices = cint(frappe.db.sql("""
         SELECT COUNT(DISTINCT so.name)
         FROM `tabSales Order` so
-        INNER JOIN `tabSales Invoice` si ON si.sales_order = so.name
+        INNER JOIN `tabSales Invoice Item` sii ON sii.sales_order = so.name
+        INNER JOIN `tabSales Invoice` si ON si.name = sii.parent
         WHERE so.company = %s
           AND so.docstatus IN (0, 1)
           AND si.docstatus = 1
           AND si.outstanding_amount > 0
     """, (company,))[0][0])
 
+    # Purchase Orders that have at least one outstanding (unpaid) Purchase Invoice.
+    # Same pattern — link is on tabPurchase Invoice Item.purchase_order.
     purchase_orders_with_unpaid_invoices = cint(frappe.db.sql("""
         SELECT COUNT(DISTINCT po.name)
         FROM `tabPurchase Order` po
-        INNER JOIN `tabPurchase Invoice` pi ON pi.purchase_order = po.name
+        INNER JOIN `tabPurchase Invoice Item` pii ON pii.purchase_order = po.name
+        INNER JOIN `tabPurchase Invoice` pi ON pi.name = pii.parent
         WHERE po.company = %s
           AND po.docstatus IN (0, 1)
           AND pi.docstatus = 1

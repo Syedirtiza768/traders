@@ -4,7 +4,9 @@ export type TraderRole =
   | 'Trader Sales Manager'
   | 'Trader Purchase Manager'
   | 'Trader Inventory Manager'
-  | 'Trader Finance Manager';
+  | 'Trader Warehouse Manager'   // DB alias → maps to Inventory Manager
+  | 'Trader Finance Manager'
+  | 'Trader Accountant';          // DB alias → maps to Finance Manager
 
 export type AppCapability =
   | 'dashboard:view'
@@ -21,37 +23,28 @@ export type AppCapability =
   | 'settings:view'
   | 'operations:view';
 
+const FULL_ACCESS: AppCapability[] = [
+  'dashboard:view',
+  'sales:view',
+  'sales:approve',
+  'purchases:view',
+  'purchases:approve',
+  'inventory:view',
+  'inventory:execute',
+  'customers:view',
+  'suppliers:view',
+  'finance:view',
+  'reports:view',
+  'settings:view',
+  'operations:view',
+];
+
 const ROLE_CAPABILITIES: Record<string, AppCapability[]> = {
-  'System Manager': [
-    'dashboard:view',
-    'sales:view',
-    'sales:approve',
-    'purchases:view',
-    'purchases:approve',
-    'inventory:view',
-    'inventory:execute',
-    'customers:view',
-    'suppliers:view',
-    'finance:view',
-    'reports:view',
-    'settings:view',
-    'operations:view',
-  ],
-  'Trader Admin': [
-    'dashboard:view',
-    'sales:view',
-    'sales:approve',
-    'purchases:view',
-    'purchases:approve',
-    'inventory:view',
-    'inventory:execute',
-    'customers:view',
-    'suppliers:view',
-    'finance:view',
-    'reports:view',
-    'settings:view',
-    'operations:view',
-  ],
+  /* ── System-level admins (full access) ── */
+  'System Manager': FULL_ACCESS,
+  'Trader Admin': FULL_ACCESS,
+
+  /* ── Functional roles ── */
   'Trader Sales Manager': [
     'dashboard:view',
     'sales:view',
@@ -77,7 +70,24 @@ const ROLE_CAPABILITIES: Record<string, AppCapability[]> = {
     'reports:view',
     'operations:view',
   ],
+  /* DB alias for Inventory Manager */
+  'Trader Warehouse Manager': [
+    'dashboard:view',
+    'inventory:view',
+    'inventory:execute',
+    'reports:view',
+    'operations:view',
+  ],
   'Trader Finance Manager': [
+    'dashboard:view',
+    'finance:view',
+    'reports:view',
+    'customers:view',
+    'suppliers:view',
+    'operations:view',
+  ],
+  /* DB alias for Finance Manager */
+  'Trader Accountant': [
     'dashboard:view',
     'finance:view',
     'reports:view',

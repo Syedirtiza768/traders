@@ -111,6 +111,13 @@ def get_current_user_roles():
     in Frappe v15.  Using a whitelisted method with frappe.db.sql and
     frappe.session.user bypasses that restriction safely because the user
     can only ever query their own session.
+
+    Special cases:
+    - Administrator / System Manager users → return ['Trader Admin'] so they
+      receive full capabilities in the frontend permission system.
+    - Role aliases (e.g. 'Trader Warehouse Manager' → 'Trader Inventory Manager',
+      'Trader Accountant' → 'Trader Finance Manager') are normalised here so
+      the frontend permissions map stays consistent.
     """
     user = frappe.session.user
     if not user or user == "Guest":
@@ -122,10 +129,29 @@ def get_current_user_roles():
         FROM `tabHas Role`
         WHERE parent = %s
           AND parenttype = 'User'
-          AND role LIKE 'Trader%%'
         ORDER BY role
         """,
         (user,),
         as_dict=True,
     )
-    return [r.role for r in rows]
+
+    all_roles = {r.role for r in rows}
+
+    # System-level admins → full access
+    if "Administrator" in all_roles or "System Manager" in all_roles or user == "Administrator":
+        return ["Trader Admin"]
+
+    # Normalise role aliases to the canonical names expected by the frontend
+    _ALIAS_MAP = {
+        "Trader Accountant": "Trader Finance Manager",
+        "Trader Warehouse Manager": "Trader Inventory Manager",
+    }
+
+    trader_roles = []
+    for role in sorted(all_roles):
+        if role.startswith("Trader "):
+            canonical = _ALIAS_MAP.get(role, role)
+            if canonical not in trader_roles:
+                trader_roles.append(canonical)
+
+    return trader_roles
