@@ -15,16 +15,23 @@ const http: AxiosInstance = axios.create({
   headers: {
     Accept: 'application/json',
     'Content-Type': 'application/json',
-    'X-Frappe-CSRF-Token': getCsrfToken(),
   },
 });
 
-// On every response, grab the latest CSRF token if returned
+// Inject a fresh CSRF token on every outgoing request
+http.interceptors.request.use((config) => {
+  const token = getCsrfToken();
+  if (token) {
+    config.headers['X-Frappe-CSRF-Token'] = token;
+  }
+  return config;
+});
+
+// On 403, refresh token and retry once
 http.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 403) {
-      // Token might have expired — refresh & retry once
       const token = getCsrfToken();
       if (token) {
         err.config.headers['X-Frappe-CSRF-Token'] = token;
