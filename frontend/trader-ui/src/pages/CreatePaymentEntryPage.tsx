@@ -82,7 +82,6 @@ export default function CreatePaymentEntryPage() {
   useEffect(() => {
     const paymentTypeParam = searchParams.get('paymentType');
     const partyTypeParam = searchParams.get('partyType');
-    const partyParam = searchParams.get('party');
     const amountParam = searchParams.get('amount');
     const postingDateParam = searchParams.get('postingDate');
     const referenceNameParam = searchParams.get('referenceName');
@@ -92,9 +91,6 @@ export default function CreatePaymentEntryPage() {
     }
     if (partyTypeParam === 'Customer' || partyTypeParam === 'Supplier') {
       setPartyType(partyTypeParam);
-    }
-    if (partyParam) {
-      setParty(partyParam);
     }
     if (amountParam && !Number.isNaN(Number(amountParam))) {
       setAmount(Number(amountParam));
@@ -108,6 +104,59 @@ export default function CreatePaymentEntryPage() {
 
     isBootstrappingFromQuery.current = false;
   }, [searchParams]);
+
+  // Resolve party from URL param once the parties list is loaded.
+  // The URL may pass either the doc name (e.g. "CUST-00001") or the
+  // display name (e.g. "Popular Shaikh Hub") — match either field.
+  // If not found in the already-loaded page, search the backend.
+  useEffect(() => {
+    const partyParam = searchParams.get('party');
+    if (!partyParam || loading) return;
+
+    // Check if the value already matches an existing option (exact doc name)
+    const exactMatch = parties.find((p) => p.name === partyParam);
+    if (exactMatch) {
+      setParty(exactMatch.name);
+      return;
+    }
+
+    // Otherwise match by display name (customer_name / supplier_name)
+    const normalised = partyParam.trim().toLowerCase();
+    const nameMatch = parties.find(
+      (p) =>
+        (p.customer_name || '').toLowerCase() === normalised ||
+        (p.supplier_name || '').toLowerCase() === normalised ||
+        p.name.toLowerCase() === normalised,
+    );
+    if (nameMatch) {
+      setParty(nameMatch.name);
+      return;
+    }
+
+    // Not in the loaded page — search backend by display name
+    const search = async () => {
+      try {
+        const res = partyType === 'Customer'
+          ? await customersApi.getList({ search: partyParam, page: 1, page_size: 10 })
+          : await suppliersApi.getList({ search: partyParam, page: 1, page_size: 10 });
+        const results: any[] = res.data.message?.data || [];
+        const found = results.find(
+          (p) =>
+            p.name === partyParam ||
+            (p.customer_name || '').toLowerCase() === normalised ||
+            (p.supplier_name || '').toLowerCase() === normalised,
+        );
+        if (found) {
+          // Add to parties list so the dropdown renders the option, then select it
+          setParties((prev) => (prev.some((p) => p.name === found.name) ? prev : [...prev, found]));
+          setParty(found.name);
+        }
+      } catch {
+        // silently ignore — user can select manually
+      }
+    };
+    void search();
+  }, [parties, loading, searchParams, partyType]);
 
   useEffect(() => {
     const load = async () => {
