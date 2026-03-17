@@ -12,7 +12,7 @@ All frontend API calls, their originating screens, HTTP methods, and target endp
 - `frontend/trader-ui/src/stores/authStore.ts`
 
 ## Last Audit Basis
-Full scan of all API namespaces and page-level call sites — 2026-03-16
+Full scan of all API namespaces and page-level call sites — 2026-03-17
 
 ---
 
