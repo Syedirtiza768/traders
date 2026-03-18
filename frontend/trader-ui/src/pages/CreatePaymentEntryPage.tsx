@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Save } from 'lucide-react';
 import { customersApi, financeApi, suppliersApi } from '../lib/api';
-import { appendPreservedListQuery, formatCurrency, formatDate, isFilterListContext, isOperationsContext, isReportContext, isWorkflowContext } from '../lib/utils';
+import { appendPreservedListQuery, extractFrappeError, formatCurrency, formatDate, isFilterListContext, isOperationsContext, isReportContext, isWorkflowContext } from '../lib/utils';
 
 type PartyTransaction = {
   name: string;
@@ -21,6 +21,9 @@ export default function CreatePaymentEntryPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isBootstrappingFromQuery = useRef(true);
+  // Holds the referenceName from the URL until references finish loading,
+  // so the loadReferences effect doesn't wipe it before the list arrives.
+  const pendingReferenceName = useRef<string>('');
   const [paymentType, setPaymentType] = useState<'Receive' | 'Pay'>('Receive');
   const [partyType, setPartyType] = useState<'Customer' | 'Supplier'>('Customer');
   const [party, setParty] = useState('');
@@ -98,7 +101,9 @@ export default function CreatePaymentEntryPage() {
     if (postingDateParam) {
       setPostingDate(postingDateParam);
     }
+    // Store in ref — will be applied after references finish loading
     if (referenceNameParam) {
+      pendingReferenceName.current = referenceNameParam;
       setReferenceName(referenceNameParam);
     }
 
@@ -205,6 +210,7 @@ export default function CreatePaymentEntryPage() {
       if (!party) {
         setReferences([]);
         setReferenceName('');
+        pendingReferenceName.current = '';
         return;
       }
 
@@ -217,7 +223,21 @@ export default function CreatePaymentEntryPage() {
         const rows = (response.data.message?.data || []).filter((row: PartyTransaction) => (row.outstanding_amount || 0) > 0);
         setReferences(rows);
 
-        if (referenceName && !rows.some((row: PartyTransaction) => row.name === referenceName)) {
+        // Apply pending reference name from URL param now that the list is loaded
+        const pending = pendingReferenceName.current;
+        if (pending) {
+          const match = rows.find((row: PartyTransaction) => row.name === pending);
+          if (match) {
+            setReferenceName(match.name);
+            // If no amount was passed in the URL, auto-fill from outstanding amount
+            setAmount((prev) => (prev > 0 ? prev : Number(match.outstanding_amount) || 0));
+          } else {
+            // Invoice not in outstanding list (may already be paid or belong to different party)
+            setReferenceName('');
+          }
+          pendingReferenceName.current = '';
+        } else if (referenceName && !rows.some((row: PartyTransaction) => row.name === referenceName)) {
+          // Active reference no longer outstanding — clear it
           setReferenceName('');
         }
       } catch (err) {
@@ -230,15 +250,16 @@ export default function CreatePaymentEntryPage() {
     };
 
     void loadReferences();
-  }, [party, partyType, referenceName]);
+  }, [party, partyType]);
 
   const selectedReference = references.find((entry) => entry.name === referenceName);
 
+  // When user manually picks a reference, auto-fill amount from outstanding_amount
   useEffect(() => {
     if (selectedReference && (!amount || amount <= 0)) {
       setAmount(Number(selectedReference.outstanding_amount) || 0);
     }
-  }, [selectedReference, amount]);
+  }, [selectedReference]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const effectiveAccount = paymentType === 'Receive'
     ? (modeOfPayment.toLowerCase().includes('bank') ? accountDefaults.bank_account : accountDefaults.receive_account)
@@ -272,7 +293,7 @@ export default function CreatePaymentEntryPage() {
       navigate(appendPreservedListQuery(`/finance/payments/${encodeURIComponent(created.name)}`, listSearch));
     } catch (err: any) {
       console.error('Failed to create payment entry:', err);
-      setError(err?.response?.data?.exception || 'Could not create payment entry.');
+      setError(extractFrappeError(err, 'Could not create payment entry.'));
     } finally {
       setSaving(false);
     }
