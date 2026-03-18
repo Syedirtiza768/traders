@@ -150,7 +150,15 @@ export default function SearchableSelect({
         aria-haspopup="listbox"
         aria-controls={`ss-list-${id}`}
         tabIndex={disabled ? -1 : 0}
-        onClick={() => !disabled && setOpen((prev) => !prev)}
+        onMouseDown={(e) => {
+          if (disabled) return;
+          // preventDefault stops the parent <label> (used in Field components)
+          // from re-dispatching a synthetic click onto this element, which would
+          // cause open→close in the same event cycle and make the dropdown appear
+          // to never open.
+          e.preventDefault();
+          setOpen((prev) => !prev);
+        }}
         onKeyDown={handleKeyDown}
         className={[
           'flex items-center w-full px-3 py-2 rounded-lg border bg-white text-sm cursor-pointer select-none transition-colors',
@@ -169,6 +177,7 @@ export default function SearchableSelect({
             <button
               type="button"
               aria-label="Clear"
+              onMouseDown={(e) => e.stopPropagation()}
               onClick={clear}
               className="rounded p-0.5 text-gray-400 hover:text-gray-600 focus:outline-none"
             >
