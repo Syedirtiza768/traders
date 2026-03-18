@@ -23,15 +23,27 @@ export default function CreatePaymentEntryPage() {
   const isBootstrappingFromQuery = useRef(true);
   // Holds the referenceName from the URL until references finish loading,
   // so the loadReferences effect doesn't wipe it before the list arrives.
-  const pendingReferenceName = useRef<string>('');
-  const [paymentType, setPaymentType] = useState<'Receive' | 'Pay'>('Receive');
-  const [partyType, setPartyType] = useState<'Customer' | 'Supplier'>('Customer');
+  const pendingReferenceName = useRef<string>(searchParams.get('referenceName') || '');
+
+  // Initialise state directly from URL params — avoids race conditions between effects
+  const _initPaymentType = searchParams.get('paymentType');
+  const _initPartyType = searchParams.get('partyType');
+  const _initAmount = searchParams.get('amount');
+
+  const [paymentType, setPaymentType] = useState<'Receive' | 'Pay'>(
+    _initPaymentType === 'Pay' ? 'Pay' : 'Receive'
+  );
+  const [partyType, setPartyType] = useState<'Customer' | 'Supplier'>(
+    _initPartyType === 'Supplier' ? 'Supplier' : 'Customer'
+  );
   const [party, setParty] = useState('');
-  const [amount, setAmount] = useState(0);
-  const [postingDate, setPostingDate] = useState(today());
+  const [amount, setAmount] = useState(_initAmount && !Number.isNaN(Number(_initAmount)) ? Number(_initAmount) : 0);
+  const [postingDate, setPostingDate] = useState(searchParams.get('postingDate') || today());
   const [modeOfPayment, setModeOfPayment] = useState('Cash');
-  const [referenceDoctype, setReferenceDoctype] = useState('');
-  const [referenceName, setReferenceName] = useState('');
+  const [referenceDoctype, setReferenceDoctype] = useState(
+    _initPaymentType === 'Pay' ? 'Purchase Invoice' : 'Sales Invoice'
+  );
+  const [referenceName, setReferenceName] = useState(searchParams.get('referenceName') || '');
   const [parties, setParties] = useState<any[]>([]);
   const [references, setReferences] = useState<PartyTransaction[]>([]);
   const [paymentModes, setPaymentModes] = useState<PaymentMode[]>([]);
@@ -82,33 +94,11 @@ export default function CreatePaymentEntryPage() {
               ? 'Back to Purchase Orders'
               : 'Back to Payment Entries';
 
+  // Mark bootstrapping done after first mount so paymentType/partyType changes
+  // triggered by the user (not URL init) correctly reset party/references.
   useEffect(() => {
-    const paymentTypeParam = searchParams.get('paymentType');
-    const partyTypeParam = searchParams.get('partyType');
-    const amountParam = searchParams.get('amount');
-    const postingDateParam = searchParams.get('postingDate');
-    const referenceNameParam = searchParams.get('referenceName');
-
-    if (paymentTypeParam === 'Receive' || paymentTypeParam === 'Pay') {
-      setPaymentType(paymentTypeParam);
-    }
-    if (partyTypeParam === 'Customer' || partyTypeParam === 'Supplier') {
-      setPartyType(partyTypeParam);
-    }
-    if (amountParam && !Number.isNaN(Number(amountParam))) {
-      setAmount(Number(amountParam));
-    }
-    if (postingDateParam) {
-      setPostingDate(postingDateParam);
-    }
-    // Store in ref — will be applied after references finish loading
-    if (referenceNameParam) {
-      pendingReferenceName.current = referenceNameParam;
-      setReferenceName(referenceNameParam);
-    }
-
     isBootstrappingFromQuery.current = false;
-  }, [searchParams]);
+  }, []);
 
   // Resolve party from URL param once the parties list is loaded.
   // The URL may pass either the doc name (e.g. "CUST-00001") or the
@@ -201,7 +191,10 @@ export default function CreatePaymentEntryPage() {
     }
 
     setParty('');
-    setReferenceName('');
+    // Only clear referenceName if there's no pending URL param in flight
+    if (!pendingReferenceName.current) {
+      setReferenceName('');
+    }
     setReferences([]);
   }, [paymentType]);
 
@@ -209,8 +202,9 @@ export default function CreatePaymentEntryPage() {
     const loadReferences = async () => {
       if (!party) {
         setReferences([]);
-        setReferenceName('');
-        pendingReferenceName.current = '';
+        // Only clear referenceName state; preserve pendingReferenceName ref
+        // so it's still available when party resolves
+        setReferenceName((prev) => (pendingReferenceName.current ? prev : ''));
         return;
       }
 
@@ -232,7 +226,7 @@ export default function CreatePaymentEntryPage() {
             // If no amount was passed in the URL, auto-fill from outstanding amount
             setAmount((prev) => (prev > 0 ? prev : Number(match.outstanding_amount) || 0));
           } else {
-            // Invoice not in outstanding list (may already be paid or belong to different party)
+            // Invoice not in outstanding list — clear
             setReferenceName('');
           }
           pendingReferenceName.current = '';
