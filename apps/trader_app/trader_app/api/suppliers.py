@@ -186,10 +186,11 @@ def enable_supplier(name):
 
 
 def _default_company():
+    companies = frappe.get_all("Company", limit=1, pluck="name")
     return (
         frappe.defaults.get_user_default("Company")
         or frappe.db.get_single_value("Global Defaults", "default_company")
-        or frappe.get_all("Company", limit=1, pluck="name")[0]
+        or (companies[0] if companies else None)
     )
 
 

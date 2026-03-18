@@ -25,70 +25,74 @@ def get_sales_invoices(company=None, customer=None, status=None,
                        from_date=None, to_date=None,
                        page=1, page_size=20, search=None):
     """Paginated list of Sales Invoices with optional filters."""
-    company = company or _default_company()
-    page = cint(page) or 1
-    page_size = min(cint(page_size) or 20, 100)
-    offset = (page - 1) * page_size
+    try:
+        company = company or _default_company()
+        page = cint(page) or 1
+        page_size = min(cint(page_size) or 20, 100)
+        offset = (page - 1) * page_size
 
-    conditions = ["si.company = %(company)s", "si.docstatus IN (0, 1)"]
-    params = {"company": company}
+        conditions = ["si.company = %(company)s", "si.docstatus IN (0, 1)"]
+        params = {"company": company}
 
-    if customer:
-        conditions.append("si.customer = %(customer)s")
-        params["customer"] = customer
+        if customer:
+            conditions.append("si.customer = %(customer)s")
+            params["customer"] = customer
 
-    if status == "Paid":
-        conditions.append("si.outstanding_amount <= 0 AND si.docstatus = 1")
-    elif status == "Unpaid":
-        conditions.append("si.outstanding_amount > 0 AND si.docstatus = 1")
-    elif status == "Overdue":
-        conditions.append("si.outstanding_amount > 0 AND si.docstatus = 1 AND si.due_date < %(today)s")
-        params["today"] = nowdate()
-    elif status == "Draft":
-        conditions.append("si.docstatus = 0")
+        if status == "Paid":
+            conditions.append("si.outstanding_amount <= 0 AND si.docstatus = 1")
+        elif status == "Unpaid":
+            conditions.append("si.outstanding_amount > 0 AND si.docstatus = 1")
+        elif status == "Overdue":
+            conditions.append("si.outstanding_amount > 0 AND si.docstatus = 1 AND si.due_date < %(today)s")
+            params["today"] = nowdate()
+        elif status == "Draft":
+            conditions.append("si.docstatus = 0")
 
-    if from_date:
-        conditions.append("si.posting_date >= %(from_date)s")
-        params["from_date"] = from_date
-    if to_date:
-        conditions.append("si.posting_date <= %(to_date)s")
-        params["to_date"] = to_date
-    if search:
-        conditions.append("(si.name LIKE %(search)s OR si.customer LIKE %(search)s)")
-        params["search"] = f"%{search}%"
+        if from_date:
+            conditions.append("si.posting_date >= %(from_date)s")
+            params["from_date"] = from_date
+        if to_date:
+            conditions.append("si.posting_date <= %(to_date)s")
+            params["to_date"] = to_date
+        if search:
+            conditions.append("(si.name LIKE %(search)s OR si.customer LIKE %(search)s)")
+            params["search"] = f"%{search}%"
 
-    where = " AND ".join(conditions)
+        where = " AND ".join(conditions)
 
-    total = frappe.db.sql(
-        f"SELECT COUNT(*) FROM `tabSales Invoice` si WHERE {where}",
-        params,
-    )[0][0]
+        total = frappe.db.sql(
+            f"SELECT COUNT(*) FROM `tabSales Invoice` si WHERE {where}",
+            params,
+        )[0][0]
 
-    rows = frappe.db.sql(f"""
-        SELECT si.name, si.customer, si.customer_name, si.posting_date,
-               si.due_date, si.grand_total, si.outstanding_amount,
-               si.currency, si.docstatus,
-               si.is_return, si.return_against,
-               CASE
-                   WHEN si.docstatus = 0 THEN 'Draft'
-                   WHEN si.docstatus = 2 THEN 'Cancelled'
-                   WHEN si.outstanding_amount <= 0 THEN 'Paid'
-                   WHEN si.due_date < CURDATE() AND si.outstanding_amount > 0 THEN 'Overdue'
-                   WHEN si.outstanding_amount < si.grand_total THEN 'Partly Paid'
-                   ELSE 'Unpaid'
-               END AS status
-        FROM `tabSales Invoice` si
-        WHERE {where}
-        ORDER BY si.posting_date DESC, si.creation DESC
-        LIMIT %(page_size)s OFFSET %(offset)s
-    """, {**params, "page_size": page_size, "offset": offset}, as_dict=True)
+        rows = frappe.db.sql(f"""
+            SELECT si.name, si.customer, si.customer_name, si.posting_date,
+                   si.due_date, si.grand_total, si.outstanding_amount,
+                   si.currency, si.docstatus,
+                   si.is_return, si.return_against,
+                   CASE
+                       WHEN si.docstatus = 0 THEN 'Draft'
+                       WHEN si.docstatus = 2 THEN 'Cancelled'
+                       WHEN si.outstanding_amount <= 0 THEN 'Paid'
+                       WHEN si.due_date < CURDATE() AND si.outstanding_amount > 0 THEN 'Overdue'
+                       WHEN si.outstanding_amount < si.grand_total THEN 'Partly Paid'
+                       ELSE 'Unpaid'
+                   END AS status
+            FROM `tabSales Invoice` si
+            WHERE {where}
+            ORDER BY si.posting_date DESC, si.creation DESC
+            LIMIT %(page_size)s OFFSET %(offset)s
+        """, {**params, "page_size": page_size, "offset": offset}, as_dict=True)
 
-    return {
-        "data": rows,
-        "total": cint(total),
-        "page": page,
-        "page_size": page_size,
-    }
+        return {
+            "data": rows,
+            "total": cint(total),
+            "page": page,
+            "page_size": page_size,
+        }
+    except Exception:
+        frappe.log_error(frappe.get_traceback(), "get_sales_invoices failed")
+        return {"data": [], "total": 0, "page": cint(page) or 1, "page_size": cint(page_size) or 20}
 
 
 @frappe.whitelist()
@@ -104,69 +108,73 @@ def get_sales_orders(company=None, customer=None, status=None,
                      from_date=None, to_date=None,
                      page=1, page_size=20, search=None):
     """Paginated list of Sales Orders."""
-    company = company or _default_company()
-    page = cint(page) or 1
-    page_size = min(cint(page_size) or 20, 100)
-    offset = (page - 1) * page_size
+    try:
+        company = company or _default_company()
+        page = cint(page) or 1
+        page_size = min(cint(page_size) or 20, 100)
+        offset = (page - 1) * page_size
 
-    conditions = ["so.company = %(company)s", "so.docstatus IN (0, 1)"]
-    params = {"company": company}
+        conditions = ["so.company = %(company)s", "so.docstatus IN (0, 1)"]
+        params = {"company": company}
 
-    if customer:
-        conditions.append("so.customer = %(customer)s")
-        params["customer"] = customer
-    if status:
-        conditions.append("so.status = %(status)s")
-        params["status"] = status
-    if from_date:
-        conditions.append("so.transaction_date >= %(from_date)s")
-        params["from_date"] = from_date
-    if to_date:
-        conditions.append("so.transaction_date <= %(to_date)s")
-        params["to_date"] = to_date
-    if search:
-        conditions.append("(so.name LIKE %(search)s OR so.customer LIKE %(search)s)")
-        params["search"] = f"%{search}%"
+        if customer:
+            conditions.append("so.customer = %(customer)s")
+            params["customer"] = customer
+        if status:
+            conditions.append("so.status = %(status)s")
+            params["status"] = status
+        if from_date:
+            conditions.append("so.transaction_date >= %(from_date)s")
+            params["from_date"] = from_date
+        if to_date:
+            conditions.append("so.transaction_date <= %(to_date)s")
+            params["to_date"] = to_date
+        if search:
+            conditions.append("(so.name LIKE %(search)s OR so.customer LIKE %(search)s)")
+            params["search"] = f"%{search}%"
 
-    where = " AND ".join(conditions)
+        where = " AND ".join(conditions)
 
-    total = frappe.db.sql(
-        f"SELECT COUNT(*) FROM `tabSales Order` so WHERE {where}", params
-    )[0][0]
+        total = frappe.db.sql(
+            f"SELECT COUNT(*) FROM `tabSales Order` so WHERE {where}", params
+        )[0][0]
 
-    rows = frappe.db.sql(f"""
-        SELECT so.name, so.customer, so.customer_name,
-               so.transaction_date, so.delivery_date,
-               so.grand_total, so.status, so.currency, so.docstatus
-        FROM `tabSales Order` so
-        WHERE {where}
-        ORDER BY so.transaction_date DESC, so.creation DESC
-        LIMIT %(page_size)s OFFSET %(offset)s
-    """, {**params, "page_size": page_size, "offset": offset}, as_dict=True)
+        rows = frappe.db.sql(f"""
+            SELECT so.name, so.customer, so.customer_name,
+                   so.transaction_date, so.delivery_date,
+                   so.grand_total, so.status, so.currency, so.docstatus
+            FROM `tabSales Order` so
+            WHERE {where}
+            ORDER BY so.transaction_date DESC, so.creation DESC
+            LIMIT %(page_size)s OFFSET %(offset)s
+        """, {**params, "page_size": page_size, "offset": offset}, as_dict=True)
 
-    order_names = [row.name for row in rows]
-    invoice_counts = {}
-    unpaid_counts = {}
-    if order_names:
-        # ERPNext v15: tabSales Invoice has no 'sales_order' header field.
-        # Link is through tabSales Invoice Item.sales_order.
-        linked_invoices = frappe.db.sql("""
-            SELECT DISTINCT sii.sales_order, si.outstanding_amount
-            FROM `tabSales Invoice Item` sii
-            INNER JOIN `tabSales Invoice` si ON si.name = sii.parent
-            WHERE sii.sales_order IN %(order_names)s AND si.docstatus < 2
-        """, {"order_names": order_names}, as_dict=True)
-        for invoice in linked_invoices:
-            sales_order = invoice.get("sales_order")
-            invoice_counts[sales_order] = invoice_counts.get(sales_order, 0) + 1
-            if flt(invoice.get("outstanding_amount")) > 0:
-                unpaid_counts[sales_order] = unpaid_counts.get(sales_order, 0) + 1
+        order_names = [row.name for row in rows]
+        invoice_counts = {}
+        unpaid_counts = {}
+        if order_names:
+            # ERPNext v15: tabSales Invoice has no 'sales_order' header field.
+            # Link is through tabSales Invoice Item.sales_order.
+            linked_invoices = frappe.db.sql("""
+                SELECT DISTINCT sii.sales_order, si.outstanding_amount
+                FROM `tabSales Invoice Item` sii
+                INNER JOIN `tabSales Invoice` si ON si.name = sii.parent
+                WHERE sii.sales_order IN %(order_names)s AND si.docstatus < 2
+            """, {"order_names": order_names}, as_dict=True)
+            for invoice in linked_invoices:
+                sales_order = invoice.get("sales_order")
+                invoice_counts[sales_order] = invoice_counts.get(sales_order, 0) + 1
+                if flt(invoice.get("outstanding_amount")) > 0:
+                    unpaid_counts[sales_order] = unpaid_counts.get(sales_order, 0) + 1
 
-    for row in rows:
-        row["linked_invoice_count"] = invoice_counts.get(row.name, 0)
-        row["unpaid_invoice_count"] = unpaid_counts.get(row.name, 0)
+        for row in rows:
+            row["linked_invoice_count"] = invoice_counts.get(row.name, 0)
+            row["unpaid_invoice_count"] = unpaid_counts.get(row.name, 0)
 
-    return {"data": rows, "total": cint(total), "page": page, "page_size": page_size}
+        return {"data": rows, "total": cint(total), "page": page, "page_size": page_size}
+    except Exception:
+        frappe.log_error(frappe.get_traceback(), "get_sales_orders failed")
+        return {"data": [], "total": 0, "page": cint(page) or 1, "page_size": cint(page_size) or 20}
 
 
 @frappe.whitelist()
@@ -193,66 +201,70 @@ def get_quotations(company=None, customer=None, status=None,
                    from_date=None, to_date=None,
                    page=1, page_size=20, search=None):
     """Paginated list of Quotations."""
-    company = company or _default_company()
-    page = cint(page) or 1
-    page_size = min(cint(page_size) or 20, 100)
-    offset = (page - 1) * page_size
+    try:
+        company = company or _default_company()
+        page = cint(page) or 1
+        page_size = min(cint(page_size) or 20, 100)
+        offset = (page - 1) * page_size
 
-    conditions = ["q.company = %(company)s", "q.docstatus IN (0, 1)"]
-    params = {"company": company}
+        conditions = ["q.company = %(company)s", "q.docstatus IN (0, 1)"]
+        params = {"company": company}
 
-    if customer:
-        conditions.append("q.party_name = %(customer)s")
-        params["customer"] = customer
-    if status:
-        conditions.append("q.status = %(status)s")
-        params["status"] = status
-    if from_date:
-        conditions.append("q.transaction_date >= %(from_date)s")
-        params["from_date"] = from_date
-    if to_date:
-        conditions.append("q.transaction_date <= %(to_date)s")
-        params["to_date"] = to_date
-    if search:
-        conditions.append("(q.name LIKE %(search)s OR q.party_name LIKE %(search)s)")
-        params["search"] = f"%{search}%"
+        if customer:
+            conditions.append("q.party_name = %(customer)s")
+            params["customer"] = customer
+        if status:
+            conditions.append("q.status = %(status)s")
+            params["status"] = status
+        if from_date:
+            conditions.append("q.transaction_date >= %(from_date)s")
+            params["from_date"] = from_date
+        if to_date:
+            conditions.append("q.transaction_date <= %(to_date)s")
+            params["to_date"] = to_date
+        if search:
+            conditions.append("(q.name LIKE %(search)s OR q.party_name LIKE %(search)s)")
+            params["search"] = f"%{search}%"
 
-    where = " AND ".join(conditions)
+        where = " AND ".join(conditions)
 
-    total = frappe.db.sql(
-        f"SELECT COUNT(*) FROM `tabQuotation` q WHERE {where}", params
-    )[0][0]
+        total = frappe.db.sql(
+            f"SELECT COUNT(*) FROM `tabQuotation` q WHERE {where}", params
+        )[0][0]
 
-    rows = frappe.db.sql(f"""
-        SELECT q.name, q.party_name AS customer, q.customer_name,
-               q.transaction_date, q.valid_till,
-               q.grand_total, q.currency, q.status, q.docstatus,
-               q.order_type
-        FROM `tabQuotation` q
-        WHERE {where}
-        ORDER BY q.transaction_date DESC, q.creation DESC
-        LIMIT %(page_size)s OFFSET %(offset)s
-    """, {**params, "page_size": page_size, "offset": offset}, as_dict=True)
+        rows = frappe.db.sql(f"""
+            SELECT q.name, q.party_name AS customer, q.customer_name,
+                   q.transaction_date, q.valid_till,
+                   q.grand_total, q.currency, q.status, q.docstatus,
+                   q.order_type
+            FROM `tabQuotation` q
+            WHERE {where}
+            ORDER BY q.transaction_date DESC, q.creation DESC
+            LIMIT %(page_size)s OFFSET %(offset)s
+        """, {**params, "page_size": page_size, "offset": offset}, as_dict=True)
 
-    quotation_names = [row.name for row in rows]
-    order_counts = {}
-    if quotation_names:
-        # ERPNext v15: tabSales Order has no 'quotation' header field.
-        # Link is through tabSales Order Item.prevdoc_docname.
-        linked = frappe.db.sql("""
-            SELECT DISTINCT soi.prevdoc_docname AS qname
-            FROM `tabSales Order Item` soi
-            INNER JOIN `tabSales Order` so ON so.name = soi.parent
-            WHERE soi.prevdoc_docname IN %(names)s AND so.docstatus < 2
-        """, {"names": quotation_names}, as_dict=True)
-        for row_l in linked:
-            qname = row_l.qname
-            order_counts[qname] = order_counts.get(qname, 0) + 1
+        quotation_names = [row.name for row in rows]
+        order_counts = {}
+        if quotation_names:
+            # ERPNext v15: tabSales Order has no 'quotation' header field.
+            # Link is through tabSales Order Item.prevdoc_docname.
+            linked = frappe.db.sql("""
+                SELECT DISTINCT soi.prevdoc_docname AS qname
+                FROM `tabSales Order Item` soi
+                INNER JOIN `tabSales Order` so ON so.name = soi.parent
+                WHERE soi.prevdoc_docname IN %(names)s AND so.docstatus < 2
+            """, {"names": quotation_names}, as_dict=True)
+            for row_l in linked:
+                qname = row_l.qname
+                order_counts[qname] = order_counts.get(qname, 0) + 1
 
-    for row in rows:
-        row["linked_order_count"] = order_counts.get(row.name, 0)
+        for row in rows:
+            row["linked_order_count"] = order_counts.get(row.name, 0)
 
-    return {"data": rows, "total": cint(total), "page": page, "page_size": page_size}
+        return {"data": rows, "total": cint(total), "page": page, "page_size": page_size}
+    except Exception:
+        frappe.log_error(frappe.get_traceback(), "get_quotations failed")
+        return {"data": [], "total": 0, "page": cint(page) or 1, "page_size": cint(page_size) or 20}
 
 
 @frappe.whitelist()
@@ -452,38 +464,42 @@ def submit_quotation(name):
 @frappe.whitelist()
 def get_sales_summary(company=None):
     """Aggregate sales stats for the Sales page header."""
-    company = company or _default_company()
-    today = nowdate()
-    first_of_month = getdate(today).replace(day=1).isoformat()
+    try:
+        company = company or _default_company()
+        today = nowdate()
+        first_of_month = getdate(today).replace(day=1).isoformat()
 
-    total_invoices = cint(frappe.db.sql("""
-        SELECT COUNT(*) FROM `tabSales Invoice`
-        WHERE company = %s AND docstatus = 1
-    """, (company,))[0][0])
+        total_invoices = cint(frappe.db.sql("""
+            SELECT COUNT(*) FROM `tabSales Invoice`
+            WHERE company = %s AND docstatus = 1
+        """, (company,))[0][0])
 
-    monthly_sales = flt(frappe.db.sql("""
-        SELECT COALESCE(SUM(grand_total), 0) FROM `tabSales Invoice`
-        WHERE company = %s AND docstatus = 1
-              AND posting_date >= %s AND posting_date <= %s
-    """, (company, first_of_month, today))[0][0])
+        monthly_sales = flt(frappe.db.sql("""
+            SELECT COALESCE(SUM(grand_total), 0) FROM `tabSales Invoice`
+            WHERE company = %s AND docstatus = 1
+                  AND posting_date >= %s AND posting_date <= %s
+        """, (company, first_of_month, today))[0][0])
 
-    total_outstanding = flt(frappe.db.sql("""
-        SELECT COALESCE(SUM(outstanding_amount), 0) FROM `tabSales Invoice`
-        WHERE company = %s AND docstatus = 1 AND outstanding_amount > 0
-    """, (company,))[0][0])
+        total_outstanding = flt(frappe.db.sql("""
+            SELECT COALESCE(SUM(outstanding_amount), 0) FROM `tabSales Invoice`
+            WHERE company = %s AND docstatus = 1 AND outstanding_amount > 0
+        """, (company,))[0][0])
 
-    avg_order_value = flt(frappe.db.sql("""
-        SELECT COALESCE(AVG(grand_total), 0) FROM `tabSales Invoice`
-        WHERE company = %s AND docstatus = 1
-              AND posting_date >= %s AND posting_date <= %s
-    """, (company, first_of_month, today))[0][0])
+        avg_order_value = flt(frappe.db.sql("""
+            SELECT COALESCE(AVG(grand_total), 0) FROM `tabSales Invoice`
+            WHERE company = %s AND docstatus = 1
+                  AND posting_date >= %s AND posting_date <= %s
+        """, (company, first_of_month, today))[0][0])
 
-    return {
-        "total_invoices": total_invoices,
-        "monthly_sales": monthly_sales,
-        "total_outstanding": total_outstanding,
-        "avg_order_value": avg_order_value,
-    }
+        return {
+            "total_invoices": total_invoices,
+            "monthly_sales": monthly_sales,
+            "total_outstanding": total_outstanding,
+            "avg_order_value": avg_order_value,
+        }
+    except Exception:
+        frappe.log_error(frappe.get_traceback(), "get_sales_summary failed")
+        return {"total_invoices": 0, "monthly_sales": 0.0, "total_outstanding": 0.0, "avg_order_value": 0.0}
 
 
 # ────────────────────────────────────────────────────────────────
@@ -542,8 +558,9 @@ def _check_customer_credit_limit(doc):
 
 
 def _default_company():
+    companies = frappe.get_all("Company", limit=1, pluck="name")
     return (
         frappe.defaults.get_user_default("Company")
         or frappe.db.get_single_value("Global Defaults", "default_company")
-        or frappe.get_all("Company", limit=1, pluck="name")[0]
+        or (companies[0] if companies else None)
     )
