@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Plus, Save, Trash2 } from 'lucide-react';
 import { customersApi, inventoryApi, salesApi } from '../lib/api';
 import { appendPreservedListQuery, formatCurrency, isOperationsContext } from '../lib/utils';
+import SearchableSelect from '../components/SearchableSelect';
 
 type OrderLine = {
   item_code: string;
@@ -243,12 +244,13 @@ export default function CreateSalesOrderPage() {
         <div className="card p-6 lg:col-span-2 space-y-6">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <Field label="Customer">
-              <select value={customer} onChange={(e) => setCustomer(e.target.value)} className="input-field" disabled={loading}>
-                <option value="">Select customer</option>
-                {customers.map((entry) => (
-                  <option key={entry.name} value={entry.name}>{entry.customer_name || entry.name}</option>
-                ))}
-              </select>
+              <SearchableSelect
+                value={customer}
+                onChange={setCustomer}
+                options={customers.map((e) => ({ label: e.customer_name || e.name, value: e.name }))}
+                placeholder="Select customer"
+                disabled={loading}
+              />
             </Field>
             <Field label="Order Date">
               <input type="date" value={transactionDate} onChange={(e) => setTransactionDate(e.target.value)} className="input-field" />
@@ -274,12 +276,14 @@ export default function CreateSalesOrderPage() {
               {lines.map((line, index) => (
                 <div key={index} className={`grid grid-cols-1 gap-3 rounded-lg border p-4 md:grid-cols-[2fr_1fr_1fr_1fr_auto] ${getLineIssues(line).length > 0 ? 'border-amber-200 bg-amber-50/50' : 'border-gray-200'}`}>
                   <Field label="Item">
-                    <select value={line.item_code} onChange={(e) => handleItemChange(index, e.target.value)} className={`input-field ${!line.item_code ? 'border-amber-300 focus:border-amber-500 focus:ring-amber-500' : ''}`} disabled={loading}>
-                      <option value="">Select item</option>
-                      {items.map((entry) => (
-                        <option key={entry.name || entry.item_code} value={entry.item_code || entry.name}>{entry.item_name || entry.item_code || entry.name}</option>
-                      ))}
-                    </select>
+                    <SearchableSelect
+                      value={line.item_code}
+                      onChange={(v) => handleItemChange(index, v)}
+                      options={items.map((e) => ({ label: e.item_name || e.item_code || e.name, value: e.item_code || e.name }))}
+                      placeholder="Select item"
+                      disabled={loading}
+                      error={!line.item_code}
+                    />
                   </Field>
                   <Field label="Qty">
                     <input type="number" min={1} step="0.01" value={line.qty} onChange={(e) => updateLine(index, { qty: Number(e.target.value) })} className={`input-field ${!(Number(line.qty) > 0) ? 'border-amber-300 focus:border-amber-500 focus:ring-amber-500' : ''}`} />

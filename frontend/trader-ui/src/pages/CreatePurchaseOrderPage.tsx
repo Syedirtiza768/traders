@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Plus, Save, Trash2 } from 'lucide-react';
 import { inventoryApi, purchasesApi, suppliersApi } from '../lib/api';
 import { appendPreservedListQuery, formatCurrency, isOperationsContext } from '../lib/utils';
+import SearchableSelect from '../components/SearchableSelect';
 
 type OrderLine = {
   item_code: string;
@@ -155,12 +156,13 @@ export default function CreatePurchaseOrderPage() {
         <div className="card p-6 lg:col-span-2 space-y-6">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <Field label="Supplier">
-              <select value={supplier} onChange={(e) => setSupplier(e.target.value)} className="input-field" disabled={loading}>
-                <option value="">Select supplier</option>
-                {suppliers.map((entry) => (
-                  <option key={entry.name} value={entry.name}>{entry.supplier_name || entry.name}</option>
-                ))}
-              </select>
+              <SearchableSelect
+                value={supplier}
+                onChange={setSupplier}
+                options={suppliers.map((e) => ({ label: e.supplier_name || e.name, value: e.name }))}
+                placeholder="Select supplier"
+                disabled={loading}
+              />
             </Field>
             <Field label="Order Date">
               <input type="date" value={transactionDate} onChange={(e) => setTransactionDate(e.target.value)} className="input-field" />
@@ -186,12 +188,13 @@ export default function CreatePurchaseOrderPage() {
               {lines.map((line, index) => (
                 <div key={index} className="grid grid-cols-1 gap-3 rounded-lg border border-gray-200 p-4 md:grid-cols-[2fr_1fr_1fr_1fr_auto]">
                   <Field label="Item">
-                    <select value={line.item_code} onChange={(e) => handleItemChange(index, e.target.value)} className="input-field" disabled={loading}>
-                      <option value="">Select item</option>
-                      {items.map((entry) => (
-                        <option key={entry.name || entry.item_code} value={entry.item_code || entry.name}>{entry.item_name || entry.item_code || entry.name}</option>
-                      ))}
-                    </select>
+                    <SearchableSelect
+                      value={line.item_code}
+                      onChange={(v) => handleItemChange(index, v)}
+                      options={items.map((e) => ({ label: e.item_name || e.item_code || e.name, value: e.item_code || e.name }))}
+                      placeholder="Select item"
+                      disabled={loading}
+                    />
                   </Field>
                   <Field label="Qty">
                     <input type="number" min={1} step="0.01" value={line.qty} onChange={(e) => updateLine(index, { qty: Number(e.target.value) })} className="input-field" />

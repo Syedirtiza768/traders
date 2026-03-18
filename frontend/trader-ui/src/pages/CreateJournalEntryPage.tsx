@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Plus, Save, Trash2 } from 'lucide-react';
 import { financeApi } from '../lib/api';
 import { appendPreservedListQuery, formatCurrency } from '../lib/utils';
+import SearchableSelect from '../components/SearchableSelect';
 
 type AccountLine = {
   account: string;
@@ -191,11 +192,12 @@ export default function CreateJournalEntryPage() {
         <div className="card p-6 lg:col-span-2 space-y-6">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <Field label="Voucher Type">
-              <select value={voucherType} onChange={(e) => setVoucherType(e.target.value)} className="input-field">
-                {VOUCHER_TYPES.map((type) => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
-              </select>
+              <SearchableSelect
+                value={voucherType}
+                onChange={setVoucherType}
+                options={VOUCHER_TYPES.map((t) => ({ label: t, value: t }))}
+                placeholder="Select type"
+              />
             </Field>
             <Field label="Posting Date">
               <input type="date" value={postingDate} onChange={(e) => setPostingDate(e.target.value)} className="input-field" />
@@ -258,14 +260,13 @@ export default function CreateJournalEntryPage() {
                 <div key={index} className="grid grid-cols-1 gap-3 rounded-lg border border-gray-200 p-4 md:grid-cols-[2fr_1fr_1fr_2fr_auto]">
                   <Field label="Account">
                     <div className="space-y-1">
-                      <select value={line.account} onChange={(e) => updateLine(index, { account: e.target.value })} className="input-field" disabled={loadingAccounts}>
-                        <option value="">Select account</option>
-                        {accounts.map((account) => (
-                          <option key={account.name} value={account.name}>
-                            {formatAccountLabel(account)}
-                          </option>
-                        ))}
-                      </select>
+                      <SearchableSelect
+                        value={line.account}
+                        onChange={(v) => updateLine(index, { account: v })}
+                        options={accounts.map((account) => ({ label: formatAccountLabel(account), value: account.name }))}
+                        placeholder="Select account"
+                        disabled={loadingAccounts}
+                      />
                       <p className="text-xs text-gray-500">
                         {line.account ? getLineHint(activeTemplate, index, accounts, line.account) : getEmptyLineHint(activeTemplate, index)}
                       </p>

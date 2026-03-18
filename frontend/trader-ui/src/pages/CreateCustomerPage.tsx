@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save } from 'lucide-react';
 import { customersApi } from '../lib/api';
+import SearchableSelect from '../components/SearchableSelect';
 
 export default function CreateCustomerPage() {
   const navigate = useNavigate();
@@ -76,10 +77,13 @@ export default function CreateCustomerPage() {
           <input value={form.customer_name} onChange={(e) => setForm((current) => ({ ...current, customer_name: e.target.value }))} className="input-field" placeholder="e.g. Al Noor Traders" />
         </Field>
         <Field label="Customer Group">
-          <select value={form.customer_group} onChange={(e) => setForm((current) => ({ ...current, customer_group: e.target.value }))} className="input-field" disabled={loading}>
-            <option value="">Use default group</option>
-            {groups.map((group) => <option key={group} value={group}>{group}</option>)}
-          </select>
+          <SearchableSelect
+            value={form.customer_group}
+            onChange={(v) => setForm((current) => ({ ...current, customer_group: v }))}
+            options={groups.map((g) => ({ label: g, value: g }))}
+            placeholder="Use default group"
+            disabled={loading}
+          />
         </Field>
         <Field label="Territory">
           <input value={form.territory} onChange={(e) => setForm((current) => ({ ...current, territory: e.target.value }))} className="input-field" placeholder="Use default territory" />

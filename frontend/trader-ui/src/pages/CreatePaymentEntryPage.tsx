@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Save } from 'lucide-react';
 import { customersApi, financeApi, suppliersApi } from '../lib/api';
 import { appendPreservedListQuery, extractFrappeError, formatCurrency, formatDate, isFilterListContext, isOperationsContext, isReportContext, isWorkflowContext } from '../lib/utils';
+import SearchableSelect from '../components/SearchableSelect';
 
 type PartyTransaction = {
   name: string;
@@ -321,21 +322,24 @@ export default function CreatePaymentEntryPage() {
         <div className="card p-6 lg:col-span-2 space-y-6">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <Field label="Payment Type">
-              <select value={paymentType} onChange={(e) => setPaymentType(e.target.value as 'Receive' | 'Pay')} className="input-field">
-                <option value="Receive">Receive</option>
-                <option value="Pay">Pay</option>
-              </select>
+              <SearchableSelect
+                value={paymentType}
+                onChange={(v) => setPaymentType(v as 'Receive' | 'Pay')}
+                options={[{ label: 'Receive', value: 'Receive' }, { label: 'Pay', value: 'Pay' }]}
+                placeholder="Select type"
+              />
             </Field>
             <Field label="Party Type">
               <input value={partyType} disabled className="input-field bg-gray-50" />
             </Field>
             <Field label="Party">
-              <select value={party} onChange={(e) => setParty(e.target.value)} className="input-field" disabled={loading}>
-                <option value="">Select {partyType.toLowerCase()}</option>
-                {parties.map((entry) => (
-                  <option key={entry.name} value={entry.name}>{entry.customer_name || entry.supplier_name || entry.name}</option>
-                ))}
-              </select>
+              <SearchableSelect
+                value={party}
+                onChange={setParty}
+                options={parties.map((e) => ({ label: e.customer_name || e.supplier_name || e.name, value: e.name }))}
+                placeholder={`Select ${partyType.toLowerCase()}`}
+                disabled={loading}
+              />
             </Field>
             <Field label="Amount">
               <input type="number" min={0} step="0.01" value={amount} onChange={(e) => setAmount(Number(e.target.value))} className="input-field" />
@@ -345,14 +349,13 @@ export default function CreatePaymentEntryPage() {
             </Field>
             <Field label="Mode of Payment">
               <div className="space-y-1">
-                <select value={modeOfPayment} onChange={(e) => setModeOfPayment(e.target.value)} className="input-field" disabled={loading}>
-                  {paymentModes.length === 0 && (
-                    <option value="">Loading…</option>
-                  )}
-                  {paymentModes.map((mode) => (
-                    <option key={mode.name} value={mode.name}>{mode.name}</option>
-                  ))}
-                </select>
+                <SearchableSelect
+                  value={modeOfPayment}
+                  onChange={setModeOfPayment}
+                  options={paymentModes.map((m) => ({ label: m.name, value: m.name }))}
+                  placeholder={loading ? 'Loading…' : 'Select mode'}
+                  disabled={loading}
+                />
                 <p className="text-xs text-gray-500">
                   {effectiveAccount
                     ? `${paymentType === 'Receive' ? 'Funds will be received into' : 'Funds will be paid from'} ${effectiveAccount}.`
@@ -365,14 +368,16 @@ export default function CreatePaymentEntryPage() {
             </Field>
             <Field label="Reference Name">
               <div className="space-y-1">
-                <select value={referenceName} onChange={(e) => setReferenceName(e.target.value)} className="input-field" disabled={loadingReferences || !party}>
-                  <option value="">{party ? 'Select outstanding invoice' : 'Select party first'}</option>
-                  {references.map((entry) => (
-                    <option key={entry.name} value={entry.name}>
-                      {entry.name} · {formatDate(entry.posting_date)} · {formatCurrency(entry.outstanding_amount || 0)} outstanding
-                    </option>
-                  ))}
-                </select>
+                <SearchableSelect
+                  value={referenceName}
+                  onChange={setReferenceName}
+                  options={references.map((e) => ({
+                    label: `${e.name} · ${formatDate(e.posting_date)} · ${formatCurrency(e.outstanding_amount || 0)} outstanding`,
+                    value: e.name,
+                  }))}
+                  placeholder={party ? 'Select outstanding invoice' : 'Select party first'}
+                  disabled={loadingReferences || !party}
+                />
                 <p className="text-xs text-gray-500">
                   {selectedReference
                     ? `${selectedReference.status || 'Open'} · Total ${formatCurrency(selectedReference.grand_total || 0)} · Outstanding ${formatCurrency(selectedReference.outstanding_amount || 0)}`

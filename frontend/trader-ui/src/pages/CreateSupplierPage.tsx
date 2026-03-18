@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save } from 'lucide-react';
 import { suppliersApi } from '../lib/api';
+import SearchableSelect from '../components/SearchableSelect';
 
 export default function CreateSupplierPage() {
   const navigate = useNavigate();
@@ -76,10 +77,13 @@ export default function CreateSupplierPage() {
           <input value={form.supplier_name} onChange={(e) => setForm((current) => ({ ...current, supplier_name: e.target.value }))} className="input-field" placeholder="e.g. Pak Industrial Supplies" />
         </Field>
         <Field label="Supplier Group">
-          <select value={form.supplier_group} onChange={(e) => setForm((current) => ({ ...current, supplier_group: e.target.value }))} className="input-field" disabled={loading}>
-            <option value="">Use default group</option>
-            {groups.map((group) => <option key={group} value={group}>{group}</option>)}
-          </select>
+          <SearchableSelect
+            value={form.supplier_group}
+            onChange={(v) => setForm((current) => ({ ...current, supplier_group: v }))}
+            options={groups.map((g) => ({ label: g, value: g }))}
+            placeholder="Use default group"
+            disabled={loading}
+          />
         </Field>
         <Field label="Country">
           <input value={form.country} onChange={(e) => setForm((current) => ({ ...current, country: e.target.value }))} className="input-field" />

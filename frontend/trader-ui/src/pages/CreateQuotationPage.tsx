@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Plus, Save, Trash2 } from 'lucide-react';
 import { customersApi, inventoryApi, salesApi } from '../lib/api';
 import { appendPreservedListQuery, formatCurrency } from '../lib/utils';
+import SearchableSelect from '../components/SearchableSelect';
 
 type QuotationLine = {
   item_code: string;
@@ -129,12 +130,13 @@ export default function CreateQuotationPage() {
         <div className="card p-6 lg:col-span-2 space-y-6">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <Field label="Customer">
-              <select value={customer} onChange={(e) => setCustomer(e.target.value)} className="input-field" disabled={loading}>
-                <option value="">Select customer</option>
-                {customers.map((entry) => (
-                  <option key={entry.name} value={entry.name}>{entry.customer_name || entry.name}</option>
-                ))}
-              </select>
+              <SearchableSelect
+                value={customer}
+                onChange={setCustomer}
+                options={customers.map((e) => ({ label: e.customer_name || e.name, value: e.name }))}
+                placeholder="Select customer"
+                disabled={loading}
+              />
             </Field>
             <Field label="Quotation Date">
               <input type="date" value={transactionDate} onChange={(e) => setTransactionDate(e.target.value)} className="input-field" />
@@ -167,18 +169,13 @@ export default function CreateQuotationPage() {
                   {lines.map((line, i) => (
                     <tr key={i} className="hover:bg-gray-50">
                       <td className="px-4 py-2">
-                        <select
+                        <SearchableSelect
                           value={line.item_code}
-                          onChange={(e) => handleItemChange(i, e.target.value)}
-                          className="input-field text-sm"
-                        >
-                          <option value="">Select item</option>
-                          {items.map((item) => (
-                            <option key={item.item_code || item.name} value={item.item_code || item.name}>
-                              {item.item_name || item.item_code || item.name}
-                            </option>
-                          ))}
-                        </select>
+                          onChange={(v) => handleItemChange(i, v)}
+                          options={items.map((item) => ({ label: item.item_name || item.item_code || item.name, value: item.item_code || item.name }))}
+                          placeholder="Select item"
+                          className="text-sm"
+                        />
                       </td>
                       <td className="px-4 py-2">
                         <input type="number" min="1" value={line.qty} onChange={(e) => updateLine(i, { qty: Number(e.target.value) || 0 })} className="input-field text-right text-sm" />

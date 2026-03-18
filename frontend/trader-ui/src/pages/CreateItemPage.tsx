@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save } from 'lucide-react';
 import { inventoryApi } from '../lib/api';
+import SearchableSelect from '../components/SearchableSelect';
 
 export default function CreateItemPage() {
   const navigate = useNavigate();
@@ -80,21 +81,21 @@ export default function CreateItemPage() {
           <input value={form.item_name} onChange={(e) => setForm((c) => ({ ...c, item_name: e.target.value }))} className="input-field" placeholder="e.g. Steel Pipe 2 inch" />
         </Field>
         <Field label="Item Group">
-          <select value={form.item_group} onChange={(e) => setForm((c) => ({ ...c, item_group: e.target.value }))} className="input-field" disabled={loading}>
-            <option value="">Select group</option>
-            {groups.map((g) => <option key={g} value={g}>{g}</option>)}
-          </select>
+          <SearchableSelect
+            value={form.item_group}
+            onChange={(v) => setForm((c) => ({ ...c, item_group: v }))}
+            options={groups.map((g) => ({ label: g, value: g }))}
+            placeholder="Select group"
+            disabled={loading}
+          />
         </Field>
         <Field label="Stock UOM">
-          <select value={form.stock_uom} onChange={(e) => setForm((c) => ({ ...c, stock_uom: e.target.value }))} className="input-field">
-            <option value="Nos">Nos</option>
-            <option value="Kg">Kg</option>
-            <option value="Ltr">Ltr</option>
-            <option value="Mtr">Mtr</option>
-            <option value="Box">Box</option>
-            <option value="Pair">Pair</option>
-            <option value="Set">Set</option>
-          </select>
+          <SearchableSelect
+            value={form.stock_uom}
+            onChange={(v) => setForm((c) => ({ ...c, stock_uom: v }))}
+            options={['Nos', 'Kg', 'Ltr', 'Mtr', 'Box', 'Pair', 'Set'].map((u) => ({ label: u, value: u }))}
+            placeholder="Select UOM"
+          />
         </Field>
         <Field label="Standard Rate">
           <input type="number" min="0" step="0.01" value={form.standard_rate} onChange={(e) => setForm((c) => ({ ...c, standard_rate: Number(e.target.value) || 0 }))} className="input-field" />
@@ -106,10 +107,12 @@ export default function CreateItemPage() {
           <textarea value={form.description} onChange={(e) => setForm((c) => ({ ...c, description: e.target.value }))} className="input-field" rows={2} placeholder="Optional item description" />
         </Field>
         <Field label="Is Stock Item">
-          <select value={form.is_stock_item} onChange={(e) => setForm((c) => ({ ...c, is_stock_item: Number(e.target.value) }))} className="input-field">
-            <option value={1}>Yes</option>
-            <option value={0}>No</option>
-          </select>
+          <SearchableSelect
+            value={String(form.is_stock_item)}
+            onChange={(v) => setForm((c) => ({ ...c, is_stock_item: Number(v) }))}
+            options={[{ label: 'Yes', value: '1' }, { label: 'No', value: '0' }]}
+            placeholder="Select"
+          />
         </Field>
       </div>
     </div>

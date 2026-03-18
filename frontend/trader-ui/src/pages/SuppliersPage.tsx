@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Truck, DollarSign, CreditCard, Package, Search, ChevronLeft, ChevronRight, UserPlus } from 'lucide-react';
 import { suppliersApi } from '../lib/api';
 import { appendPreservedListQuery, formatCurrency, formatCompact, debounce } from '../lib/utils';
+import SearchableSelect from '../components/SearchableSelect';
 
 export default function SuppliersPage() {
   const navigate = useNavigate();
@@ -107,14 +108,13 @@ export default function SuppliersPage() {
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-        <select
+        <SearchableSelect
           value={selectedGroup}
-          onChange={(e) => { updateSearchParams({ group: e.target.value || null, page: null }); }}
-          className="input-field w-auto text-sm"
-        >
-          <option value="">All Groups</option>
-          {groups.map((g) => <option key={g} value={g}>{g}</option>)}
-        </select>
+          onChange={(v) => { updateSearchParams({ group: v || null, page: null }); }}
+          options={groups.map((g) => ({ label: g, value: g }))}
+          placeholder="All Groups"
+          className="w-48 text-sm"
+        />
         <div className="relative w-full sm:w-72">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input type="text" placeholder="Search suppliers..." defaultValue={search}

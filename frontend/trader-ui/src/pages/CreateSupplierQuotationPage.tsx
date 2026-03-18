@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Plus, Save, Trash2 } from 'lucide-react';
 import { inventoryApi, purchasesApi, suppliersApi } from '../lib/api';
 import { appendPreservedListQuery, formatCurrency, isOperationsContext } from '../lib/utils';
+import SearchableSelect from '../components/SearchableSelect';
 
 type RfqLine = { item_code: string; qty: number; rate: number; material_request?: string };
 const EMPTY_LINE: RfqLine = { item_code: '', qty: 1, rate: 0, material_request: '' };
@@ -100,7 +101,7 @@ export default function CreateSupplierQuotationPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="card p-6 lg:col-span-2 space-y-6">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-            <Field label="Supplier"><select value={supplier} onChange={(e) => setSupplier(e.target.value)} className="input-field" disabled={loading}><option value="">Select supplier</option>{suppliers.map((entry) => <option key={entry.name} value={entry.name}>{entry.supplier_name || entry.name}</option>)}</select></Field>
+            <Field label="Supplier"><SearchableSelect value={supplier} onChange={setSupplier} options={suppliers.map((e) => ({ label: e.supplier_name || e.name, value: e.name }))} placeholder="Select supplier" disabled={loading} /></Field>
             <Field label="Material Request"><input value={materialRequest} onChange={(e) => { const next = e.target.value; setMaterialRequest(next); setLines((current) => current.map((line) => ({ ...line, material_request: line.material_request || next }))); }} className="input-field" placeholder="Optional requisition" /></Field>
             <Field label="RFQ Date"><input type="date" value={postingDate} onChange={(e) => setPostingDate(e.target.value)} className="input-field" /></Field>
             <Field label="Valid Till"><input type="date" value={validTill} onChange={(e) => setValidTill(e.target.value)} className="input-field" /></Field>
@@ -111,7 +112,7 @@ export default function CreateSupplierQuotationPage() {
             <div className="space-y-3">
               {lines.map((line, index) => (
                 <div key={index} className="grid grid-cols-1 gap-3 rounded-lg border border-gray-200 p-4 md:grid-cols-[2fr_1fr_1fr_1fr_auto]">
-                  <Field label="Item"><select value={line.item_code} onChange={(e) => handleItemChange(index, e.target.value)} className="input-field" disabled={loading}><option value="">Select item</option>{items.map((entry) => <option key={entry.name || entry.item_code} value={entry.item_code || entry.name}>{entry.item_name || entry.item_code || entry.name}</option>)}</select></Field>
+                  <Field label="Item"><SearchableSelect value={line.item_code} onChange={(v) => handleItemChange(index, v)} options={items.map((e) => ({ label: e.item_name || e.item_code || e.name, value: e.item_code || e.name }))} placeholder="Select item" disabled={loading} /></Field>
                   <Field label="Qty"><input type="number" min={1} step="0.01" value={line.qty} onChange={(e) => updateLine(index, { qty: Number(e.target.value) })} className="input-field" /></Field>
                   <Field label="Rate"><input type="number" min={0} step="0.01" value={line.rate} onChange={(e) => updateLine(index, { rate: Number(e.target.value) })} className="input-field" /></Field>
                   <Field label="Req Link"><input value={line.material_request || ''} onChange={(e) => updateLine(index, { material_request: e.target.value })} className="input-field" placeholder="Material Request" /></Field>
