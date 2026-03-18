@@ -230,14 +230,17 @@ def get_quotations(company=None, customer=None, status=None,
     quotation_names = [row.name for row in rows]
     order_counts = {}
     if quotation_names:
-        linked_orders = frappe.get_all(
-            "Sales Order",
-            filters={"quotation": ["in", quotation_names], "docstatus": ["<", 2]},
-            fields=["quotation"],
-        )
-        for order in linked_orders:
-            quotation = order.get("quotation")
-            order_counts[quotation] = order_counts.get(quotation, 0) + 1
+        # ERPNext v15: tabSales Order has no 'quotation' header field.
+        # Link is through tabSales Order Item.prevdoc_docname.
+        linked = frappe.db.sql("""
+            SELECT DISTINCT soi.prevdoc_docname AS qname
+            FROM `tabSales Order Item` soi
+            INNER JOIN `tabSales Order` so ON so.name = soi.parent
+            WHERE soi.prevdoc_docname IN %(names)s AND so.docstatus < 2
+        """, {"names": quotation_names}, as_dict=True)
+        for row_l in linked:
+            qname = row_l.qname
+            order_counts[qname] = order_counts.get(qname, 0) + 1
 
     for row in rows:
         row["linked_order_count"] = order_counts.get(row.name, 0)
@@ -251,12 +254,16 @@ def get_quotation_detail(name):
     doc = frappe.get_doc("Quotation", name)
     doc.check_permission("read")
     data = doc.as_dict()
-    data["linked_sales_orders"] = frappe.get_all(
-        "Sales Order",
-        filters={"quotation": doc.name, "docstatus": ["<", 2]},
-        fields=["name", "transaction_date", "delivery_date", "grand_total", "currency", "status"],
-        order_by="transaction_date desc, creation desc",
-    )
+    # ERPNext v15: tabSales Order has no 'quotation' header field.
+    # Link is through tabSales Order Item.prevdoc_docname.
+    data["linked_sales_orders"] = frappe.db.sql("""
+        SELECT DISTINCT so.name, so.transaction_date, so.delivery_date,
+                        so.grand_total, so.currency, so.status
+        FROM `tabSales Order Item` soi
+        INNER JOIN `tabSales Order` so ON so.name = soi.parent
+        WHERE soi.prevdoc_docname = %(quotation)s AND so.docstatus < 2
+        ORDER BY so.transaction_date DESC, so.creation DESC
+    """, {"quotation": doc.name}, as_dict=True)
     return data
 
 
