@@ -85,9 +85,9 @@ services:
         export SITES_PATH=sites &&
         mkdir -p /home/frappe/logs &&
         ln -sfn /home/frappe/frappe-bench/logs /home/frappe/logs &&
-        mkdir -p sites/trader.localhost/logs &&
-        mkdir -p /home/frappe/frappe-bench/trader.localhost &&
-        ln -sfn /home/frappe/frappe-bench/sites/trader.localhost/logs /home/frappe/frappe-bench/trader.localhost/logs &&
+        mkdir -p sites/$${SITE_NAME}/logs &&
+        mkdir -p /home/frappe/frappe-bench/$${SITE_NAME} &&
+        ln -sfn /home/frappe/frappe-bench/sites/$${SITE_NAME}/logs /home/frappe/frappe-bench/$${SITE_NAME}/logs &&
         bench set-config -g db_host $${DB_HOST} &&
         bench set-config -g redis_cache redis://$${REDIS_CACHE} &&
         bench set-config -g redis_queue redis://$${REDIS_QUEUE} &&
