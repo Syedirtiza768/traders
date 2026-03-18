@@ -23,9 +23,27 @@ export type SelectOption = {
   value: string;
 };
 
+type SelectValue = string | SelectOption | null | undefined;
+
+function normalizeOptionValue(value: SelectValue) {
+  if (value && typeof value === 'object') {
+    return value.value ?? '';
+  }
+
+  return value == null ? '' : String(value);
+}
+
+function normalizeOptionLabel(value: SelectValue) {
+  if (value && typeof value === 'object') {
+    return value.label || value.value || '';
+  }
+
+  return value == null ? '' : String(value);
+}
+
 type Props = {
   options: SelectOption[];
-  value: string;
+  value: SelectValue;
   onChange: (value: string) => void;
   placeholder?: string;
   disabled?: boolean;
@@ -50,7 +68,9 @@ export default function SearchableSelect({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
-  const selected = options.find((o) => String(o.value) === String(value));
+  const normalizedValue = normalizeOptionValue(value);
+  const selected = options.find((o) => String(o.value) === normalizedValue);
+  const displayValue = selected?.label || normalizeOptionLabel(value);
 
   // ── Filtered list ────────────────────────────────────────────────────────
   const filtered =
@@ -128,6 +148,8 @@ export default function SearchableSelect({
   const clear = (e: React.MouseEvent) => {
     e.stopPropagation();
     onChange('');
+    setOpen(false);
+    setQuery('');
   };
 
   // ── Compute border class ──────────────────────────────────────────────────
@@ -169,11 +191,11 @@ export default function SearchableSelect({
           .filter(Boolean)
           .join(' ')}
       >
-        <span className={`flex-1 truncate ${selected || value ? 'text-gray-900' : 'text-gray-400'}`}>
-          {selected ? selected.label : value ? value : placeholder}
+        <span className={`flex-1 truncate ${displayValue ? 'text-gray-900' : 'text-gray-400'}`}>
+          {displayValue || placeholder}
         </span>
         <span className="flex items-center gap-1 ml-2 shrink-0">
-          {value && !disabled && (
+          {normalizedValue && !disabled && (
             <button
               type="button"
               aria-label="Clear"
@@ -229,13 +251,13 @@ export default function SearchableSelect({
                 <li
                   key={opt.value}
                   role="option"
-                  aria-selected={String(opt.value) === String(value)}
+                  aria-selected={String(opt.value) === normalizedValue}
                   tabIndex={0}
                   onClick={() => pick(opt.value)}
                   onKeyDown={(e) => handleOptionKey(e, opt.value)}
                   className={[
                     'px-4 py-2 text-sm cursor-pointer outline-none truncate',
-                    opt.value === value || String(opt.value) === String(value)
+                    String(opt.value) === normalizedValue
                       ? 'bg-brand-50 text-brand-700 font-medium'
                       : 'text-gray-800 hover:bg-gray-50 focus:bg-gray-100',
                   ].join(' ')}
