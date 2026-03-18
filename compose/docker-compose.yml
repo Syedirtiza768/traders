@@ -43,8 +43,8 @@ services:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
     volumes:
       - db-vol:/var/lib/mysql
-    ports:
-      - "3306:3306"
+    # No host port binding — DB is only accessed by backend containers on
+    # the internal Docker network.  Removes collision with any host MariaDB.
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 10s
