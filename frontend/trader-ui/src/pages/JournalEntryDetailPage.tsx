@@ -9,7 +9,7 @@ import {
   Scale,
 } from 'lucide-react';
 import { financeApi } from '../lib/api';
-import { classNames, formatCurrency, formatDate, getStatusColor } from '../lib/utils';
+import { classNames, extractFrappeError, formatCurrency, formatDate, getStatusColor } from '../lib/utils';
 
 type JournalEntryDetail = Record<string, any>;
 
@@ -70,7 +70,7 @@ export default function JournalEntryDetailPage() {
       setFeedback({ type: 'success', message: 'Journal entry submitted successfully.' });
     } catch (err) {
       console.error('Failed to submit journal entry:', err);
-      setFeedback({ type: 'error', message: 'Could not submit this journal entry.' });
+      setFeedback({ type: 'error', message: extractFrappeError(err, 'Could not submit this journal entry.') });
     } finally {
       setSubmitting(false);
     }
@@ -88,7 +88,7 @@ export default function JournalEntryDetailPage() {
       setFeedback({ type: 'success', message: 'Journal entry cancelled successfully.' });
     } catch (err) {
       console.error('Failed to cancel journal entry:', err);
-      setFeedback({ type: 'error', message: 'Could not cancel this journal entry.' });
+      setFeedback({ type: 'error', message: extractFrappeError(err, 'Could not cancel this journal entry.') });
     } finally {
       setCancelling(false);
     }

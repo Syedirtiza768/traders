@@ -12,7 +12,7 @@ import {
   Truck,
 } from 'lucide-react';
 import { purchasesApi } from '../lib/api';
-import { appendPreservedListQuery, classNames, formatCurrency, formatDate, getStatusColor, isOperationsContext } from '../lib/utils';
+import { appendPreservedListQuery, classNames, extractFrappeError, formatCurrency, formatDate, getStatusColor, isOperationsContext } from '../lib/utils';
 
 type PurchaseOrderDetail = Record<string, any>;
 
@@ -73,7 +73,7 @@ export default function PurchaseOrderDetailPage() {
       setFeedback({ type: 'success', message: 'Purchase order submitted successfully.' });
     } catch (err) {
       console.error('Failed to submit purchase order:', err);
-      setFeedback({ type: 'error', message: 'Could not submit this purchase order.' });
+      setFeedback({ type: 'error', message: extractFrappeError(err, 'Could not submit this purchase order.') });
     } finally {
       setSubmitting(false);
     }
@@ -91,7 +91,7 @@ export default function PurchaseOrderDetailPage() {
       setFeedback({ type: 'success', message: 'Purchase order cancelled successfully.' });
     } catch (err) {
       console.error('Failed to cancel purchase order:', err);
-      setFeedback({ type: 'error', message: 'Could not cancel this purchase order.' });
+      setFeedback({ type: 'error', message: extractFrappeError(err, 'Could not cancel this purchase order.') });
     } finally {
       setCancelling(false);
     }

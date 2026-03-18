@@ -12,7 +12,7 @@ import {
   User,
 } from 'lucide-react';
 import { salesApi } from '../lib/api';
-import { appendPreservedListQuery, classNames, formatCurrency, formatDate, getStatusColor, isOperationsContext } from '../lib/utils';
+import { appendPreservedListQuery, classNames, extractFrappeError, formatCurrency, formatDate, getStatusColor, isOperationsContext } from '../lib/utils';
 
 type SalesOrderDetail = Record<string, any>;
 
@@ -73,7 +73,7 @@ export default function SalesOrderDetailPage() {
       setFeedback({ type: 'success', message: 'Sales order submitted successfully.' });
     } catch (err) {
       console.error('Failed to submit sales order:', err);
-      setFeedback({ type: 'error', message: 'Could not submit this sales order.' });
+      setFeedback({ type: 'error', message: extractFrappeError(err, 'Could not submit this sales order.') });
     } finally {
       setSubmitting(false);
     }
@@ -91,7 +91,7 @@ export default function SalesOrderDetailPage() {
       setFeedback({ type: 'success', message: 'Sales order cancelled successfully.' });
     } catch (err) {
       console.error('Failed to cancel sales order:', err);
-      setFeedback({ type: 'error', message: 'Could not cancel this sales order.' });
+      setFeedback({ type: 'error', message: extractFrappeError(err, 'Could not cancel this sales order.') });
     } finally {
       setCancelling(false);
     }

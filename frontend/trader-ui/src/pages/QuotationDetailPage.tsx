@@ -11,7 +11,7 @@ import {
   User,
 } from 'lucide-react';
 import { salesApi } from '../lib/api';
-import { appendPreservedListQuery, classNames, formatCurrency, formatDate, getStatusColor, isOperationsContext } from '../lib/utils';
+import { appendPreservedListQuery, classNames, extractFrappeError, formatCurrency, formatDate, getStatusColor, isOperationsContext } from '../lib/utils';
 
 type QuotationDetail = Record<string, any>;
 
@@ -71,7 +71,7 @@ export default function QuotationDetailPage() {
       setFeedback({ type: 'success', message: 'Quotation submitted successfully.' });
     } catch (err) {
       console.error('Failed to submit quotation:', err);
-      setFeedback({ type: 'error', message: 'Could not submit this quotation.' });
+      setFeedback({ type: 'error', message: extractFrappeError(err, 'Could not submit this quotation.') });
     } finally {
       setSubmitting(false);
     }

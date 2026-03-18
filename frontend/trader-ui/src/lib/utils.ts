@@ -165,3 +165,51 @@ export function appendPreservedListQuery(path: string, listSearch: string | null
   const separator = path.includes('?') ? '&' : '?';
   return `${path}${separator}${key}=${encodeURIComponent(listSearch)}`;
 }
+
+/**
+ * Extract a human-readable error message from a Frappe/ERPNext Axios error.
+ *
+ * Frappe can return the user-facing message in three places:
+ *   1. response.data._server_messages — JSON-encoded array of message objects
+ *   2. response.data.exception        — raw exception string (dev mode)
+ *   3. response.data.message          — plain string fallback
+ *
+ * Falls back to `fallback` when none of those yield anything useful.
+ */
+export function extractFrappeError(err: any, fallback = 'An unexpected error occurred.'): string {
+  const data = err?.response?.data;
+  if (!data) return fallback;
+
+  // 1. _server_messages is a JSON string like '[{"message":"...","title":"..."}]'
+  if (data._server_messages) {
+    try {
+      const parsed = JSON.parse(data._server_messages);
+      const msgs: string[] = (Array.isArray(parsed) ? parsed : [parsed])
+        .map((m: any) => {
+          if (typeof m === 'string') {
+            // Each entry may itself be a JSON object string
+            try { m = JSON.parse(m); } catch { /* ignore */ }
+          }
+          return typeof m === 'object' ? (m.message || m.msg || '') : String(m);
+        })
+        .map((m: string) => m.replace(/<[^>]+>/g, '').trim())   // strip HTML tags
+        .filter(Boolean);
+      if (msgs.length) return msgs.join(' ');
+    } catch { /* fall through */ }
+  }
+
+  // 2. exception string — strip the Python class prefix (e.g. "NegativeStockError: ...")
+  if (data.exception) {
+    const raw = String(data.exception).replace(/<[^>]+>/g, '').trim();
+    const colonIdx = raw.indexOf(':');
+    const msg = colonIdx > 0 ? raw.slice(colonIdx + 1).trim() : raw;
+    if (msg) return msg;
+  }
+
+  // 3. Plain message field
+  if (typeof data.message === 'string' && data.message) {
+    return data.message.replace(/<[^>]+>/g, '').trim();
+  }
+
+  return fallback;
+}

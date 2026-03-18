@@ -12,7 +12,7 @@ import {
   User,
 } from 'lucide-react';
 import { salesApi } from '../lib/api';
-import { appendPreservedListQuery, classNames, formatCurrency, formatDate, getStatusColor, isFilterListContext, isOperationsContext, isReportContext } from '../lib/utils';
+import { appendPreservedListQuery, classNames, extractFrappeError, formatCurrency, formatDate, getStatusColor, isFilterListContext, isOperationsContext, isReportContext } from '../lib/utils';
 
 type SalesInvoiceDetail = Record<string, any>;
 
@@ -73,7 +73,7 @@ export default function SalesInvoiceDetailPage() {
       setFeedback({ type: 'success', message: 'Sales invoice submitted successfully.' });
     } catch (err) {
       console.error('Failed to submit sales invoice:', err);
-      setFeedback({ type: 'error', message: 'Could not submit this sales invoice.' });
+      setFeedback({ type: 'error', message: extractFrappeError(err, 'Could not submit this sales invoice.') });
     } finally {
       setSubmitting(false);
     }
@@ -91,7 +91,7 @@ export default function SalesInvoiceDetailPage() {
       setFeedback({ type: 'success', message: 'Sales invoice cancelled successfully.' });
     } catch (err) {
       console.error('Failed to cancel sales invoice:', err);
-      setFeedback({ type: 'error', message: 'Could not cancel this sales invoice.' });
+      setFeedback({ type: 'error', message: extractFrappeError(err, 'Could not cancel this sales invoice.') });
     } finally {
       setCancelling(false);
     }

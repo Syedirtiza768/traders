@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Calendar, FileText, GitCompareArrows, Save, ShoppingCart, Truck } from 'lucide-react';
 import { purchasesApi } from '../lib/api';
-import { appendPreservedListQuery, classNames, formatCurrency, formatDate, getStatusColor, isOperationsContext } from '../lib/utils';
+import { appendPreservedListQuery, classNames, extractFrappeError, formatCurrency, formatDate, getStatusColor, isOperationsContext } from '../lib/utils';
 
 type SupplierQuotationDetail = Record<string, any>;
 
@@ -56,7 +56,7 @@ export default function SupplierQuotationDetailPage() {
       setFeedback({ type: 'success', message: 'Supplier quotation submitted successfully.' });
     } catch (err) {
       console.error('Failed to submit supplier quotation:', err);
-      setFeedback({ type: 'error', message: 'Could not submit this supplier quotation.' });
+      setFeedback({ type: 'error', message: extractFrappeError(err, 'Could not submit this supplier quotation.') });
     } finally {
       setSubmitting(false);
     }
@@ -72,7 +72,7 @@ export default function SupplierQuotationDetailPage() {
       navigate(appendPreservedListQuery(`/purchases/orders/${encodeURIComponent(created.name)}`, listSearch));
     } catch (err) {
       console.error('Failed to create purchase order from supplier quotation:', err);
-      setFeedback({ type: 'error', message: 'Could not create a purchase order from this quotation.' });
+      setFeedback({ type: 'error', message: extractFrappeError(err, 'Could not create a purchase order from this quotation.') });
     } finally {
       setCreatingPo(false);
     }

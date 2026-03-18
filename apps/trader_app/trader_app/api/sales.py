@@ -282,13 +282,16 @@ def get_quotation_detail(name):
 def create_sales_invoice(customer, items, company=None, posting_date=None,
                          due_date=None, taxes_and_charges=None,
                          is_return=0, return_against=None,
-                         update_stock=1):
+                         update_stock=0):
     """Create a Sales Invoice from the UI.
 
     Parameters
     ----------
     customer : str
     items : list of dict — each with item_code, qty, rate
+    update_stock : int — default 0 (stock is managed via Delivery Notes).
+                   Pass 1 only when invoicing without a delivery note and
+                   stock deduction is explicitly required.
     """
     import json
     if isinstance(items, str):

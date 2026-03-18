@@ -12,7 +12,7 @@ import {
   Truck,
 } from 'lucide-react';
 import { purchasesApi } from '../lib/api';
-import { appendPreservedListQuery, classNames, formatCurrency, formatDate, getStatusColor, isFilterListContext, isOperationsContext, isReportContext } from '../lib/utils';
+import { appendPreservedListQuery, classNames, extractFrappeError, formatCurrency, formatDate, getStatusColor, isFilterListContext, isOperationsContext, isReportContext } from '../lib/utils';
 
 type PurchaseInvoiceDetail = Record<string, any>;
 
@@ -73,7 +73,7 @@ export default function PurchaseInvoiceDetailPage() {
       setFeedback({ type: 'success', message: 'Purchase invoice submitted successfully.' });
     } catch (err) {
       console.error('Failed to submit purchase invoice:', err);
-      setFeedback({ type: 'error', message: 'Could not submit this purchase invoice.' });
+      setFeedback({ type: 'error', message: extractFrappeError(err, 'Could not submit this purchase invoice.') });
     } finally {
       setSubmitting(false);
     }
@@ -91,7 +91,7 @@ export default function PurchaseInvoiceDetailPage() {
       setFeedback({ type: 'success', message: 'Purchase invoice cancelled successfully.' });
     } catch (err) {
       console.error('Failed to cancel purchase invoice:', err);
-      setFeedback({ type: 'error', message: 'Could not cancel this purchase invoice.' });
+      setFeedback({ type: 'error', message: extractFrappeError(err, 'Could not cancel this purchase invoice.') });
     } finally {
       setCancelling(false);
     }
