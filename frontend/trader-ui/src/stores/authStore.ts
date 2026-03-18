@@ -29,7 +29,6 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ loading: true, error: null });
     try {
       await authApi.login(username, password);
-      const res = await authApi.getLoggedUser();
       const rolesRes = await fetch('/api/method/trader_app.api.settings.get_current_user_roles', {
         method: 'GET',
         credentials: 'include',
@@ -41,10 +40,15 @@ export const useAuthStore = create<AuthState>((set) => ({
         },
       }).then((r) => r.json());
 
+      const currentUser = document.cookie
+        .split('; ')
+        .find((c) => c.startsWith('full_name='))
+        ?.split('=')[1] || username;
+
       set({
         isAuthenticated: true,
-        user: res.data.message,
-        fullName: res.data.message,
+        user: currentUser,
+        fullName: currentUser,
         roles: rolesRes.message || [],
         loading: false,
         initialized: true,
@@ -69,23 +73,27 @@ export const useAuthStore = create<AuthState>((set) => ({
   checkAuth: async () => {
     set({ loading: true });
     try {
-      const res = await authApi.getLoggedUser();
-      if (res.data.message && res.data.message !== 'Guest') {
-        const rolesRes = await fetch('/api/method/trader_app.api.settings.get_current_user_roles', {
-          method: 'GET',
-          credentials: 'include',
-          headers: {
-            'X-Frappe-CSRF-Token': document.cookie
-              .split('; ')
-              .find((c) => c.startsWith('csrf_token='))
-              ?.split('=')[1] || '',
-          },
-        }).then((r) => r.json());
+      const rolesRes = await fetch('/api/method/trader_app.api.settings.get_current_user_roles', {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'X-Frappe-CSRF-Token': document.cookie
+            .split('; ')
+            .find((c) => c.startsWith('csrf_token='))
+            ?.split('=')[1] || '',
+        },
+      }).then((r) => r.json());
+
+      if (Array.isArray(rolesRes.message)) {
+        const currentUser = document.cookie
+          .split('; ')
+          .find((c) => c.startsWith('full_name='))
+          ?.split('=')[1] || 'User';
 
         set({
           isAuthenticated: true,
-          user: res.data.message,
-          fullName: res.data.message,
+          user: currentUser,
+          fullName: currentUser,
           roles: rolesRes.message || [],
           loading: false,
           initialized: true,

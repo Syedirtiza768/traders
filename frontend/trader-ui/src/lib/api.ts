@@ -75,7 +75,7 @@ export const authApi = {
     http.get('/api/method/logout'),
 
   getLoggedUser: () =>
-    http.get('/api/method/frappe.auth.get_logged_user'),
+    http.get('/api/method/trader_app.api.settings.get_current_user_roles'),
 };
 
 // ─── Dashboard API ───────────────────────────────────────────────
