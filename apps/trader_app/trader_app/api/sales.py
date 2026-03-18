@@ -148,11 +148,14 @@ def get_sales_orders(company=None, customer=None, status=None,
     invoice_counts = {}
     unpaid_counts = {}
     if order_names:
-        linked_invoices = frappe.get_all(
-            "Sales Invoice",
-            filters={"sales_order": ["in", order_names], "docstatus": ["<", 2]},
-            fields=["sales_order", "outstanding_amount"],
-        )
+        # ERPNext v15: tabSales Invoice has no 'sales_order' header field.
+        # Link is through tabSales Invoice Item.sales_order.
+        linked_invoices = frappe.db.sql("""
+            SELECT DISTINCT sii.sales_order, si.outstanding_amount
+            FROM `tabSales Invoice Item` sii
+            INNER JOIN `tabSales Invoice` si ON si.name = sii.parent
+            WHERE sii.sales_order IN %(order_names)s AND si.docstatus < 2
+        """, {"order_names": order_names}, as_dict=True)
         for invoice in linked_invoices:
             sales_order = invoice.get("sales_order")
             invoice_counts[sales_order] = invoice_counts.get(sales_order, 0) + 1
@@ -172,12 +175,16 @@ def get_sales_order_detail(name):
     doc = frappe.get_doc("Sales Order", name)
     doc.check_permission("read")
     data = doc.as_dict()
-    data["linked_sales_invoices"] = frappe.get_all(
-        "Sales Invoice",
-        filters={"sales_order": doc.name, "docstatus": ["<", 2]},
-        fields=["name", "posting_date", "grand_total", "currency", "status", "outstanding_amount"],
-        order_by="posting_date desc, creation desc",
-    )
+    # ERPNext v15: tabSales Invoice has no 'sales_order' header field.
+    # Link is through tabSales Invoice Item.sales_order.
+    data["linked_sales_invoices"] = frappe.db.sql("""
+        SELECT DISTINCT si.name, si.posting_date, si.grand_total,
+                        si.currency, si.status, si.outstanding_amount
+        FROM `tabSales Invoice Item` sii
+        INNER JOIN `tabSales Invoice` si ON si.name = sii.parent
+        WHERE sii.sales_order = %(so_name)s AND si.docstatus < 2
+        ORDER BY si.posting_date DESC, si.creation DESC
+    """, {"so_name": doc.name}, as_dict=True)
     return data
 
 
