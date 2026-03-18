@@ -50,7 +50,7 @@ export default function SearchableSelect({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
-  const selected = options.find((o) => o.value === value);
+  const selected = options.find((o) => String(o.value) === String(value));
 
   // ── Filtered list ────────────────────────────────────────────────────────
   const filtered =
@@ -161,11 +161,11 @@ export default function SearchableSelect({
           .filter(Boolean)
           .join(' ')}
       >
-        <span className={`flex-1 truncate ${selected ? 'text-gray-900' : 'text-gray-400'}`}>
-          {selected ? selected.label : placeholder}
+        <span className={`flex-1 truncate ${selected || value ? 'text-gray-900' : 'text-gray-400'}`}>
+          {selected ? selected.label : value ? value : placeholder}
         </span>
         <span className="flex items-center gap-1 ml-2 shrink-0">
-          {selected && !disabled && (
+          {value && !disabled && (
             <button
               type="button"
               aria-label="Clear"
@@ -220,13 +220,13 @@ export default function SearchableSelect({
                 <li
                   key={opt.value}
                   role="option"
-                  aria-selected={opt.value === value}
+                  aria-selected={String(opt.value) === String(value)}
                   tabIndex={0}
                   onClick={() => pick(opt.value)}
                   onKeyDown={(e) => handleOptionKey(e, opt.value)}
                   className={[
                     'px-4 py-2 text-sm cursor-pointer outline-none truncate',
-                    opt.value === value
+                    opt.value === value || String(opt.value) === String(value)
                       ? 'bg-brand-50 text-brand-700 font-medium'
                       : 'text-gray-800 hover:bg-gray-50 focus:bg-gray-100',
                   ].join(' ')}
