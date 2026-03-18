@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Plus, Save, Trash2 } from 'lucide-react';
 import { customersApi, inventoryApi, salesApi } from '../lib/api';
@@ -33,10 +33,13 @@ export default function CreateSalesOrderPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [quotationLoading, setQuotationLoading] = useState(false);
+  const [quotationError, setQuotationError] = useState<string | null>(null);
+  const quotationFetched = useRef(false);
   const sourceType = searchParams.get('sourceType');
   const sourceName = searchParams.get('sourceName');
   const listSearch = searchParams.get('list');
-  const prefillsLineCount = searchParams.get('lines') ? lines.filter((line) => line.item_code).length : 0;
+  const prefillsLineCount = lines.filter((line) => line.item_code).length;
   const backToPath = listSearch
     ? isOperationsContext(listSearch)
       ? `/operations?${listSearch}`
@@ -72,6 +75,49 @@ export default function CreateSalesOrderPage() {
       }
     }
   }, [searchParams]);
+
+  // When sourceType=quotation, fetch the quotation and pre-populate all fields.
+  useEffect(() => {
+    if (sourceType !== 'quotation' || !sourceName || quotationFetched.current) return;
+    quotationFetched.current = true;
+
+    const fetchQuotation = async () => {
+      setQuotationLoading(true);
+      setQuotationError(null);
+      try {
+        const res = await salesApi.getQuotationDetail(sourceName);
+        const qot = res.data.message;
+        if (!qot) return;
+
+        // Customer
+        if (qot.party_name) setCustomer(qot.party_name);
+
+        // Dates
+        if (qot.transaction_date) setTransactionDate(qot.transaction_date);
+        const deliveryFallback = qot.valid_till || qot.transaction_date || today();
+        setDeliveryDate(deliveryFallback);
+
+        // Items from quotation child table
+        if (Array.isArray(qot.items) && qot.items.length > 0) {
+          setLines(
+            qot.items.map((item: any) => ({
+              item_code: item.item_code || '',
+              qty: Number(item.qty) || 1,
+              rate: Number(item.rate) || 0,
+              delivery_date: item.delivery_date || deliveryFallback,
+            }))
+          );
+        }
+      } catch (err: any) {
+        console.error('Failed to fetch quotation for prefill:', err);
+        setQuotationError(`Could not load quotation ${sourceName} — fields not pre-filled.`);
+      } finally {
+        setQuotationLoading(false);
+      }
+    };
+
+    void fetchQuotation();
+  }, [sourceType, sourceName]);
 
   useEffect(() => {
     const load = async () => {
@@ -177,11 +223,13 @@ export default function CreateSalesOrderPage() {
       </div>
 
       {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+      {quotationError && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{quotationError}</div>}
 
       {(sourceType || sourceName) && (
         <PrefillBanner
           sourceType={sourceType}
           sourceName={sourceName}
+          loading={quotationLoading}
           fields={[
             customer ? 'customer' : null,
             transactionDate ? 'order date' : null,
@@ -324,14 +372,24 @@ function ReadinessCard({ ready, issues }: { ready: boolean; issues: string[] }) 
 function PrefillBanner({
   sourceType,
   sourceName,
+  loading,
   fields,
 }: {
   sourceType: string | null;
   sourceName: string | null;
+  loading?: boolean;
   fields: Array<string | null>;
 }) {
   const cleanFields = fields.filter(Boolean) as string[];
   const sourceLabel = sourceType === 'quotation' ? 'quotation' : 'upstream document';
+
+  if (loading) {
+    return (
+      <div className="rounded-lg border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-900 animate-pulse">
+        Loading quotation {sourceName}…
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-lg border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-900">
