@@ -41,6 +41,58 @@ function normalizeOptionLabel(value: SelectValue) {
   return value == null ? '' : String(value);
 }
 
+function resolveSelectedOption(options: SelectOption[], rawValue: SelectValue) {
+  const normalizedValue = normalizeOptionValue(rawValue);
+  const normalizedLabel = normalizeOptionLabel(rawValue);
+
+  if (!normalizedValue && !normalizedLabel) {
+    return {
+      selected: undefined as SelectOption | undefined,
+      normalizedValue,
+      displayValue: '',
+    };
+  }
+
+  const byValue = options.find((o) => String(o.value) === normalizedValue);
+  if (byValue) {
+    return {
+      selected: byValue,
+      normalizedValue: String(byValue.value),
+      displayValue: byValue.label,
+    };
+  }
+
+  // Fallback for id/name mismatches where controlled value may carry a human label
+  // (e.g. "City Eastern Mart") while option values carry an ID (e.g. "CUST-0001").
+  const byExactLabel = options.find((o) => String(o.label) === normalizedLabel);
+  if (byExactLabel) {
+    return {
+      selected: byExactLabel,
+      normalizedValue: String(byExactLabel.value),
+      displayValue: byExactLabel.label,
+    };
+  }
+
+  const loweredLabel = normalizedLabel.toLowerCase();
+  const byCaseInsensitiveLabel = loweredLabel
+    ? options.find((o) => String(o.label).toLowerCase() === loweredLabel)
+    : undefined;
+  if (byCaseInsensitiveLabel) {
+    return {
+      selected: byCaseInsensitiveLabel,
+      normalizedValue: String(byCaseInsensitiveLabel.value),
+      displayValue: byCaseInsensitiveLabel.label,
+    };
+  }
+
+  // Last resort while options are delayed or unmatched: still show the controlled value.
+  return {
+    selected: undefined as SelectOption | undefined,
+    normalizedValue,
+    displayValue: normalizedLabel,
+  };
+}
+
 type Props = {
   options: SelectOption[];
   value: SelectValue;
@@ -68,9 +120,10 @@ export default function SearchableSelect({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
-  const normalizedValue = normalizeOptionValue(value);
-  const selected = options.find((o) => String(o.value) === normalizedValue);
-  const displayValue = selected?.label || normalizeOptionLabel(value);
+  const {
+    normalizedValue,
+    displayValue,
+  } = resolveSelectedOption(options, value);
 
   // ── Filtered list ────────────────────────────────────────────────────────
   const filtered =
