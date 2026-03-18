@@ -163,8 +163,12 @@ services:
         VITE_API_URL: ${VITE_API_URL}
         VITE_SITE_NAME: ${VITE_SITE_NAME}
     restart: unless-stopped
-    ports:
-      - "3000:3000"
+    # No host port binding needed — only the proxy container needs to reach
+    # frontend:3000 on the internal Docker network. Removing the host port
+    # binding avoids collisions with any process already using port 3000 on
+    # the EC2 host (e.g. a previous Node / nginx instance).
+    expose:
+      - "3000"
 
   # ===========================================
   # NGINX REVERSE PROXY
