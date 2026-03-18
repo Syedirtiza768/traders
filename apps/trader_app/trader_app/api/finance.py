@@ -84,6 +84,9 @@ def get_payment_entry_setup(company=None):
     """Lookup payment modes and default source/destination accounts for the form."""
     company = company or _default_company()
 
+    # Ensure standard modes exist so the payment form is always usable
+    _ensure_payment_modes()
+
     modes = frappe.get_all(
         "Mode of Payment",
         filters={"enabled": 1},
@@ -117,6 +120,9 @@ def create_payment_entry(payment_type, party_type, party, amount,
     """Create a Payment Entry from the UI."""
     company = company or _default_company()
 
+    # Resolve mode_of_payment — ensure it exists in the DB; fall back to first available
+    mode_of_payment = _resolve_payment_mode(mode_of_payment)
+
     pe = frappe.new_doc("Payment Entry")
     pe.company = company
     pe.payment_type = payment_type  # "Receive" or "Pay"
@@ -125,7 +131,8 @@ def create_payment_entry(payment_type, party_type, party, amount,
     pe.posting_date = posting_date or nowdate()
     pe.paid_amount = flt(amount)
     pe.received_amount = flt(amount)
-    pe.mode_of_payment = mode_of_payment or "Cash"
+    if mode_of_payment:
+        pe.mode_of_payment = mode_of_payment
 
     # Set accounts
     if payment_type == "Receive":
@@ -380,3 +387,37 @@ def _get_default_account(company, account_type):
             fieldname="name",
         )
     return account
+
+
+def _ensure_payment_modes():
+    """Create standard Modes of Payment if none exist (first-run bootstrap)."""
+    if frappe.db.count("Mode of Payment") > 0:
+        return  # already set up
+
+    standard_modes = [
+        ("Cash", "Cash"),
+        ("Bank Transfer", "Bank"),
+        ("Cheque", "Bank"),
+        ("Wire Transfer", "Bank"),
+    ]
+    for mode_name, mode_type in standard_modes:
+        if not frappe.db.exists("Mode of Payment", mode_name):
+            doc = frappe.new_doc("Mode of Payment")
+            doc.mode_of_payment = mode_name
+            doc.type = mode_type
+            doc.enabled = 1
+            doc.insert(ignore_permissions=True)
+    frappe.db.commit()
+
+
+def _resolve_payment_mode(mode_of_payment):
+    """Return a valid Mode of Payment name, falling back to the first available."""
+    if mode_of_payment and frappe.db.exists("Mode of Payment", mode_of_payment):
+        return mode_of_payment
+
+    # Prefer "Cash", otherwise take the first enabled mode
+    if frappe.db.exists("Mode of Payment", "Cash"):
+        return "Cash"
+
+    first = frappe.db.get_value("Mode of Payment", {"enabled": 1}, "name", order_by="name asc")
+    return first  # may be None if table is still empty — ERPNext will use its own default

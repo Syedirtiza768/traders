@@ -39,7 +39,7 @@ export default function CreatePaymentEntryPage() {
   const [party, setParty] = useState('');
   const [amount, setAmount] = useState(_initAmount && !Number.isNaN(Number(_initAmount)) ? Number(_initAmount) : 0);
   const [postingDate, setPostingDate] = useState(searchParams.get('postingDate') || today());
-  const [modeOfPayment, setModeOfPayment] = useState('Cash');
+  const [modeOfPayment, setModeOfPayment] = useState('');
   const [referenceDoctype, setReferenceDoctype] = useState(
     _initPaymentType === 'Pay' ? 'Purchase Invoice' : 'Sales Invoice'
   );
@@ -163,9 +163,16 @@ export default function CreatePaymentEntryPage() {
             : suppliersApi.getList({ page: 1, page_size: 100 }),
           financeApi.getPaymentEntrySetup(),
         ]);
+        const modes: PaymentMode[] = setupResponse.data.message?.modes || [];
         setParties(partyResponse.data.message?.data || []);
-        setPaymentModes(setupResponse.data.message?.modes || []);
+        setPaymentModes(modes);
         setAccountDefaults(setupResponse.data.message?.defaults || {});
+        // Set a sensible default mode after loading — prefer "Cash", else first available
+        setModeOfPayment((prev) => {
+          if (prev) return prev; // already set (e.g. from URL param in future)
+          const cash = modes.find((m) => m.name === 'Cash');
+          return cash ? cash.name : (modes[0]?.name || '');
+        });
       } catch (err) {
         console.error('Failed to load payment form data:', err);
         setError('Could not load available parties and payment settings.');
@@ -339,7 +346,10 @@ export default function CreatePaymentEntryPage() {
             <Field label="Mode of Payment">
               <div className="space-y-1">
                 <select value={modeOfPayment} onChange={(e) => setModeOfPayment(e.target.value)} className="input-field" disabled={loading}>
-                  {(paymentModes.length ? paymentModes : [{ name: 'Cash' }, { name: 'Bank' }]).map((mode) => (
+                  {paymentModes.length === 0 && (
+                    <option value="">Loading…</option>
+                  )}
+                  {paymentModes.map((mode) => (
                     <option key={mode.name} value={mode.name}>{mode.name}</option>
                   ))}
                 </select>
