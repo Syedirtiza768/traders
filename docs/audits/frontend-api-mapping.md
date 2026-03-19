@@ -63,6 +63,21 @@ Full scan of all API namespaces and page-level call sites — 2026-03-19
 | Method | HTTP | Endpoint | Parameters |
 |---|---|---|---|
 
+### `bundlingApi`
+
+| Method | HTTP | Endpoint | Parameters |
+|---|---|---|---|
+
+### `gstApi`
+
+| Method | HTTP | Endpoint | Parameters |
+|---|---|---|---|
+
+### `printApi`
+
+| Method | HTTP | Endpoint | Parameters |
+|---|---|---|---|
+
 ### `reportsApi`
 
 | Method | HTTP | Endpoint | Parameters |
