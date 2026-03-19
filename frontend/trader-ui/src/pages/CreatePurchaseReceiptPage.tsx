@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, PackageCheck, Plus, Save, Trash2 } from 'lucide-react';
 import { inventoryApi } from '../lib/api';
 import { appendPreservedListQuery, formatCurrency } from '../lib/utils';
+import SearchableSelect from '../components/SearchableSelect';
 
 type ReceiptLine = {
   item_code: string;
@@ -26,6 +27,8 @@ export default function CreatePurchaseReceiptPage() {
   const [lines, setLines] = useState<ReceiptLine[]>([{ ...EMPTY_LINE }]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [items, setItems] = useState<any[]>([]);
 
   const orderName = searchParams.get('orderName') || '';
   const supplier = searchParams.get('supplier') || '';
@@ -51,6 +54,22 @@ export default function CreatePurchaseReceiptPage() {
       console.error('Failed to parse receipt line prefills:', parseError);
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [warehousesRes, itemsRes] = await Promise.all([
+          inventoryApi.getWarehouses(),
+          inventoryApi.getItems({ page: 1, page_size: 200 }),
+        ]);
+        setWarehouses(warehousesRes.data.message?.data || warehousesRes.data.message || []);
+        setItems(itemsRes.data.message?.data || []);
+      } catch (err) {
+        console.error('Failed to load receipt form data:', err);
+      }
+    };
+    void load();
+  }, []);
 
   const total = useMemo(
     () => lines.reduce((sum, line) => sum + (Number(line.qty) || 0) * (Number(line.rate) || 0), 0),
@@ -135,7 +154,12 @@ export default function CreatePurchaseReceiptPage() {
               <input type="date" value={postingDate} onChange={(e) => setPostingDate(e.target.value)} className="input-field" />
             </Field>
             <Field label="Default Warehouse">
-              <input value={warehouse} onChange={(e) => setWarehouse(e.target.value)} className="input-field" placeholder="Main Warehouse - COMPANY" />
+              <SearchableSelect
+                value={warehouse}
+                onChange={setWarehouse}
+                options={warehouses.map((w) => ({ label: w.warehouse_name || w.name, value: w.name }))}
+                placeholder="Select warehouse"
+              />
             </Field>
           </div>
 
@@ -151,7 +175,12 @@ export default function CreatePurchaseReceiptPage() {
               {lines.map((line, index) => (
                 <div key={index} className="grid grid-cols-1 gap-3 rounded-lg border border-gray-200 p-4 md:grid-cols-[2fr_1fr_1fr_2fr_auto]">
                   <Field label="Item Code">
-                    <input value={line.item_code} onChange={(e) => updateLine(index, { item_code: e.target.value })} className="input-field" />
+                    <SearchableSelect
+                      value={line.item_code}
+                      onChange={(v) => updateLine(index, { item_code: v })}
+                      options={items.map((e) => ({ label: e.item_name || e.item_code || e.name, value: e.item_code || e.name }))}
+                      placeholder="Select item"
+                    />
                   </Field>
                   <Field label="Qty">
                     <input type="number" min={0.01} step="0.01" value={line.qty} onChange={(e) => updateLine(index, { qty: Number(e.target.value) })} className="input-field" />
@@ -160,7 +189,12 @@ export default function CreatePurchaseReceiptPage() {
                     <input type="number" min={0} step="0.01" value={line.rate} onChange={(e) => updateLine(index, { rate: Number(e.target.value) })} className="input-field" />
                   </Field>
                   <Field label="Warehouse">
-                    <input value={line.warehouse || warehouse} onChange={(e) => updateLine(index, { warehouse: e.target.value })} className="input-field" placeholder="Warehouse" />
+                    <SearchableSelect
+                      value={line.warehouse || warehouse}
+                      onChange={(v) => updateLine(index, { warehouse: v })}
+                      options={warehouses.map((w) => ({ label: w.warehouse_name || w.name, value: w.name }))}
+                      placeholder="Select warehouse"
+                    />
                   </Field>
                   <div className="flex items-end">
                     <button onClick={() => removeLine(index)} disabled={lines.length === 1} className="rounded-lg border border-gray-200 p-3 text-gray-500 hover:text-red-600 disabled:opacity-40">
@@ -202,10 +236,10 @@ function today() {
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="block">
+    <div className="block">
       <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">{label}</span>
       {children}
-    </label>
+    </div>
   );
 }
 

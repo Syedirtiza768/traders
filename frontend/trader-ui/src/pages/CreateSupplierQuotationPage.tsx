@@ -136,5 +136,5 @@ export default function CreateSupplierQuotationPage() {
 }
 
 function today() { return new Date().toISOString().slice(0, 10); }
-function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="block"><span className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">{label}</span>{children}</label>; }
+function Field({ label, children }: { label: string; children: React.ReactNode }) { return <div className="block"><span className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">{label}</span>{children}</div>; }
 function SummaryRow({ label, value }: { label: string; value: string }) { return <div className="flex items-center justify-between text-sm"><span className="text-gray-500">{label}</span><span className="font-medium text-gray-900">{value}</span></div>; }

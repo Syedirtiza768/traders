@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, PackageOpen, Plus, Save, Trash2 } from 'lucide-react';
-import { inventoryApi } from '../lib/api';
+import { inventoryApi, salesApi } from '../lib/api';
 import { appendPreservedListQuery, formatCurrency } from '../lib/utils';
+import SearchableSelect from '../components/SearchableSelect';
 
 type DispatchLine = {
   item_code: string;
@@ -24,12 +25,19 @@ export default function CreateSalesDispatchPage() {
   const [lines, setLines] = useState<DispatchLine[]>([{ ...EMPTY_LINE }]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [items, setItems] = useState<any[]>([]);
 
   const orderName = searchParams.get('orderName') || '';
   const customer = searchParams.get('customer') || '';
   const listSearch = searchParams.get('list');
 
   useEffect(() => {
+    const warehouseParam = searchParams.get('warehouse');
+    if (warehouseParam) {
+      setWarehouse(warehouseParam);
+    }
+
     const postingDateParam = searchParams.get('postingDate');
     if (postingDateParam) {
       setPostingDate(postingDateParam);
@@ -53,6 +61,69 @@ export default function CreateSalesDispatchPage() {
       console.error('Failed to parse dispatch line prefills:', parseError);
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    const encodedLines = searchParams.get('lines');
+    if (encodedLines || !orderName) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadOrderPrefill = async () => {
+      try {
+        const response = await salesApi.getOrderDetail(orderName);
+        const order = response.data.message;
+        const orderLines = Array.isArray(order?.items) ? order.items : [];
+        const defaultWarehouse = searchParams.get('warehouse') || order?.set_warehouse || '';
+        const fallbackPostingDate = order?.delivery_date || order?.transaction_date || '';
+
+        if (cancelled) {
+          return;
+        }
+
+        if (defaultWarehouse) {
+          setWarehouse((current) => current || defaultWarehouse);
+        }
+
+        if (fallbackPostingDate) {
+          setPostingDate((current) => current || fallbackPostingDate);
+        }
+
+        if (orderLines.length > 0) {
+          setLines(orderLines.map((line: any) => ({
+            item_code: line.item_code || '',
+            qty: Number(line.qty) || 1,
+            warehouse: line.warehouse || line.target_warehouse || defaultWarehouse || '',
+          })));
+        }
+      } catch (err) {
+        console.error('Failed to load sales order dispatch prefills:', err);
+      }
+    };
+
+    void loadOrderPrefill();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [orderName, searchParams]);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [warehousesRes, itemsRes] = await Promise.all([
+          inventoryApi.getWarehouses(),
+          inventoryApi.getItems({ page: 1, page_size: 200 }),
+        ]);
+        setWarehouses(warehousesRes.data.message?.data || warehousesRes.data.message || []);
+        setItems(itemsRes.data.message?.data || []);
+      } catch (err) {
+        console.error('Failed to load dispatch form data:', err);
+      }
+    };
+    void load();
+  }, []);
 
   const totalQty = useMemo(
     () => lines.reduce((sum, line) => sum + (Number(line.qty) || 0), 0),
@@ -136,7 +207,12 @@ export default function CreateSalesDispatchPage() {
               <input type="date" value={postingDate} onChange={(e) => setPostingDate(e.target.value)} className="input-field" />
             </Field>
             <Field label="Source Warehouse">
-              <input value={warehouse} onChange={(e) => setWarehouse(e.target.value)} className="input-field" placeholder="Main Warehouse - COMPANY" />
+              <SearchableSelect
+                value={warehouse}
+                onChange={setWarehouse}
+                options={warehouses.map((w) => ({ label: w.warehouse_name || w.name, value: w.name }))}
+                placeholder="Select warehouse"
+              />
             </Field>
           </div>
 
@@ -152,13 +228,23 @@ export default function CreateSalesDispatchPage() {
               {lines.map((line, index) => (
                 <div key={index} className="grid grid-cols-1 gap-3 rounded-lg border border-gray-200 p-4 md:grid-cols-[2fr_1fr_2fr_auto]">
                   <Field label="Item Code">
-                    <input value={line.item_code} onChange={(e) => updateLine(index, { item_code: e.target.value })} className="input-field" />
+                    <SearchableSelect
+                      value={line.item_code}
+                      onChange={(v) => updateLine(index, { item_code: v })}
+                      options={items.map((e) => ({ label: e.item_name || e.item_code || e.name, value: e.item_code || e.name }))}
+                      placeholder="Select item"
+                    />
                   </Field>
                   <Field label="Qty">
                     <input type="number" min={0.01} step="0.01" value={line.qty} onChange={(e) => updateLine(index, { qty: Number(e.target.value) })} className="input-field" />
                   </Field>
                   <Field label="Warehouse">
-                    <input value={line.warehouse || warehouse} onChange={(e) => updateLine(index, { warehouse: e.target.value })} className="input-field" placeholder="Warehouse" />
+                    <SearchableSelect
+                      value={line.warehouse || warehouse}
+                      onChange={(v) => updateLine(index, { warehouse: v })}
+                      options={warehouses.map((w) => ({ label: w.warehouse_name || w.name, value: w.name }))}
+                      placeholder="Select warehouse"
+                    />
                   </Field>
                   <div className="flex items-end">
                     <button onClick={() => removeLine(index)} disabled={lines.length === 1} className="rounded-lg border border-gray-200 p-3 text-gray-500 hover:text-red-600 disabled:opacity-40">
@@ -200,10 +286,10 @@ function today() {
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="block">
+    <div className="block">
       <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">{label}</span>
       {children}
-    </label>
+    </div>
   );
 }
 

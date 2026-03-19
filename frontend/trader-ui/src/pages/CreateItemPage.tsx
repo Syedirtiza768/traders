@@ -121,9 +121,9 @@ export default function CreateItemPage() {
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="block">
+    <div className="block">
       <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">{label}</span>
       {children}
-    </label>
+    </div>
   );
 }

@@ -19,6 +19,7 @@ export default function CreatePurchaseRequisitionPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [items, setItems] = useState<any[]>([]);
+  const [warehouses, setWarehouses] = useState<any[]>([]);
   const [title, setTitle] = useState('');
   const [transactionDate, setTransactionDate] = useState(today());
   const [scheduleDate, setScheduleDate] = useState(today());
@@ -34,8 +35,12 @@ export default function CreatePurchaseRequisitionPage() {
     const load = async () => {
       setLoading(true);
       try {
-        const itemsRes = await inventoryApi.getItems({ page: 1, page_size: 100 });
+        const [itemsRes, warehousesRes] = await Promise.all([
+          inventoryApi.getItems({ page: 1, page_size: 100 }),
+          inventoryApi.getWarehouses(),
+        ]);
         setItems(itemsRes.data.message?.data || []);
+        setWarehouses(warehousesRes.data.message?.data || warehousesRes.data.message || []);
       } catch (err) {
         console.error('Failed to load requisition form data:', err);
         setError('Could not load item catalog for requisition creation.');
@@ -142,7 +147,13 @@ export default function CreatePurchaseRequisitionPage() {
                   <Field label="Qty"><input type="number" min={1} step="0.01" value={line.qty} onChange={(e) => updateLine(index, { qty: Number(e.target.value) })} className="input-field" /></Field>
                   <Field label="Rate"><input type="number" min={0} step="0.01" value={line.rate} onChange={(e) => updateLine(index, { rate: Number(e.target.value) })} className="input-field" /></Field>
                   <Field label="Needed By"><input type="date" value={line.schedule_date || scheduleDate} onChange={(e) => updateLine(index, { schedule_date: e.target.value })} className="input-field" /></Field>
-                  <Field label="Warehouse"><input value={line.warehouse || ''} onChange={(e) => updateLine(index, { warehouse: e.target.value })} className="input-field" placeholder="Warehouse" /></Field>
+                  <Field label="Warehouse"><SearchableSelect
+                      value={line.warehouse || ''}
+                      onChange={(v) => updateLine(index, { warehouse: v })}
+                      options={warehouses.map((w) => ({ label: w.warehouse_name || w.name, value: w.name }))}
+                      placeholder="Select warehouse"
+                      disabled={loading}
+                    /></Field>
                   <div className="flex items-end"><button onClick={() => removeLine(index)} disabled={lines.length === 1} className="rounded-lg border border-gray-200 p-3 text-gray-500 hover:text-red-600 disabled:opacity-40"><Trash2 size={16} /></button></div>
                 </div>
               ))}
@@ -163,5 +174,5 @@ export default function CreatePurchaseRequisitionPage() {
 }
 
 function today() { return new Date().toISOString().slice(0, 10); }
-function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="block"><span className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">{label}</span>{children}</label>; }
+function Field({ label, children }: { label: string; children: React.ReactNode }) { return <div className="block"><span className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">{label}</span>{children}</div>; }
 function SummaryRow({ label, value }: { label: string; value: string }) { return <div className="flex items-center justify-between text-sm"><span className="text-gray-500">{label}</span><span className="font-medium text-gray-900">{value}</span></div>; }
