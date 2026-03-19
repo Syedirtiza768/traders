@@ -85,9 +85,12 @@ services:
         export SITES_PATH=sites &&
         mkdir -p /home/frappe/logs &&
         ln -sfn /home/frappe/frappe-bench/logs /home/frappe/logs &&
-        mkdir -p sites/$${SITE_NAME}/logs &&
-        mkdir -p /home/frappe/frappe-bench/$${SITE_NAME} &&
-        ln -sfn /home/frappe/frappe-bench/sites/$${SITE_NAME}/logs /home/frappe/frappe-bench/$${SITE_NAME}/logs &&
+        for site_dir in sites/*/; do
+          site=$$(basename $$site_dir);
+          mkdir -p sites/$$site/logs;
+          mkdir -p /home/frappe/frappe-bench/$$site;
+          ln -sfn /home/frappe/frappe-bench/sites/$$site/logs /home/frappe/frappe-bench/$$site/logs 2>/dev/null || true;
+        done &&
         bench set-config -g db_host $${DB_HOST} &&
         bench set-config -g redis_cache redis://$${REDIS_CACHE} &&
         bench set-config -g redis_queue redis://$${REDIS_QUEUE} &&
