@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Plus, Save, Trash2 } from 'lucide-react';
 import { inventoryApi, purchasesApi } from '../lib/api';
 import { appendPreservedListQuery, formatCurrency, isOperationsContext } from '../lib/utils';
 import SearchableSelect from '../components/SearchableSelect';
+import useQuickAdd from '../components/useQuickAdd';
+import QuickAddProvider from '../components/QuickAddProvider';
 
 type RequestLine = {
   item_code: string;
@@ -30,6 +32,8 @@ export default function CreatePurchaseRequisitionPage() {
   const listSearch = searchParams.get('list');
   const backToPath = listSearch ? (isOperationsContext(listSearch) ? `/operations?${listSearch}` : '/purchases/requisitions') : '/purchases/requisitions';
   const backLabel = listSearch && isOperationsContext(listSearch) ? 'Back to Operations' : 'Back to Requisitions';
+  const quickAdd = useQuickAdd();
+  const quickAddItemLine = useRef<number | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -142,6 +146,8 @@ export default function CreatePurchaseRequisitionPage() {
                       options={items.map((e) => ({ label: e.item_name || e.item_code || e.name, value: e.item_code || e.name }))}
                       placeholder="Select item"
                       disabled={loading}
+                      creatable
+                      onCreateNew={(q) => { quickAddItemLine.current = index; quickAdd.open('item', q); }}
                     />
                   </Field>
                   <Field label="Qty"><input type="number" min={1} step="0.01" value={line.qty} onChange={(e) => updateLine(index, { qty: Number(e.target.value) })} className="input-field" /></Field>
@@ -169,6 +175,12 @@ export default function CreatePurchaseRequisitionPage() {
           <SummaryRow label="Schedule Date" value={scheduleDate} />
         </div>
       </div>
+
+      <QuickAddProvider
+        quickAdd={quickAdd}
+        itemsSetter={setItems}
+        itemValueSetter={(v) => { const idx = quickAddItemLine.current; if (idx !== null && idx >= 0) handleItemChange(idx, v); quickAddItemLine.current = null; }}
+      />
     </div>
   );
 }

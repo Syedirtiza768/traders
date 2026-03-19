@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Plus, Save, Trash2 } from 'lucide-react';
 import { customersApi, inventoryApi, salesApi } from '../lib/api';
 import { appendPreservedListQuery, formatCurrency } from '../lib/utils';
 import SearchableSelect from '../components/SearchableSelect';
+import useQuickAdd from '../components/useQuickAdd';
+import QuickAddProvider from '../components/QuickAddProvider';
 
 type QuotationLine = {
   item_code: string;
@@ -26,6 +28,8 @@ export default function CreateQuotationPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const listSearch = searchParams.get('list');
+  const quickAdd = useQuickAdd();
+  const quickAddItemLine = useRef<number>(-1);
 
   useEffect(() => {
     const customerParam = searchParams.get('customer');
@@ -136,6 +140,8 @@ export default function CreateQuotationPage() {
                 options={customers.map((e) => ({ label: e.customer_name || e.name, value: e.name }))}
                 placeholder="Select customer"
                 disabled={loading}
+                creatable
+                onCreateNew={(query) => quickAdd.open('customer', query)}
               />
             </Field>
             <Field label="Quotation Date">
@@ -175,6 +181,8 @@ export default function CreateQuotationPage() {
                           options={items.map((item) => ({ label: item.item_name || item.item_code || item.name, value: item.item_code || item.name }))}
                           placeholder="Select item"
                           className="text-sm"
+                          creatable
+                          onCreateNew={(query) => { quickAddItemLine.current = i; quickAdd.open('item', query); }}
                         />
                       </td>
                       <td className="px-4 py-2">
@@ -209,6 +217,14 @@ export default function CreateQuotationPage() {
           <ReadinessCheck label="At least one item line" passed={validLineCount > 0} />
         </div>
       </div>
+
+      <QuickAddProvider
+        quickAdd={quickAdd}
+        customersSetter={setCustomers}
+        customerValueSetter={setCustomer}
+        itemsSetter={setItems}
+        itemValueSetter={(v) => { if (quickAddItemLine.current >= 0) handleItemChange(quickAddItemLine.current, v); }}
+      />
     </div>
   );
 }

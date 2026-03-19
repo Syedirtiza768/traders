@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, PackageOpen, Plus, Save, Trash2 } from 'lucide-react';
 import { inventoryApi, salesApi } from '../lib/api';
 import { appendPreservedListQuery, formatCurrency } from '../lib/utils';
 import SearchableSelect from '../components/SearchableSelect';
+import useQuickAdd from '../components/useQuickAdd';
+import QuickAddProvider from '../components/QuickAddProvider';
 
 type DispatchLine = {
   item_code: string;
@@ -31,6 +33,8 @@ export default function CreateSalesDispatchPage() {
   const orderName = searchParams.get('orderName') || '';
   const customer = searchParams.get('customer') || '';
   const listSearch = searchParams.get('list');
+  const quickAdd = useQuickAdd();
+  const quickAddItemLine = useRef<number | null>(null);
 
   useEffect(() => {
     const warehouseParam = searchParams.get('warehouse');
@@ -233,6 +237,8 @@ export default function CreateSalesDispatchPage() {
                       onChange={(v) => updateLine(index, { item_code: v })}
                       options={items.map((e) => ({ label: e.item_name || e.item_code || e.name, value: e.item_code || e.name }))}
                       placeholder="Select item"
+                      creatable
+                      onCreateNew={(q) => { quickAddItemLine.current = index; quickAdd.open('item', q); }}
                     />
                   </Field>
                   <Field label="Qty">
@@ -276,6 +282,12 @@ export default function CreateSalesDispatchPage() {
           </p>
         </div>
       </div>
+
+      <QuickAddProvider
+        quickAdd={quickAdd}
+        itemsSetter={setItems}
+        itemValueSetter={(v) => { const idx = quickAddItemLine.current; if (idx !== null && idx >= 0) updateLine(idx, { item_code: v }); quickAddItemLine.current = null; }}
+      />
     </div>
   );
 }

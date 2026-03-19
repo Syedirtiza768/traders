@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Plus, Save, Trash2 } from 'lucide-react';
 import { inventoryApi, purchasesApi, suppliersApi } from '../lib/api';
 import { appendPreservedListQuery, formatCurrency, isOperationsContext } from '../lib/utils';
 import SearchableSelect from '../components/SearchableSelect';
+import useQuickAdd from '../components/useQuickAdd';
+import QuickAddProvider from '../components/QuickAddProvider';
 
 type InvoiceLine = {
   item_code: string;
@@ -43,6 +45,8 @@ export default function CreatePurchaseInvoicePage() {
       : '/purchases'
     : '/purchases';
   const backLabel = listSearch && isOperationsContext(listSearch) ? 'Back to Operations' : 'Back to Purchases';
+  const quickAdd = useQuickAdd();
+  const quickAddItemLine = useRef<number>(-1);
 
   useEffect(() => {
     const supplierParam = searchParams.get('supplier');
@@ -213,6 +217,8 @@ export default function CreatePurchaseInvoicePage() {
                 options={suppliers.map((e) => ({ label: e.supplier_name || e.name, value: e.name }))}
                 placeholder="Select supplier"
                 disabled={loading}
+                creatable
+                onCreateNew={(query) => quickAdd.open('supplier', query)}
               />
             </Field>
             <Field label="Posting Date">
@@ -242,6 +248,8 @@ export default function CreatePurchaseInvoicePage() {
                       placeholder="Select item"
                       disabled={loading}
                       error={!line.item_code}
+                      creatable
+                      onCreateNew={(query) => { quickAddItemLine.current = index; quickAdd.open('item', query); }}
                     />
                   </Field>
                   <Field label="Qty">
@@ -286,6 +294,14 @@ export default function CreatePurchaseInvoicePage() {
           </p>
         </div>
       </div>
+
+      <QuickAddProvider
+        quickAdd={quickAdd}
+        suppliersSetter={setSuppliers}
+        supplierValueSetter={setSupplier}
+        itemsSetter={setItems}
+        itemValueSetter={(v) => { if (quickAddItemLine.current >= 0) handleItemChange(quickAddItemLine.current, v); }}
+      />
     </div>
   );
 }

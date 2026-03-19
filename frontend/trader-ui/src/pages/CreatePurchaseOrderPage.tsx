@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Plus, Save, Trash2 } from 'lucide-react';
 import { inventoryApi, purchasesApi, suppliersApi } from '../lib/api';
 import { appendPreservedListQuery, formatCurrency, isOperationsContext } from '../lib/utils';
 import SearchableSelect from '../components/SearchableSelect';
+import useQuickAdd from '../components/useQuickAdd';
+import QuickAddProvider from '../components/QuickAddProvider';
 
 type OrderLine = {
   item_code: string;
@@ -35,6 +37,8 @@ export default function CreatePurchaseOrderPage() {
       : '/purchases/orders'
     : '/purchases/orders';
   const backLabel = listSearch && isOperationsContext(listSearch) ? 'Back to Operations' : 'Back to Purchase Orders';
+  const quickAdd = useQuickAdd();
+  const quickAddItemLine = useRef<number>(-1);
 
   useEffect(() => {
     const linesParam = searchParams.get('lines');
@@ -162,6 +166,8 @@ export default function CreatePurchaseOrderPage() {
                 options={suppliers.map((e) => ({ label: e.supplier_name || e.name, value: e.name }))}
                 placeholder="Select supplier"
                 disabled={loading}
+                creatable
+                onCreateNew={(query) => quickAdd.open('supplier', query)}
               />
             </Field>
             <Field label="Order Date">
@@ -194,6 +200,8 @@ export default function CreatePurchaseOrderPage() {
                       options={items.map((e) => ({ label: e.item_name || e.item_code || e.name, value: e.item_code || e.name }))}
                       placeholder="Select item"
                       disabled={loading}
+                      creatable
+                      onCreateNew={(query) => { quickAddItemLine.current = index; quickAdd.open('item', query); }}
                     />
                   </Field>
                   <Field label="Qty">
@@ -227,6 +235,14 @@ export default function CreatePurchaseOrderPage() {
           </p>
         </div>
       </div>
+
+      <QuickAddProvider
+        quickAdd={quickAdd}
+        suppliersSetter={setSuppliers}
+        supplierValueSetter={setSupplier}
+        itemsSetter={setItems}
+        itemValueSetter={(v) => { if (quickAddItemLine.current >= 0) handleItemChange(quickAddItemLine.current, v); }}
+      />
     </div>
   );
 }

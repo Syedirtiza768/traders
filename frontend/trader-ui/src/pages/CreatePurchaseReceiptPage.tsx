@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, PackageCheck, Plus, Save, Trash2 } from 'lucide-react';
 import { inventoryApi } from '../lib/api';
 import { appendPreservedListQuery, formatCurrency } from '../lib/utils';
 import SearchableSelect from '../components/SearchableSelect';
+import useQuickAdd from '../components/useQuickAdd';
+import QuickAddProvider from '../components/QuickAddProvider';
 
 type ReceiptLine = {
   item_code: string;
@@ -33,6 +35,8 @@ export default function CreatePurchaseReceiptPage() {
   const orderName = searchParams.get('orderName') || '';
   const supplier = searchParams.get('supplier') || '';
   const listSearch = searchParams.get('list');
+  const quickAdd = useQuickAdd();
+  const quickAddItemLine = useRef<number | null>(null);
 
   useEffect(() => {
     const encodedLines = searchParams.get('lines');
@@ -180,6 +184,8 @@ export default function CreatePurchaseReceiptPage() {
                       onChange={(v) => updateLine(index, { item_code: v })}
                       options={items.map((e) => ({ label: e.item_name || e.item_code || e.name, value: e.item_code || e.name }))}
                       placeholder="Select item"
+                      creatable
+                      onCreateNew={(q) => { quickAddItemLine.current = index; quickAdd.open('item', q); }}
                     />
                   </Field>
                   <Field label="Qty">
@@ -226,6 +232,12 @@ export default function CreatePurchaseReceiptPage() {
           </p>
         </div>
       </div>
+
+      <QuickAddProvider
+        quickAdd={quickAdd}
+        itemsSetter={setItems}
+        itemValueSetter={(v) => { const idx = quickAddItemLine.current; if (idx !== null && idx >= 0) updateLine(idx, { item_code: v }); quickAddItemLine.current = null; }}
+      />
     </div>
   );
 }

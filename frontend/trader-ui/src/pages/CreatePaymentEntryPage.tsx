@@ -4,6 +4,8 @@ import { ArrowLeft, Save } from 'lucide-react';
 import { customersApi, financeApi, suppliersApi } from '../lib/api';
 import { appendPreservedListQuery, extractFrappeError, formatCurrency, formatDate, isFilterListContext, isOperationsContext, isReportContext, isWorkflowContext } from '../lib/utils';
 import SearchableSelect from '../components/SearchableSelect';
+import useQuickAdd from '../components/useQuickAdd';
+import QuickAddProvider from '../components/QuickAddProvider';
 
 type PartyTransaction = {
   name: string;
@@ -54,6 +56,7 @@ export default function CreatePaymentEntryPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const listSearch = searchParams.get('list');
+  const quickAdd = useQuickAdd();
   const backToPath = useMemo(() => {
     if (!listSearch) {
       return '/finance/payments';
@@ -339,6 +342,8 @@ export default function CreatePaymentEntryPage() {
                 options={parties.map((e) => ({ label: e.customer_name || e.supplier_name || e.name, value: e.name }))}
                 placeholder={`Select ${partyType.toLowerCase()}`}
                 disabled={loading}
+                creatable
+                onCreateNew={(q) => quickAdd.open(partyType === 'Customer' ? 'customer' : 'supplier', q)}
               />
             </Field>
             <Field label="Amount">
@@ -403,6 +408,14 @@ export default function CreatePaymentEntryPage() {
           </p>
         </div>
       </div>
+
+      <QuickAddProvider
+        quickAdd={quickAdd}
+        customersSetter={partyType === 'Customer' ? setParties : undefined}
+        customerValueSetter={partyType === 'Customer' ? setParty : undefined}
+        suppliersSetter={partyType === 'Supplier' ? setParties : undefined}
+        supplierValueSetter={partyType === 'Supplier' ? setParty : undefined}
+      />
     </div>
   );
 }
