@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Plus, Save, Trash2 } from 'lucide-react';
-import { customersApi, inventoryApi, salesApi } from '../lib/api';
+import { customersApi, gstApi, inventoryApi, salesApi } from '../lib/api';
 import { appendPreservedListQuery, formatCurrency, isOperationsContext } from '../lib/utils';
 import SearchableSelect from '../components/SearchableSelect';
 import useQuickAdd from '../components/useQuickAdd';
@@ -9,11 +9,12 @@ import QuickAddProvider from '../components/QuickAddProvider';
 
 type InvoiceLine = {
   item_code: string;
+  description: string;
   qty: number;
   rate: number;
 };
 
-const EMPTY_LINE: InvoiceLine = { item_code: '', qty: 1, rate: 0 };
+const EMPTY_LINE: InvoiceLine = { item_code: '', description: '', qty: 1, rate: 0 };
 
 function getLineIssues(line: { item_code: string; qty: number; rate: number }) {
   const issues: string[] = [];
@@ -35,6 +36,9 @@ export default function CreateSalesInvoicePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [taxTemplates, setTaxTemplates] = useState<any[]>([]);
+  const [taxTemplate, setTaxTemplate] = useState('');
+  const [taxRate, setTaxRate] = useState(0);
   const sourceType = searchParams.get('sourceType');
   const sourceName = searchParams.get('sourceName');
   const listSearch = searchParams.get('list');
@@ -63,6 +67,7 @@ export default function CreateSalesInvoicePage() {
         if (Array.isArray(parsed) && parsed.length > 0) {
           setLines(parsed.map((line) => ({
             item_code: line.item_code || '',
+            description: line.description || '',
             qty: Number(line.qty) || 1,
             rate: Number(line.rate) || 0,
           })));
@@ -77,12 +82,20 @@ export default function CreateSalesInvoicePage() {
     const load = async () => {
       setLoading(true);
       try {
-        const [customersRes, itemsRes] = await Promise.all([
+        const [customersRes, itemsRes, taxRes] = await Promise.all([
           customersApi.getList({ page: 1, page_size: 100 }),
           inventoryApi.getItems({ page: 1, page_size: 100 }),
+          gstApi.getTaxTemplates('Sales'),
         ]);
         setCustomers(customersRes.data.message?.data || []);
         setItems(itemsRes.data.message?.data || []);
+        const templates = taxRes.data.message || [];
+        setTaxTemplates(templates);
+        const defaultTpl = templates.find((t: any) => t.is_default);
+        if (defaultTpl) {
+          setTaxTemplate(defaultTpl.name);
+          setTaxRate(parseFloat(defaultTpl.total_tax_rate || defaultTpl.tax_rate || 0));
+        }
       } catch (err) {
         console.error('Failed to load invoice form data:', err);
         setError('Could not load customers and items for invoice creation.');
@@ -98,6 +111,8 @@ export default function CreateSalesInvoicePage() {
     () => lines.reduce((sum, line) => sum + (Number(line.qty) || 0) * (Number(line.rate) || 0), 0),
     [lines],
   );
+  const taxAmount = useMemo(() => total * taxRate / 100, [total, taxRate]);
+  const grandTotal = useMemo(() => total + taxAmount, [total, taxAmount]);
   const validLineCount = useMemo(
     () => lines.filter((line) => line.item_code && Number(line.qty) > 0).length,
     [lines],
@@ -126,8 +141,15 @@ export default function CreateSalesInvoicePage() {
     const selected = items.find((item) => item.item_code === itemCode || item.name === itemCode);
     updateLine(index, {
       item_code: itemCode,
-      rate: selected?.standard_rate ?? selected?.valuation_rate ?? 0,
+      description: selected?.description || selected?.item_name || '',
+      rate: selected?.selling_price ?? selected?.standard_rate ?? 0,
     });
+  };
+
+  const handleTaxTemplateChange = (templateName: string) => {
+    setTaxTemplate(templateName);
+    const tpl = taxTemplates.find((t: any) => t.name === templateName);
+    setTaxRate(tpl ? parseFloat(tpl.total_tax_rate || tpl.tax_rate || 0) : 0);
   };
 
   const handleSubmit = async () => {
@@ -149,7 +171,8 @@ export default function CreateSalesInvoicePage() {
         customer,
         posting_date: postingDate,
         due_date: dueDate,
-        items: validLines,
+        items: validLines.map((l) => ({ item_code: l.item_code, description: l.description || undefined, qty: l.qty, rate: l.rate })),
+        taxes_and_charges: taxTemplate || undefined,
       });
       const created = response.data.message;
       navigate(appendPreservedListQuery(`/sales/${encodeURIComponent(created.name)}`, listSearch));
@@ -193,7 +216,7 @@ export default function CreateSalesInvoicePage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="card p-6 lg:col-span-2 space-y-6">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Field label="Customer">
               <SearchableSelect
                 value={customer}
@@ -211,6 +234,17 @@ export default function CreateSalesInvoicePage() {
             <Field label="Due Date">
               <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="input-field" />
             </Field>
+            <Field label="Tax Template">
+              <SearchableSelect
+                value={taxTemplate}
+                onChange={handleTaxTemplateChange}
+                options={[
+                  { label: 'No Tax', value: '' },
+                  ...taxTemplates.map((t: any) => ({ label: `${t.title || t.name} (${parseFloat(t.total_tax_rate || t.tax_rate || 0)}%)`, value: t.name })),
+                ]}
+                placeholder="Select tax template"
+              />
+            </Field>
           </div>
 
           <div className="space-y-4">
@@ -223,36 +257,48 @@ export default function CreateSalesInvoicePage() {
 
             <div className="space-y-3">
               {lines.map((line, index) => (
-                <div key={index} className={`grid grid-cols-1 gap-3 rounded-lg border p-4 md:grid-cols-[2fr_1fr_1fr_auto] ${getLineIssues(line).length > 0 ? 'border-amber-200 bg-amber-50/50' : 'border-gray-200'}`}>
-                  <Field label="Item">
-                    <SearchableSelect
-                      value={line.item_code}
-                      onChange={(v) => handleItemChange(index, v)}
-                      options={items.map((e) => ({ label: e.item_name || e.item_code || e.name, value: e.item_code || e.name }))}
-                      placeholder="Select item"
-                      disabled={loading}
-                      error={!line.item_code}
-                      creatable
-                      onCreateNew={(query) => { quickAddItemLine.current = index; quickAdd.open('item', query); }}
+                <div key={index} className={`rounded-lg border p-4 space-y-3 hover:border-gray-300 transition-colors ${getLineIssues(line).length > 0 ? 'border-amber-200 bg-amber-50/50' : 'border-gray-200'}`}>
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-[2fr_1fr_1fr_1fr_auto]">
+                    <Field label="Item">
+                      <SearchableSelect
+                        value={line.item_code}
+                        onChange={(v) => handleItemChange(index, v)}
+                        options={items.map((e) => ({ label: e.item_name || e.item_code || e.name, value: e.item_code || e.name }))}
+                        placeholder="Select item"
+                        disabled={loading}
+                        error={!line.item_code}
+                        creatable
+                        onCreateNew={(query) => { quickAddItemLine.current = index; quickAdd.open('item', query); }}
+                      />
+                    </Field>
+                    <Field label="Qty">
+                      <input type="number" min={1} step="0.01" value={line.qty} onChange={(e) => updateLine(index, { qty: Number(e.target.value) })} className={`input-field text-right text-sm ${!(Number(line.qty) > 0) ? 'border-amber-300 focus:border-amber-500 focus:ring-amber-500' : ''}`} />
+                    </Field>
+                    <Field label="Rate">
+                      <input type="number" min={0} step="0.01" value={line.rate} onChange={(e) => updateLine(index, { rate: Number(e.target.value) })} className={`input-field text-right text-sm ${!(Number(line.rate) > 0) ? 'border-amber-300 focus:border-amber-500 focus:ring-amber-500' : ''}`} />
+                    </Field>
+                    <Field label="Amount">
+                      <div className="input-field bg-gray-50 text-right text-sm font-medium text-gray-900">
+                        {formatCurrency((Number(line.qty) || 0) * (Number(line.rate) || 0))}
+                      </div>
+                    </Field>
+                    <div className="flex items-end">
+                      <button onClick={() => removeLine(index)} disabled={lines.length === 1} className="rounded-lg border border-gray-200 p-2.5 text-gray-400 hover:text-red-600 disabled:opacity-30">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                  <Field label="Description (shown on external/client-facing documents)">
+                    <textarea
+                      value={line.description}
+                      onChange={(e) => updateLine(index, { description: e.target.value })}
+                      placeholder="Enter line description for client-facing view..."
+                      rows={2}
+                      className="input-field text-sm resize-none"
                     />
                   </Field>
-                  <Field label="Qty">
-                    <input type="number" min={1} step="0.01" value={line.qty} onChange={(e) => updateLine(index, { qty: Number(e.target.value) })} className={`input-field ${!(Number(line.qty) > 0) ? 'border-amber-300 focus:border-amber-500 focus:ring-amber-500' : ''}`} />
-                  </Field>
-                  <Field label="Rate">
-                    <input type="number" min={0} step="0.01" value={line.rate} onChange={(e) => updateLine(index, { rate: Number(e.target.value) })} className={`input-field ${!(Number(line.rate) > 0) ? 'border-amber-300 focus:border-amber-500 focus:ring-amber-500' : ''}`} />
-                  </Field>
-                  <div className="flex items-end">
-                    <button onClick={() => removeLine(index)} disabled={lines.length === 1} className="rounded-lg border border-gray-200 p-3 text-gray-500 hover:text-red-600 disabled:opacity-40">
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                  <div className="md:col-span-4 flex items-center justify-between rounded-md bg-gray-50 px-3 py-2 text-sm">
-                    <span className="text-gray-500">Line Amount</span>
-                    <span className="font-semibold text-gray-900">{formatCurrency((Number(line.qty) || 0) * (Number(line.rate) || 0))}</span>
-                  </div>
                   {getLineIssues(line).length > 0 && (
-                    <div className="md:col-span-4 rounded-md border border-amber-200 bg-white px-3 py-2 text-xs text-amber-800">
+                    <div className="rounded-md border border-amber-200 bg-white px-3 py-2 text-xs text-amber-800">
                       Line {index + 1}: {getLineIssues(line).join(' • ')}
                     </div>
                   )}
@@ -266,11 +312,15 @@ export default function CreateSalesInvoicePage() {
           <h2 className="text-lg font-semibold text-gray-900">Summary</h2>
           <ReadinessCard ready={isReadyToSave} issues={readinessIssues} />
           <div className="rounded-lg bg-gray-900 px-4 py-3 text-white">
-            <div className="text-xs uppercase tracking-wide text-gray-300">Draft Subtotal</div>
-            <div className="mt-1 text-2xl font-semibold">{formatCurrency(total)}</div>
+            <div className="text-xs uppercase tracking-wide text-gray-300">Draft Grand Total</div>
+            <div className="mt-1 text-2xl font-semibold">{formatCurrency(grandTotal)}</div>
           </div>
           <SummaryRow label="Valid Lines" value={String(validLineCount)} />
-          <SummaryRow label="Draft Total" value={formatCurrency(total)} />
+          <SummaryRow label="Net Total" value={formatCurrency(total)} />
+          {taxRate > 0 && (
+            <SummaryRow label={`Tax (${taxRate}%)`} value={formatCurrency(taxAmount)} />
+          )}
+          <SummaryRow label="Grand Total" value={formatCurrency(grandTotal)} />
           <SummaryRow label="Posting Date" value={postingDate} />
           <SummaryRow label="Due Date" value={dueDate} />
           <p className="text-xs leading-5 text-gray-500">

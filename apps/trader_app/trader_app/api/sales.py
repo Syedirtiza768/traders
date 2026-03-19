@@ -324,12 +324,15 @@ def create_sales_invoice(customer, items, company=None, posting_date=None,
         si.return_against = return_against
 
     for item in items:
-        si.append("items", {
+        row = {
             "item_code": item.get("item_code"),
             "qty": -abs(flt(item.get("qty", 1))) if cint(is_return) else flt(item.get("qty", 1)),
             "rate": flt(item.get("rate", 0)),
             "warehouse": item.get("warehouse") or f"Main Warehouse - {abbr}",
-        })
+        }
+        if item.get("description"):
+            row["description"] = item["description"]
+        si.append("items", row)
 
     if taxes_and_charges:
         si.taxes_and_charges = taxes_and_charges
@@ -357,13 +360,16 @@ def create_sales_order(customer, items, company=None, transaction_date=None,
     so.delivery_date = delivery_date or so.transaction_date
 
     for item in items:
-        so.append("items", {
+        row = {
             "item_code": item.get("item_code"),
             "qty": flt(item.get("qty", 1)),
             "rate": flt(item.get("rate", 0)),
             "warehouse": item.get("warehouse") or f"Main Warehouse - {abbr}",
             "delivery_date": item.get("delivery_date") or delivery_date or so.delivery_date,
-        })
+        }
+        if item.get("description"):
+            row["description"] = item["description"]
+        so.append("items", row)
 
     if taxes_and_charges:
         so.taxes_and_charges = taxes_and_charges
@@ -432,12 +438,15 @@ def create_quotation(customer, items, company=None, transaction_date=None,
     q.valid_till = valid_till or q.transaction_date
 
     for item in items:
-        q.append("items", {
+        row = {
             "item_code": item.get("item_code"),
             "qty": flt(item.get("qty", 1)),
             "rate": flt(item.get("rate", 0)),
             "warehouse": item.get("warehouse") or f"Main Warehouse - {abbr}",
-        })
+        }
+        if item.get("description"):
+            row["description"] = item["description"]
+        q.append("items", row)
 
     if taxes_and_charges:
         q.taxes_and_charges = taxes_and_charges

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Plus, Save, Trash2 } from 'lucide-react';
-import { customersApi, inventoryApi, salesApi } from '../lib/api';
+import { customersApi, gstApi, inventoryApi, salesApi } from '../lib/api';
 import { appendPreservedListQuery, formatCurrency, isOperationsContext } from '../lib/utils';
 import SearchableSelect from '../components/SearchableSelect';
 import useQuickAdd from '../components/useQuickAdd';
@@ -9,12 +9,13 @@ import QuickAddProvider from '../components/QuickAddProvider';
 
 type OrderLine = {
   item_code: string;
+  description: string;
   qty: number;
   rate: number;
   delivery_date?: string;
 };
 
-const EMPTY_LINE: OrderLine = { item_code: '', qty: 1, rate: 0 };
+const EMPTY_LINE: OrderLine = { item_code: '', description: '', qty: 1, rate: 0 };
 
 function getLineIssues(line: { item_code: string; qty: number; rate: number }) {
   const issues: string[] = [];
@@ -36,6 +37,9 @@ export default function CreateSalesOrderPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [taxTemplates, setTaxTemplates] = useState<any[]>([]);
+  const [taxTemplate, setTaxTemplate] = useState('');
+  const [taxRate, setTaxRate] = useState(0);
   const [quotationLoading, setQuotationLoading] = useState(false);
   const [quotationError, setQuotationError] = useState<string | null>(null);
   const quotationFetched = useRef(false);
@@ -70,6 +74,7 @@ export default function CreateSalesOrderPage() {
         if (Array.isArray(parsed) && parsed.length > 0) {
           setLines(parsed.map((line) => ({
             item_code: line.item_code || '',
+            description: line.description || '',
             qty: Number(line.qty) || 1,
             rate: Number(line.rate) || 0,
             delivery_date: line.delivery_date || deliveryDateParam || today(),
@@ -107,6 +112,7 @@ export default function CreateSalesOrderPage() {
           setLines(
             qot.items.map((item: any) => ({
               item_code: item.item_code || '',
+              description: item.description || '',
               qty: Number(item.qty) || 1,
               rate: Number(item.rate) || 0,
               delivery_date: item.delivery_date || deliveryFallback,
@@ -128,12 +134,20 @@ export default function CreateSalesOrderPage() {
     const load = async () => {
       setLoading(true);
       try {
-        const [customersRes, itemsRes] = await Promise.all([
+        const [customersRes, itemsRes, taxRes] = await Promise.all([
           customersApi.getList({ page: 1, page_size: 100 }),
           inventoryApi.getItems({ page: 1, page_size: 100 }),
+          gstApi.getTaxTemplates('Sales'),
         ]);
         setCustomers(customersRes.data.message?.data || []);
         setItems(itemsRes.data.message?.data || []);
+        const templates = taxRes.data.message || [];
+        setTaxTemplates(templates);
+        const defaultTpl = templates.find((t: any) => t.is_default);
+        if (defaultTpl) {
+          setTaxTemplate(defaultTpl.name);
+          setTaxRate(parseFloat(defaultTpl.total_tax_rate || defaultTpl.tax_rate || 0));
+        }
       } catch (err) {
         console.error('Failed to load sales order form data:', err);
         setError('Could not load customers and items for sales order creation.');
@@ -149,6 +163,8 @@ export default function CreateSalesOrderPage() {
     () => lines.reduce((sum, line) => sum + (Number(line.qty) || 0) * (Number(line.rate) || 0), 0),
     [lines],
   );
+  const taxAmount = useMemo(() => total * taxRate / 100, [total, taxRate]);
+  const grandTotal = useMemo(() => total + taxAmount, [total, taxAmount]);
   const validLineCount = useMemo(
     () => lines.filter((line) => line.item_code && Number(line.qty) > 0).length,
     [lines],
@@ -177,8 +193,15 @@ export default function CreateSalesOrderPage() {
     const selected = items.find((item) => item.item_code === itemCode || item.name === itemCode);
     updateLine(index, {
       item_code: itemCode,
+      description: selected?.description || selected?.item_name || '',
       rate: selected?.standard_rate ?? selected?.valuation_rate ?? 0,
     });
+  };
+
+  const handleTaxTemplateChange = (templateName: string) => {
+    setTaxTemplate(templateName);
+    const tpl = taxTemplates.find((t: any) => t.name === templateName);
+    setTaxRate(tpl ? parseFloat(tpl.total_tax_rate || tpl.tax_rate || 0) : 0);
   };
 
   const handleSubmit = async () => {
@@ -200,7 +223,8 @@ export default function CreateSalesOrderPage() {
         customer,
         transaction_date: transactionDate,
         delivery_date: deliveryDate,
-        items: validLines,
+        items: validLines.map((l) => ({ item_code: l.item_code, description: l.description || undefined, qty: l.qty, rate: l.rate, delivery_date: l.delivery_date })),
+        taxes_and_charges: taxTemplate || undefined,
       });
       const created = response.data.message;
       navigate(appendPreservedListQuery(`/sales/orders/${encodeURIComponent(created.name)}`, listSearch));
@@ -246,7 +270,7 @@ export default function CreateSalesOrderPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="card p-6 lg:col-span-2 space-y-6">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Field label="Customer">
               <SearchableSelect
                 value={customer}
@@ -267,6 +291,17 @@ export default function CreateSalesOrderPage() {
                 setDeliveryDate(nextDate);
                 setLines((current) => current.map((line) => ({ ...line, delivery_date: line.delivery_date || nextDate })));
               }} className="input-field" />
+            </Field>
+            <Field label="Tax Template">
+              <SearchableSelect
+                value={taxTemplate}
+                onChange={handleTaxTemplateChange}
+                options={[
+                  { label: 'No Tax', value: '' },
+                  ...taxTemplates.map((t: any) => ({ label: `${t.title || t.name} (${parseFloat(t.total_tax_rate || t.tax_rate || 0)}%)`, value: t.name })),
+                ]}
+                placeholder="Select tax template"
+              />
             </Field>
           </div>
 
@@ -311,6 +346,17 @@ export default function CreateSalesOrderPage() {
                     <span className="text-gray-500">Line Amount</span>
                     <span className="font-semibold text-gray-900">{formatCurrency((Number(line.qty) || 0) * (Number(line.rate) || 0))}</span>
                   </div>
+                  <div className="md:col-span-5">
+                    <Field label="Description (shown on external/client-facing documents)">
+                      <textarea
+                        value={line.description}
+                        onChange={(e) => updateLine(index, { description: e.target.value })}
+                        placeholder="Enter line description for client-facing view..."
+                        rows={2}
+                        className="input-field text-sm resize-none"
+                      />
+                    </Field>
+                  </div>
                   {getLineIssues(line).length > 0 && (
                     <div className="md:col-span-5 rounded-md border border-amber-200 bg-white px-3 py-2 text-xs text-amber-800">
                       Line {index + 1}: {getLineIssues(line).join(' • ')}
@@ -326,11 +372,15 @@ export default function CreateSalesOrderPage() {
           <h2 className="text-lg font-semibold text-gray-900">Summary</h2>
           <ReadinessCard ready={isReadyToSave} issues={readinessIssues} />
           <div className="rounded-lg bg-gray-900 px-4 py-3 text-white">
-            <div className="text-xs uppercase tracking-wide text-gray-300">Draft Subtotal</div>
-            <div className="mt-1 text-2xl font-semibold">{formatCurrency(total)}</div>
+            <div className="text-xs uppercase tracking-wide text-gray-300">Draft Grand Total</div>
+            <div className="mt-1 text-2xl font-semibold">{formatCurrency(grandTotal)}</div>
           </div>
           <SummaryRow label="Valid Lines" value={String(validLineCount)} />
-          <SummaryRow label="Draft Total" value={formatCurrency(total)} />
+          <SummaryRow label="Net Total" value={formatCurrency(total)} />
+          {taxRate > 0 && (
+            <SummaryRow label={`Tax (${taxRate}%)`} value={formatCurrency(taxAmount)} />
+          )}
+          <SummaryRow label="Grand Total" value={formatCurrency(grandTotal)} />
           <SummaryRow label="Order Date" value={transactionDate} />
           <SummaryRow label="Delivery Date" value={deliveryDate} />
           <p className="text-xs leading-5 text-gray-500">

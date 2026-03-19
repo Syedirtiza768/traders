@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Plus, Save, Trash2 } from 'lucide-react';
-import { customersApi, inventoryApi, salesApi } from '../lib/api';
+import { customersApi, gstApi, inventoryApi, salesApi } from '../lib/api';
 import { appendPreservedListQuery, formatCurrency } from '../lib/utils';
 import SearchableSelect from '../components/SearchableSelect';
 import useQuickAdd from '../components/useQuickAdd';
@@ -9,11 +9,12 @@ import QuickAddProvider from '../components/QuickAddProvider';
 
 type QuotationLine = {
   item_code: string;
+  description: string;
   qty: number;
   rate: number;
 };
 
-const EMPTY_LINE: QuotationLine = { item_code: '', qty: 1, rate: 0 };
+const EMPTY_LINE: QuotationLine = { item_code: '', description: '', qty: 1, rate: 0 };
 
 export default function CreateQuotationPage() {
   const navigate = useNavigate();
@@ -27,6 +28,9 @@ export default function CreateQuotationPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [taxTemplates, setTaxTemplates] = useState<any[]>([]);
+  const [taxTemplate, setTaxTemplate] = useState('');
+  const [taxRate, setTaxRate] = useState(0);
   const listSearch = searchParams.get('list');
   const quickAdd = useQuickAdd();
   const quickAddItemLine = useRef<number>(-1);
@@ -40,12 +44,21 @@ export default function CreateQuotationPage() {
     const load = async () => {
       setLoading(true);
       try {
-        const [customersRes, itemsRes] = await Promise.all([
+        const [customersRes, itemsRes, taxRes] = await Promise.all([
           customersApi.getList({ page: 1, page_size: 100 }),
           inventoryApi.getItems({ page: 1, page_size: 100 }),
+          gstApi.getTaxTemplates('Sales'),
         ]);
         setCustomers(customersRes.data.message?.data || []);
         setItems(itemsRes.data.message?.data || []);
+        const templates = taxRes.data.message || [];
+        setTaxTemplates(templates);
+        // Auto-select default template if available
+        const defaultTpl = templates.find((t: any) => t.is_default);
+        if (defaultTpl) {
+          setTaxTemplate(defaultTpl.name);
+          setTaxRate(parseFloat(defaultTpl.total_tax_rate || defaultTpl.tax_rate || 0));
+        }
       } catch (err) {
         console.error('Failed to load quotation form data:', err);
         setError('Could not load customers and items.');
@@ -60,6 +73,8 @@ export default function CreateQuotationPage() {
     () => lines.reduce((sum, l) => sum + (Number(l.qty) || 0) * (Number(l.rate) || 0), 0),
     [lines],
   );
+  const taxAmount = useMemo(() => total * taxRate / 100, [total, taxRate]);
+  const grandTotal = useMemo(() => total + taxAmount, [total, taxAmount]);
   const validLineCount = useMemo(
     () => lines.filter((l) => l.item_code && Number(l.qty) > 0).length,
     [lines],
@@ -80,8 +95,15 @@ export default function CreateQuotationPage() {
     const selected = items.find((item) => item.item_code === itemCode || item.name === itemCode);
     updateLine(index, {
       item_code: itemCode,
+      description: selected?.description || selected?.item_name || '',
       rate: selected?.selling_price ?? selected?.standard_rate ?? 0,
     });
+  };
+
+  const handleTaxTemplateChange = (templateName: string) => {
+    setTaxTemplate(templateName);
+    const tpl = taxTemplates.find((t: any) => t.name === templateName);
+    setTaxRate(tpl ? parseFloat(tpl.total_tax_rate || tpl.tax_rate || 0) : 0);
   };
 
   const handleSubmit = async () => {
@@ -101,7 +123,8 @@ export default function CreateQuotationPage() {
         customer,
         transaction_date: transactionDate,
         valid_till: validTill,
-        items: validLines,
+        items: validLines.map((l) => ({ item_code: l.item_code, description: l.description || undefined, qty: l.qty, rate: l.rate })),
+        taxes_and_charges: taxTemplate || undefined,
       });
       const created = response.data.message;
       navigate(appendPreservedListQuery(`/sales/quotations/${encodeURIComponent(created.name)}`, listSearch));
@@ -132,7 +155,7 @@ export default function CreateQuotationPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="card p-6 lg:col-span-2 space-y-6">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Field label="Customer">
               <SearchableSelect
                 value={customer}
@@ -150,6 +173,17 @@ export default function CreateQuotationPage() {
             <Field label="Valid Till">
               <input type="date" value={validTill} onChange={(e) => setValidTill(e.target.value)} className="input-field" />
             </Field>
+            <Field label="Tax Template">
+              <SearchableSelect
+                value={taxTemplate}
+                onChange={handleTaxTemplateChange}
+                options={[
+                  { label: 'No Tax', value: '' },
+                  ...taxTemplates.map((t: any) => ({ label: `${t.title || t.name} (${parseFloat(t.total_tax_rate || t.tax_rate || 0)}%)`, value: t.name })),
+                ]}
+                placeholder="Select tax template"
+              />
+            </Field>
           </div>
 
           <div>
@@ -160,49 +194,49 @@ export default function CreateQuotationPage() {
               </button>
             </div>
 
-            <div className="table-container">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-gray-50">
-                    <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Item</th>
-                    <th className="text-right px-4 py-2 text-xs font-semibold text-gray-500 uppercase w-24">Qty</th>
-                    <th className="text-right px-4 py-2 text-xs font-semibold text-gray-500 uppercase w-32">Rate</th>
-                    <th className="text-right px-4 py-2 text-xs font-semibold text-gray-500 uppercase w-32">Amount</th>
-                    <th className="w-12" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {lines.map((line, i) => (
-                    <tr key={i} className="hover:bg-gray-50">
-                      <td className="px-4 py-2">
-                        <SearchableSelect
-                          value={line.item_code}
-                          onChange={(v) => handleItemChange(i, v)}
-                          options={items.map((item) => ({ label: item.item_name || item.item_code || item.name, value: item.item_code || item.name }))}
-                          placeholder="Select item"
-                          className="text-sm"
-                          creatable
-                          onCreateNew={(query) => { quickAddItemLine.current = i; quickAdd.open('item', query); }}
-                        />
-                      </td>
-                      <td className="px-4 py-2">
-                        <input type="number" min="1" value={line.qty} onChange={(e) => updateLine(i, { qty: Number(e.target.value) || 0 })} className="input-field text-right text-sm" />
-                      </td>
-                      <td className="px-4 py-2">
-                        <input type="number" min="0" step="0.01" value={line.rate} onChange={(e) => updateLine(i, { rate: Number(e.target.value) || 0 })} className="input-field text-right text-sm" />
-                      </td>
-                      <td className="px-4 py-2 text-right text-sm font-medium text-gray-900">
+            <div className="space-y-3">
+              {lines.map((line, i) => (
+                <div key={i} className="rounded-lg border border-gray-200 p-4 space-y-3 hover:border-gray-300 transition-colors">
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-[2fr_1fr_1fr_1fr_auto]">
+                    <Field label="Item">
+                      <SearchableSelect
+                        value={line.item_code}
+                        onChange={(v) => handleItemChange(i, v)}
+                        options={items.map((item) => ({ label: item.item_name || item.item_code || item.name, value: item.item_code || item.name }))}
+                        placeholder="Select item"
+                        className="text-sm"
+                        creatable
+                        onCreateNew={(query) => { quickAddItemLine.current = i; quickAdd.open('item', query); }}
+                      />
+                    </Field>
+                    <Field label="Qty">
+                      <input type="number" min="1" value={line.qty} onChange={(e) => updateLine(i, { qty: Number(e.target.value) || 0 })} className="input-field text-right text-sm" />
+                    </Field>
+                    <Field label="Rate">
+                      <input type="number" min="0" step="0.01" value={line.rate} onChange={(e) => updateLine(i, { rate: Number(e.target.value) || 0 })} className="input-field text-right text-sm" />
+                    </Field>
+                    <Field label="Amount">
+                      <div className="input-field bg-gray-50 text-right text-sm font-medium text-gray-900">
                         {formatCurrency((Number(line.qty) || 0) * (Number(line.rate) || 0))}
-                      </td>
-                      <td className="px-4 py-2 text-center">
-                        <button onClick={() => removeLine(i)} disabled={lines.length <= 1} className="text-red-400 hover:text-red-600 disabled:opacity-30">
-                          <Trash2 size={14} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                    </Field>
+                    <div className="flex items-end">
+                      <button onClick={() => removeLine(i)} disabled={lines.length <= 1} className="rounded-lg border border-gray-200 p-2.5 text-gray-400 hover:text-red-600 disabled:opacity-30">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                  <Field label="Description (shown on external/client-facing documents)">
+                    <textarea
+                      value={line.description}
+                      onChange={(e) => updateLine(i, { description: e.target.value })}
+                      placeholder="Enter line description for client-facing view..."
+                      rows={2}
+                      className="input-field text-sm resize-none"
+                    />
+                  </Field>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -210,7 +244,12 @@ export default function CreateQuotationPage() {
         <div className="card p-6 space-y-4">
           <h3 className="text-sm font-semibold text-gray-700">Summary</h3>
           <SummaryLine label="Lines" value={String(validLineCount)} />
-          <SummaryLine label="Grand Total" value={formatCurrency(total)} highlight />
+          <SummaryLine label="Net Total" value={formatCurrency(total)} />
+          {taxTemplate && taxRate > 0 && (
+            <SummaryLine label={`Tax (${taxRate}%)`} value={formatCurrency(taxAmount)} />
+          )}
+          <hr className="border-gray-100" />
+          <SummaryLine label="Grand Total" value={formatCurrency(grandTotal)} highlight />
           <hr className="border-gray-100" />
           <h4 className="text-xs font-medium text-gray-500 uppercase">Readiness</h4>
           <ReadinessCheck label="Customer selected" passed={Boolean(customer)} />
