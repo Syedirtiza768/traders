@@ -23,14 +23,33 @@ def _cache_key():
 
 
 def _read_user_ui_settings():
+    # 1. Try Redis cache first (fast path)
     cached = frappe.cache().get_value(_cache_key())
-    if not cached:
-        return {}
+    if cached:
+        if isinstance(cached, bytes):
+            cached = cached.decode("utf-8")
+        try:
+            return json.loads(cached)
+        except Exception:
+            pass
 
-    if isinstance(cached, bytes):
-        cached = cached.decode("utf-8")
+    # 2. Fall back to per-user DB defaults (survive clear-cache)
+    keys = [
+        "language", "time_zone", "date_format", "number_format",
+        "float_precision", "session_expiry", "enable_two_factor",
+        "dark_mode", "compact_tables", "email_notifications",
+    ]
+    stored = {}
+    for k in keys:
+        val = frappe.db.get_default("trader_ui_{}".format(k), for_user=frappe.session.user)
+        if val is not None:
+            stored[k] = val
 
-    return json.loads(cached)
+    if stored:
+        # Re-warm the cache for next request
+        frappe.cache().set_value(_cache_key(), json.dumps(stored))
+
+    return stored
 
 
 def _payload():
@@ -88,13 +107,27 @@ def save_settings(data=None):
         "email_notifications": cint(ui.get("email_notifications") or 1),
     }
 
-    frappe.cache().set_value(_cache_key(), json.dumps(cleaned))
-    frappe.db.set_single_value("System Settings", "time_zone", cleaned["time_zone"])
-    frappe.db.set_single_value("System Settings", "date_format", cleaned["date_format"])
-    frappe.db.set_single_value("System Settings", "number_format", cleaned["number_format"])
-    frappe.db.set_single_value("System Settings", "float_precision", cleaned["float_precision"])
-    frappe.db.set_single_value("System Settings", "session_expiry", cleaned["session_expiry"])
+    # 1. Persist to per-user DB defaults (survives cache clears, no special perms needed)
+    for k, v in cleaned.items():
+        frappe.db.set_default("trader_ui_{}".format(k), v, for_user=frappe.session.user)
+
     frappe.db.commit()
+
+    # 2. Update Redis cache for fast reads
+    frappe.cache().set_value(_cache_key(), json.dumps(cleaned))
+
+    # 3. Best-effort: update system-wide settings if caller has permission
+    try:
+        frappe.db.set_single_value("System Settings", "time_zone", cleaned["time_zone"])
+        frappe.db.set_single_value("System Settings", "date_format", cleaned["date_format"])
+        frappe.db.set_single_value("System Settings", "number_format", cleaned["number_format"])
+        frappe.db.set_single_value("System Settings", "float_precision", cleaned["float_precision"])
+        frappe.db.set_single_value("System Settings", "session_expiry", cleaned["session_expiry"])
+        frappe.db.commit()
+    except Exception:
+        # Non-admin users cannot write System Settings — that is fine,
+        # the per-user defaults above are authoritative for this UI.
+        pass
 
     return {
         "ok": True,
