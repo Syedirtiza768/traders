@@ -379,7 +379,50 @@ export const financeApi = {
   getOutstandingSummary: (company?: string) =>
     read('trader_app.api.finance.get_outstanding_summary', { company }),
 };
+// ─── Bundling API ────────────────────────────────────────────
 
+export const bundlingApi = {
+  getBundles: (params?: Record<string, any>) =>
+    read('trader_app.api.bundling.get_item_bundles', params),
+
+  getBundleDetail: (name: string) =>
+    read('trader_app.api.bundling.get_item_bundle_detail', { name }),
+
+  createBundle: (data: Record<string, any>) =>
+    call('trader_app.api.bundling.create_item_bundle', data),
+
+  updateBundle: (data: Record<string, any>) =>
+    call('trader_app.api.bundling.update_item_bundle', data),
+
+  deleteBundle: (name: string) =>
+    call('trader_app.api.bundling.delete_item_bundle', { name }),
+
+  expandBundle: (name: string) =>
+    read('trader_app.api.bundling.expand_bundle', { name }),
+};
+
+// ─── GST API ─────────────────────────────────────────────────
+
+export const gstApi = {
+  getSettings: (company?: string) =>
+    read('trader_app.api.gst.get_gst_settings', { company }),
+
+  saveSettings: (data: Record<string, any>) =>
+    call('trader_app.api.gst.save_gst_settings', data),
+
+  seedTemplates: (company?: string) =>
+    call('trader_app.api.gst.seed_punjab_gst_templates', { company }),
+
+  getTaxTemplates: (doctype?: string, company?: string) =>
+    read('trader_app.api.gst.get_tax_templates', { doctype, company }),
+};
+
+// ─── Printing API ────────────────────────────────────────────
+
+export const printApi = {
+  getPrintData: (doctype: string, name: string, view_mode?: string, doc_format?: string) =>
+    read('trader_app.api.printing.get_print_data', { doctype, name, view_mode, doc_format }),
+};
 // ─── Reports API ─────────────────────────────────────────────────
 
 export const reportsApi = {

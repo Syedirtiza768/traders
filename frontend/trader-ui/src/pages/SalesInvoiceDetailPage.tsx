@@ -7,6 +7,7 @@ import {
   CreditCard,
   FileText,
   Package,
+  Printer,
   ReceiptText,
   ShoppingCart,
   User,
@@ -194,6 +195,12 @@ export default function SalesInvoiceDetailPage() {
           <span className={classNames('inline-flex rounded-full px-3 py-1 text-sm font-medium', getStatusColor(statusLabel))}>
             {statusLabel}
           </span>
+          <button
+            onClick={() => navigate(`/print?doctype=Sales%20Invoice&name=${encodeURIComponent(invoice.name)}`)}
+            className="btn-secondary inline-flex items-center gap-2"
+          >
+            <Printer className="h-4 w-4" /> Print / Preview
+          </button>
           {invoice.docstatus === 1 && !invoice.is_return && (
             <button
               onClick={() => navigate(buildReturnPath())}

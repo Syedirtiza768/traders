@@ -6,6 +6,7 @@ import {
   ClipboardCheck,
   FileText,
   Package,
+  Printer,
   ReceiptText,
   ShoppingCart,
   User,
@@ -127,6 +128,12 @@ export default function QuotationDetailPage() {
           <span className={classNames('inline-flex rounded-full px-3 py-1 text-sm font-medium', getStatusColor(statusLabel))}>
             {statusLabel}
           </span>
+          <button
+            onClick={() => navigate(`/print?doctype=Quotation&name=${encodeURIComponent(quotation.name)}`)}
+            className="btn-secondary inline-flex items-center gap-2"
+          >
+            <Printer className="h-4 w-4" /> Print / Preview
+          </button>
           {quotation.customer && (
             <button
               onClick={() => navigate(`/sales/orders/new?customer=${encodeURIComponent(quotation.customer)}&transactionDate=${encodeURIComponent(quotation.transaction_date || '')}&deliveryDate=${encodeURIComponent(quotation.valid_till || quotation.transaction_date || '')}&sourceType=quotation&sourceName=${encodeURIComponent(quotation.name || '')}&lines=${encodedLines}`)}

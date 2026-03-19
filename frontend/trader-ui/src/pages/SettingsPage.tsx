@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Bell, Building2, Globe, Moon, RefreshCw, RotateCcw, Save, Shield, Users } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Bell, Building2, Globe, Layers, Moon, Receipt, RefreshCw, RotateCcw, Save, Shield, Users } from 'lucide-react';
 import { settingsApi } from '../lib/api';
 import SearchableSelect from '../components/SearchableSelect';
 
@@ -75,6 +76,7 @@ const DEFAULT_SETTINGS: SettingsState = {
 };
 
 export default function SettingsPage() {
+  const navigate = useNavigate();
   const [settings, setSettings] = useState<SettingsState>(DEFAULT_SETTINGS);
   const [initialSettings, setInitialSettings] = useState<SettingsState>(DEFAULT_SETTINGS);
   const [roles, setRoles] = useState<any[]>([]);
@@ -376,6 +378,28 @@ export default function SettingsPage() {
           <InfoRow label="CSS Framework" value="Tailwind CSS 3" />
           <InfoRow label="Database" value="MariaDB 10.11" />
           <InfoRow label="Cache" value="Redis 7" />
+        </div>
+      </div>
+
+      <div className="card p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-lg bg-teal-100 flex items-center justify-center">
+            <Layers size={20} className="text-teal-700" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold">Trader Modules</h2>
+            <p className="text-sm text-gray-500">Manage bundling, tax, and printing configuration</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <button onClick={() => navigate('/settings/bundles')} className="text-left block p-4 rounded-lg border border-gray-200 hover:border-brand-300 hover:shadow-sm transition-all">
+            <div className="flex items-center gap-2"><Layers size={16} className="text-brand-700" /><h4 className="text-sm font-medium text-brand-700">Item Bundles</h4></div>
+            <p className="text-xs text-gray-500 mt-1">Group items into reusable bundles</p>
+          </button>
+          <button onClick={() => navigate('/settings/gst')} className="text-left block p-4 rounded-lg border border-gray-200 hover:border-brand-300 hover:shadow-sm transition-all">
+            <div className="flex items-center gap-2"><Receipt size={16} className="text-brand-700" /><h4 className="text-sm font-medium text-brand-700">GST Settings</h4></div>
+            <p className="text-xs text-gray-500 mt-1">Configure tax rates and templates</p>
+          </button>
         </div>
       </div>
 

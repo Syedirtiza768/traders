@@ -7,6 +7,7 @@ import {
   FileText,
   Package,
   PackageOpen,
+  Printer,
   ReceiptText,
   ShoppingCart,
   User,
@@ -152,6 +153,12 @@ export default function SalesOrderDetailPage() {
             {statusLabel}
           </span>
           <div className="flex flex-wrap justify-end gap-2">
+            <button
+              onClick={() => navigate(`/print?doctype=Sales%20Order&name=${encodeURIComponent(order.name)}`)}
+              className="btn-secondary inline-flex items-center gap-2"
+            >
+              <Printer className="h-4 w-4" /> Print / Preview
+            </button>
             {order.customer && (
               <button
                 onClick={() => navigate(`/customers/${encodeURIComponent(order.customer)}`)}

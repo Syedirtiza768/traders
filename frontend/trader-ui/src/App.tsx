@@ -54,6 +54,9 @@ import EditCustomerPage from './pages/EditCustomerPage';
 import EditSupplierPage from './pages/EditSupplierPage';
 import CreateQuotationPage from './pages/CreateQuotationPage';
 import CreateItemPage from './pages/CreateItemPage';
+import ItemBundlesPage from './pages/ItemBundlesPage';
+import GstSettingsPage from './pages/GstSettingsPage';
+import DocumentPrintPage from './pages/DocumentPrintPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const location = useLocation();
@@ -155,6 +158,9 @@ export default function App() {
         <Route path="operations" element={<CapabilityRoute capability="operations:view"><OperationsPage /></CapabilityRoute>} />
         <Route path="reports" element={<CapabilityRoute capability="reports:view"><ReportsPage /></CapabilityRoute>} />
         <Route path="settings" element={<CapabilityRoute capability="settings:view"><SettingsPage /></CapabilityRoute>} />
+        <Route path="settings/bundles" element={<CapabilityRoute capability="settings:view"><ItemBundlesPage /></CapabilityRoute>} />
+        <Route path="settings/gst" element={<CapabilityRoute capability="settings:view"><GstSettingsPage /></CapabilityRoute>} />
+        <Route path="print" element={<CapabilityRoute capability="sales:view"><DocumentPrintPage /></CapabilityRoute>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
