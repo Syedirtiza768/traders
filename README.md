@@ -31,6 +31,15 @@ docker compose -f compose/docker-compose.yml exec backend bench --site trader.lo
 
 Access the system at `http://localhost:8080`
 
+## Windows rebuild & redeploy helpers
+
+For Windows/Docker Desktop workflows, use the PowerShell helpers in `scripts/`:
+
+- Quick redeploy: `scripts/redeploy-windows.ps1`
+- Full cold rebuild: `scripts/cold-rebuild-windows.ps1`
+
+See `docs/WINDOWS_DEPLOYMENT.md` for the quick app-only, frontend-only, backend-only, and full cold rebuild flows.
+
 ## Verified Local Demo Status
 
 The local Docker demo flow has been revalidated against the current repo state.

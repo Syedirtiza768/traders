@@ -151,7 +151,23 @@ export default function CreatePurchaseInvoicePage() {
       navigate(appendPreservedListQuery(`/purchases/${encodeURIComponent(created.name)}`, listSearch));
     } catch (err: any) {
       console.error('Failed to create purchase invoice:', err);
-      setError(err?.response?.data?.exception || 'Could not create purchase invoice.');
+      const data = err?.response?.data;
+      let message = 'Could not create purchase invoice.';
+      if (data) {
+        if (data.exception) {
+          // Strip the Python exception class prefix if present, e.g. "frappe.exceptions.ValidationError: ..."
+          message = String(data.exception).replace(/^[\w.]+Error:\s*/i, '').trim() || message;
+        } else if (data.message) {
+          message = String(data.message);
+        } else if (data._server_messages) {
+          try {
+            const msgs = JSON.parse(data._server_messages) as string[];
+            const parsed = msgs.map((m) => { try { return JSON.parse(m).message; } catch { return m; } });
+            message = parsed.filter(Boolean).join(' ') || message;
+          } catch { /* fallback to generic */ }
+        }
+      }
+      setError(message);
     } finally {
       setSaving(false);
     }

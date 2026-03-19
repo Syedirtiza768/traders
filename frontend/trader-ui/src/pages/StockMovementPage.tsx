@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRightLeft, Calendar, Search } from 'lucide-react';
 import { inventoryApi } from '../lib/api';
 import { formatCurrency, formatDate, formatDateTime } from '../lib/utils';
+import SearchableSelect from '../components/SearchableSelect';
 
 export default function StockMovementPage() {
   const navigate = useNavigate();
@@ -15,8 +16,26 @@ export default function StockMovementPage() {
   const [toDate, setToDate] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [allItems, setAllItems] = useState<any[]>([]);
+  const [allWarehouses, setAllWarehouses] = useState<any[]>([]);
 
   const pageSize = 20;
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [itemsRes, warehousesRes] = await Promise.all([
+          inventoryApi.getItems({ page: 1, page_size: 200 }),
+          inventoryApi.getWarehouses(),
+        ]);
+        setAllItems(itemsRes.data.message?.data || []);
+        setAllWarehouses(warehousesRes.data.message?.data || warehousesRes.data.message || []);
+      } catch (err) {
+        console.error('Failed to load filter options:', err);
+      }
+    };
+    void load();
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -62,11 +81,18 @@ export default function StockMovementPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          <input value={itemCode} onChange={(e) => { setItemCode(e.target.value); setPage(1); }} placeholder="Filter by item code" className="input-field pl-9" />
-        </div>
-        <input value={warehouse} onChange={(e) => { setWarehouse(e.target.value); setPage(1); }} placeholder="Filter by warehouse" className="input-field" />
+        <SearchableSelect
+          value={itemCode}
+          onChange={(v) => { setItemCode(v); setPage(1); }}
+          options={allItems.map((e) => ({ label: e.item_name || e.item_code || e.name, value: e.item_code || e.name }))}
+          placeholder="Filter by item code"
+        />
+        <SearchableSelect
+          value={warehouse}
+          onChange={(v) => { setWarehouse(v); setPage(1); }}
+          options={allWarehouses.map((w) => ({ label: w.warehouse_name || w.name, value: w.name }))}
+          placeholder="Filter by warehouse"
+        />
         <div className="relative">
           <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input type="date" value={fromDate} onChange={(e) => { setFromDate(e.target.value); setPage(1); }} className="input-field pl-9" />

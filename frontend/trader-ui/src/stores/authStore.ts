@@ -30,14 +30,16 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       await authApi.login(username, password);
       const rolesRes = await fetch('/api/method/trader_app.api.settings.get_current_user_roles', {
-        method: 'GET',
+        method: 'POST',
         credentials: 'include',
         headers: {
+          'Content-Type': 'application/json',
           'X-Frappe-CSRF-Token': document.cookie
             .split('; ')
             .find((c) => c.startsWith('csrf_token='))
             ?.split('=')[1] || '',
         },
+        body: JSON.stringify({}),
       }).then((r) => r.json());
 
       const currentUser = document.cookie
@@ -74,14 +76,16 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ loading: true });
     try {
       const rolesRes = await fetch('/api/method/trader_app.api.settings.get_current_user_roles', {
-        method: 'GET',
+        method: 'POST',
         credentials: 'include',
         headers: {
+          'Content-Type': 'application/json',
           'X-Frappe-CSRF-Token': document.cookie
             .split('; ')
             .find((c) => c.startsWith('csrf_token='))
             ?.split('=')[1] || '',
         },
+        body: JSON.stringify({}),
       }).then((r) => r.json());
 
       if (Array.isArray(rolesRes.message)) {

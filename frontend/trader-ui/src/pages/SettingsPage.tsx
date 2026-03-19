@@ -1,6 +1,46 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Bell, Building2, Globe, Moon, RefreshCw, RotateCcw, Save, Shield, Users } from 'lucide-react';
 import { settingsApi } from '../lib/api';
+import SearchableSelect from '../components/SearchableSelect';
+
+const LANGUAGE_OPTIONS = [
+  { label: 'English', value: 'en' },
+  { label: 'Urdu', value: 'ur' },
+  { label: 'Arabic', value: 'ar' },
+  { label: 'Hindi', value: 'hi' },
+  { label: 'Chinese (Simplified)', value: 'zh' },
+  { label: 'Spanish', value: 'es' },
+  { label: 'French', value: 'fr' },
+];
+
+const TIME_ZONE_OPTIONS = [
+  { label: 'Asia/Karachi (PKT)', value: 'Asia/Karachi' },
+  { label: 'Asia/Dubai (GST)', value: 'Asia/Dubai' },
+  { label: 'Asia/Kolkata (IST)', value: 'Asia/Kolkata' },
+  { label: 'Asia/Riyadh (AST)', value: 'Asia/Riyadh' },
+  { label: 'Europe/London (GMT/BST)', value: 'Europe/London' },
+  { label: 'America/New_York (EST/EDT)', value: 'America/New_York' },
+  { label: 'America/Chicago (CST/CDT)', value: 'America/Chicago' },
+  { label: 'America/Los_Angeles (PST/PDT)', value: 'America/Los_Angeles' },
+  { label: 'UTC', value: 'UTC' },
+];
+
+const DATE_FORMAT_OPTIONS = [
+  { label: 'dd-mm-yyyy', value: 'dd-mm-yyyy' },
+  { label: 'mm-dd-yyyy', value: 'mm-dd-yyyy' },
+  { label: 'yyyy-mm-dd', value: 'yyyy-mm-dd' },
+  { label: 'dd/mm/yyyy', value: 'dd/mm/yyyy' },
+  { label: 'mm/dd/yyyy', value: 'mm/dd/yyyy' },
+  { label: 'dd.mm.yyyy', value: 'dd.mm.yyyy' },
+];
+
+const NUMBER_FORMAT_OPTIONS = [
+  { label: '#,###.##', value: '#,###.##' },
+  { label: '#.###,##', value: '#.###,##' },
+  { label: '# ###.##', value: '# ###.##' },
+  { label: '#,###.###', value: '#,###.###' },
+  { label: '#,##,###.##', value: '#,##,###.##' },
+];
 
 type SettingsState = {
   company: Record<string, any> | null;
@@ -233,10 +273,10 @@ export default function SettingsPage() {
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Field label="Language"><input value={settings.ui.language} onChange={(e) => updateUi('language', e.target.value)} className="input-field" /></Field>
-            <Field label="Time Zone"><input value={settings.ui.time_zone} onChange={(e) => updateUi('time_zone', e.target.value)} className="input-field" /></Field>
-            <Field label="Date Format"><input value={settings.ui.date_format} onChange={(e) => updateUi('date_format', e.target.value)} className="input-field" /></Field>
-            <Field label="Number Format"><input value={settings.ui.number_format} onChange={(e) => updateUi('number_format', e.target.value)} className="input-field" /></Field>
+            <Field label="Language"><SearchableSelect value={settings.ui.language} onChange={(v) => updateUi('language', v)} options={LANGUAGE_OPTIONS} placeholder="Select language" /></Field>
+            <Field label="Time Zone"><SearchableSelect value={settings.ui.time_zone} onChange={(v) => updateUi('time_zone', v)} options={TIME_ZONE_OPTIONS} placeholder="Select time zone" /></Field>
+            <Field label="Date Format"><SearchableSelect value={settings.ui.date_format} onChange={(v) => updateUi('date_format', v)} options={DATE_FORMAT_OPTIONS} placeholder="Select date format" /></Field>
+            <Field label="Number Format"><SearchableSelect value={settings.ui.number_format} onChange={(v) => updateUi('number_format', v)} options={NUMBER_FORMAT_OPTIONS} placeholder="Select number format" /></Field>
           </div>
         </div>
 

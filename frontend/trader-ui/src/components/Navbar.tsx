@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { BarChart3, LogOut, Bell, ChevronDown, User, Search, ArrowRight, FileText, ShoppingCart, Truck, Users, DollarSign, Warehouse } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
@@ -64,6 +64,30 @@ export default function Navbar() {
       .slice(0, 6);
   }, [roles, search]);
 
+  useEffect(() => {
+    setShowMenu(false);
+    setShowNotifications(false);
+  }, [location.pathname, location.search]);
+
+  useEffect(() => {
+    if (search.trim()) {
+      setShowMenu(false);
+      setShowNotifications(false);
+    }
+  }, [search]);
+
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowMenu(false);
+        setShowNotifications(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, []);
+
   return (
     <header className="fixed top-0 left-0 right-0 h-16 bg-white border-b border-gray-200 z-50 flex items-center justify-between px-6">
       {/* Logo */}
@@ -84,6 +108,10 @@ export default function Navbar() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            onFocus={() => {
+              setShowMenu(false);
+              setShowNotifications(false);
+            }}
             placeholder="Search modules, workflows, reports..."
             className="w-80 rounded-lg border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-sm text-gray-700 outline-none transition focus:border-brand-300 focus:bg-white"
           />
