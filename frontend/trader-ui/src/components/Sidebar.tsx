@@ -23,6 +23,7 @@ import {
   UserCheck,
   Clock,
   Cog,
+  Layers,
   type LucideIcon,
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
@@ -163,7 +164,11 @@ const systemModules: NavModule[] = [
     label: 'Settings',
     icon: Settings,
     capability: 'settings:view',
-    to: '/settings',
+    children: [
+      { to: '/settings', label: 'General Settings', icon: Cog },
+      { to: '/settings/bundles', label: 'Item Bundles', icon: Layers },
+      { to: '/settings/gst', label: 'GST Settings', icon: Receipt },
+    ],
   },
 ];
 
@@ -188,7 +193,7 @@ function isModuleActive(mod: NavModule, pathname: string): boolean {
 
 function isChildActive(child: NavChild, pathname: string): boolean {
   // Exact match for module root paths so they don't match all sub-paths
-  if (child.to === '/sales' || child.to === '/purchases' || child.to === '/inventory' || child.to === '/finance') {
+  if (child.to === '/sales' || child.to === '/purchases' || child.to === '/inventory' || child.to === '/finance' || child.to === '/settings') {
     return pathname === child.to;
   }
   return pathname.startsWith(child.to);
