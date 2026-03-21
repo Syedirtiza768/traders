@@ -21,16 +21,46 @@ All route definitions and page components — 2026-03-21
 | # | Path | Component | Guard | Layout | Status |
 |---|---|---|---|---|---|
 | 1 | `/login` | LoginPage | None | None | ✅ Active |
-| 2 | `*` | Navigate (redirect to /) | None | None | ✅ Active |
-| 3 | `/` | DashboardPage | ProtectedRoute | DashboardLayout | ✅ Active |
-| 4 | `/sales` | SalesPage | ProtectedRoute | DashboardLayout | ✅ Active |
-| 5 | `/purchases` | PurchasesPage | ProtectedRoute | DashboardLayout | ✅ Active |
-| 6 | `/inventory` | InventoryPage | ProtectedRoute | DashboardLayout | ✅ Active |
-| 7 | `/customers` | CustomersPage | ProtectedRoute | DashboardLayout | ✅ Active |
-| 8 | `/suppliers` | SuppliersPage | ProtectedRoute | DashboardLayout | ✅ Active |
-| 9 | `/finance` | FinancePage | ProtectedRoute | DashboardLayout | ✅ Active |
-| 10 | `/reports` | ReportsPage | ProtectedRoute | DashboardLayout | ✅ Active |
-| 11 | `/settings` | SettingsPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 2 | `/` | DashboardPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 3 | `sales` | SalesPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 4 | `sales/new` | CreateSalesInvoicePage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 5 | `sales/returns/new` | CreateSalesReturnPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 6 | `sales/dispatches/new` | CreateSalesDispatchPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 7 | `sales/orders` | SalesOrdersPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 8 | `sales/orders/new` | CreateSalesOrderPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 9 | `sales/orders/:orderId` | SalesOrderDetailPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 10 | `sales/quotations` | QuotationsPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 11 | `sales/quotations/new` | CreateQuotationPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 12 | `sales/quotations/:quotationId` | QuotationDetailPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 13 | `sales/:invoiceId` | SalesInvoiceDetailPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 14 | `purchases` | PurchasesPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 15 | `purchases/new` | CreatePurchaseInvoicePage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 16 | `purchases/returns/new` | CreatePurchaseReturnPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 17 | `purchases/receipts/new` | CreatePurchaseReceiptPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 18 | `purchases/orders` | PurchaseOrdersPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 19 | `purchases/orders/new` | CreatePurchaseOrderPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 20 | `purchases/orders/:orderId` | PurchaseOrderDetailPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 21 | `purchases/requisitions` | PurchaseRequisitionsPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 22 | `purchases/requisitions/new` | CreatePurchaseRequisitionPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 23 | `purchases/rfqs` | SupplierQuotationsPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 24 | `purchases/rfqs/new` | CreateSupplierQuotationPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 25 | `purchases/rfqs/:quotationId` | SupplierQuotationDetailPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 26 | `purchases/:invoiceId` | PurchaseInvoiceDetailPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 27 | `inventory` | InventoryPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 28 | `customers` | CustomersPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 29 | `suppliers` | SuppliersPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 30 | `finance` | FinancePage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 31 | `reports` | ReportsPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 32 | `settings` | SettingsPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 33 | `*` | Navigate (redirect to /) | None | None | ✅ Active |
+| 34 | `/sales` | SalesPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 35 | `/purchases` | PurchasesPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 36 | `/inventory` | InventoryPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 37 | `/customers` | CustomersPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 38 | `/suppliers` | SuppliersPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 39 | `/finance` | FinancePage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 40 | `/reports` | ReportsPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 41 | `/settings` | SettingsPage | ProtectedRoute | DashboardLayout | ✅ Active |
 
 ## Screen Details
 

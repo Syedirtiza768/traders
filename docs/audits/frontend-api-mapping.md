@@ -53,17 +53,12 @@ Full scan of all API namespaces and page-level call sites — 2026-03-21
 | Method | HTTP | Endpoint | Parameters |
 |---|---|---|---|
 
-### `settingsApi`
-
-| Method | HTTP | Endpoint | Parameters |
-|---|---|---|---|
-
 ### `financeApi`
 
 | Method | HTTP | Endpoint | Parameters |
 |---|---|---|---|
 
-### `bundlingApi`
+### `reportsApi`
 
 | Method | HTTP | Endpoint | Parameters |
 |---|---|---|---|
@@ -73,12 +68,12 @@ Full scan of all API namespaces and page-level call sites — 2026-03-21
 | Method | HTTP | Endpoint | Parameters |
 |---|---|---|---|
 
-### `printApi`
+### `bundlingApi`
 
 | Method | HTTP | Endpoint | Parameters |
 |---|---|---|---|
 
-### `reportsApi`
+### `printApi`
 
 | Method | HTTP | Endpoint | Parameters |
 |---|---|---|---|
