@@ -272,6 +272,7 @@ export default function SalesInvoiceDetailPage() {
             <InfoRow icon={ShoppingCart} label="Update Stock" value={invoice.update_stock ? 'Yes' : 'No'} />
             <InfoRow icon={FileText} label="Sales Order" value={invoice.sales_order || '—'} />
             <InfoRow icon={ReceiptText} label="Return Against" value={invoice.return_against || '—'} />
+            <InfoRow icon={ReceiptText} label="Tax Template" value={invoice.taxes_and_charges || 'None'} />
             <InfoRow icon={ReceiptText} label="Remarks" value={invoice.remarks || invoice.note || '—'} />
           </div>
         </div>
@@ -283,7 +284,17 @@ export default function SalesInvoiceDetailPage() {
           </div>
           <div className="card-body space-y-4">
             <SummaryLine label="Net Total" value={formatCurrency(invoice.net_total, invoice.currency)} />
-            <SummaryLine label="Taxes" value={formatCurrency(invoice.total_taxes_and_charges, invoice.currency)} />
+            {(invoice.taxes || []).length > 0 ? (
+              (invoice.taxes as any[]).map((tax: any, i: number) => (
+                <SummaryLine
+                  key={i}
+                  label={`${tax.description || 'Tax'} (${tax.rate || 0}%)${tax.included_in_print_rate ? ' incl.' : ''}`}
+                  value={formatCurrency(tax.tax_amount, invoice.currency)}
+                />
+              ))
+            ) : (
+              <SummaryLine label="Taxes" value={formatCurrency(invoice.total_taxes_and_charges, invoice.currency)} />
+            )}
             <SummaryLine label="Grand Total" value={formatCurrency(invoice.grand_total, invoice.currency)} />
             <SummaryLine label="Paid Amount" value={formatCurrency(invoice.paid_amount, invoice.currency)} />
             <SummaryLine label="Outstanding" value={formatCurrency(invoice.outstanding_amount, invoice.currency)} />

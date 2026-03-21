@@ -31,6 +31,7 @@ export default function CreateQuotationPage() {
   const [taxTemplates, setTaxTemplates] = useState<any[]>([]);
   const [taxTemplate, setTaxTemplate] = useState('');
   const [taxRate, setTaxRate] = useState(0);
+  const [taxInclusive, setTaxInclusive] = useState(false);
   const listSearch = searchParams.get('list');
   const quickAdd = useQuickAdd();
   const quickAddItemLine = useRef<number>(-1);
@@ -51,7 +52,7 @@ export default function CreateQuotationPage() {
         ]);
         setCustomers(customersRes.data.message?.data || []);
         setItems(itemsRes.data.message?.data || []);
-        const templates = taxRes.data.message || [];
+        const templates = taxRes.data.message?.templates || taxRes.data.message || [];
         setTaxTemplates(templates);
         // Auto-select default template if available
         const defaultTpl = templates.find((t: any) => t.is_default);
@@ -73,8 +74,12 @@ export default function CreateQuotationPage() {
     () => lines.reduce((sum, l) => sum + (Number(l.qty) || 0) * (Number(l.rate) || 0), 0),
     [lines],
   );
-  const taxAmount = useMemo(() => total * taxRate / 100, [total, taxRate]);
-  const grandTotal = useMemo(() => total + taxAmount, [total, taxAmount]);
+  const taxAmount = useMemo(() => {
+    if (!taxRate) return 0;
+    if (taxInclusive) return total - total / (1 + taxRate / 100);
+    return total * taxRate / 100;
+  }, [total, taxRate, taxInclusive]);
+  const grandTotal = useMemo(() => taxInclusive ? total : total + taxAmount, [total, taxAmount, taxInclusive]);
   const validLineCount = useMemo(
     () => lines.filter((l) => l.item_code && Number(l.qty) > 0).length,
     [lines],
@@ -125,6 +130,7 @@ export default function CreateQuotationPage() {
         valid_till: validTill,
         items: validLines.map((l) => ({ item_code: l.item_code, description: l.description || undefined, qty: l.qty, rate: l.rate })),
         taxes_and_charges: taxTemplate || undefined,
+        tax_inclusive: taxInclusive ? 1 : 0,
       });
       const created = response.data.message;
       navigate(appendPreservedListQuery(`/sales/quotations/${encodeURIComponent(created.name)}`, listSearch));
@@ -186,6 +192,31 @@ export default function CreateQuotationPage() {
             </Field>
           </div>
 
+          {taxTemplate && taxRate > 0 && (
+            <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-2">
+              <span className="text-xs font-medium uppercase tracking-wide text-gray-500">Tax Mode</span>
+              <button
+                onClick={() => setTaxInclusive(false)}
+                className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                  !taxInclusive ? 'bg-brand-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-100'
+                }`}
+              >
+                Exclusive
+              </button>
+              <button
+                onClick={() => setTaxInclusive(true)}
+                className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                  taxInclusive ? 'bg-brand-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-100'
+                }`}
+              >
+                Inclusive
+              </button>
+              <span className="text-xs text-gray-400 ml-1">
+                {taxInclusive ? 'Rates entered include tax' : 'Tax added on top of rates'}
+              </span>
+            </div>
+          )}
+
           <div>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-gray-700">Line Items</h3>
@@ -244,9 +275,19 @@ export default function CreateQuotationPage() {
         <div className="card p-6 space-y-4">
           <h3 className="text-sm font-semibold text-gray-700">Summary</h3>
           <SummaryLine label="Lines" value={String(validLineCount)} />
-          <SummaryLine label="Net Total" value={formatCurrency(total)} />
-          {taxTemplate && taxRate > 0 && (
-            <SummaryLine label={`Tax (${taxRate}%)`} value={formatCurrency(taxAmount)} />
+          {taxInclusive && taxRate > 0 ? (
+            <>
+              <SummaryLine label="Entered Total (incl. tax)" value={formatCurrency(total)} />
+              <SummaryLine label={`GST (${taxRate}%) included`} value={formatCurrency(taxAmount)} />
+              <SummaryLine label="Net Total (excl. tax)" value={formatCurrency(total - taxAmount)} />
+            </>
+          ) : (
+            <>
+              <SummaryLine label="Net Total" value={formatCurrency(total)} />
+              {taxTemplate && taxRate > 0 && (
+                <SummaryLine label={`Tax (${taxRate}%)`} value={formatCurrency(taxAmount)} />
+              )}
+            </>
           )}
           <hr className="border-gray-100" />
           <SummaryLine label="Grand Total" value={formatCurrency(grandTotal)} highlight />

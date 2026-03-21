@@ -307,22 +307,37 @@ def _ensure_tax_account(company, abbr):
 
 @frappe.whitelist()
 def get_tax_templates(doctype="Sales", company=None):
-    """Return available tax templates for Sales or Purchase documents."""
+    """Return available tax templates for Sales or Purchase documents.
+
+    Each template includes its total_tax_rate (sum of charge rows)
+    so the frontend can preview tax amounts before saving.
+    """
     company = company or _default_company()
 
     if doctype == "Purchase":
-        templates = frappe.get_all(
-            "Purchase Taxes and Charges Template",
-            filters={"company": company, "disabled": 0},
-            fields=["name", "title", "is_default"],
-            order_by="is_default desc, title asc",
-        )
+        template_dt = "Purchase Taxes and Charges Template"
+        charge_dt = "Purchase Taxes and Charges"
     else:
-        templates = frappe.get_all(
-            "Sales Taxes and Charges Template",
-            filters={"company": company, "disabled": 0},
-            fields=["name", "title", "is_default"],
-            order_by="is_default desc, title asc",
+        template_dt = "Sales Taxes and Charges Template"
+        charge_dt = "Sales Taxes and Charges"
+
+    templates = frappe.get_all(
+        template_dt,
+        filters={"company": company, "disabled": 0},
+        fields=["name", "title", "is_default"],
+        order_by="is_default desc, title asc",
+    )
+
+    # Enrich each template with total_tax_rate from its charge rows
+    for tpl in templates:
+        charges = frappe.get_all(
+            charge_dt,
+            filters={"parent": tpl["name"]},
+            fields=["rate", "included_in_print_rate"],
+        )
+        tpl["total_tax_rate"] = sum(flt(c.rate) for c in charges)
+        tpl["included_in_print_rate"] = (
+            charges[0].included_in_print_rate if charges else 0
         )
 
     return {"templates": templates}

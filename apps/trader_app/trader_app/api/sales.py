@@ -293,6 +293,7 @@ def get_quotation_detail(name):
 @frappe.whitelist()
 def create_sales_invoice(customer, items, company=None, posting_date=None,
                          due_date=None, taxes_and_charges=None,
+                         tax_inclusive=0,
                          is_return=0, return_against=None,
                          update_stock=0):
     """Create a Sales Invoice from the UI.
@@ -337,6 +338,9 @@ def create_sales_invoice(customer, items, company=None, posting_date=None,
     if taxes_and_charges:
         si.taxes_and_charges = taxes_and_charges
         si.run_method("set_taxes")
+        if cint(tax_inclusive):
+            for tax_row in si.taxes:
+                tax_row.included_in_print_rate = 1
 
     si.insert(ignore_permissions=False)
     return {"name": si.name, "status": "Draft"}
@@ -344,7 +348,8 @@ def create_sales_invoice(customer, items, company=None, posting_date=None,
 
 @frappe.whitelist()
 def create_sales_order(customer, items, company=None, transaction_date=None,
-                       delivery_date=None, taxes_and_charges=None):
+                       delivery_date=None, taxes_and_charges=None,
+                       tax_inclusive=0):
     """Create a Sales Order from the UI."""
     import json
     if isinstance(items, str):
@@ -374,6 +379,9 @@ def create_sales_order(customer, items, company=None, transaction_date=None,
     if taxes_and_charges:
         so.taxes_and_charges = taxes_and_charges
         so.run_method("set_taxes")
+        if cint(tax_inclusive):
+            for tax_row in so.taxes:
+                tax_row.included_in_print_rate = 1
 
     so.insert(ignore_permissions=False)
     return {"name": so.name, "status": "Draft"}
@@ -421,7 +429,8 @@ def cancel_sales_order(name):
 
 @frappe.whitelist()
 def create_quotation(customer, items, company=None, transaction_date=None,
-                     valid_till=None, taxes_and_charges=None):
+                     valid_till=None, taxes_and_charges=None,
+                     tax_inclusive=0):
     """Create a Quotation from the UI."""
     import json
     if isinstance(items, str):
@@ -451,6 +460,9 @@ def create_quotation(customer, items, company=None, transaction_date=None,
     if taxes_and_charges:
         q.taxes_and_charges = taxes_and_charges
         q.run_method("set_taxes")
+        if cint(tax_inclusive):
+            for tax_row in q.taxes:
+                tax_row.included_in_print_rate = 1
 
     q.insert(ignore_permissions=False)
     return {"name": q.name, "status": "Draft"}

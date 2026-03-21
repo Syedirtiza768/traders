@@ -254,6 +254,7 @@ export default function SalesOrderDetailPage() {
             <InfoRow icon={Calendar} label="Delivery Date" value={formatDate(order.delivery_date)} />
             <InfoRow icon={ShoppingCart} label="Order Type" value={order.order_type || 'Sales'} />
             <InfoRow icon={FileText} label="Quotation" value={order.quotation || '—'} />
+            <InfoRow icon={ReceiptText} label="Tax Template" value={order.taxes_and_charges || 'None'} />
             <InfoRow icon={ReceiptText} label="Remarks" value={order.remarks || order.note || '—'} />
           </div>
         </div>
@@ -265,7 +266,17 @@ export default function SalesOrderDetailPage() {
           </div>
           <div className="card-body space-y-4">
             <SummaryLine label="Net Total" value={formatCurrency(order.net_total, order.currency)} />
-            <SummaryLine label="Taxes" value={formatCurrency(order.total_taxes_and_charges, order.currency)} />
+            {(order.taxes || []).length > 0 ? (
+              (order.taxes as any[]).map((tax: any, i: number) => (
+                <SummaryLine
+                  key={i}
+                  label={`${tax.description || 'Tax'} (${tax.rate || 0}%)${tax.included_in_print_rate ? ' incl.' : ''}`}
+                  value={formatCurrency(tax.tax_amount, order.currency)}
+                />
+              ))
+            ) : (
+              <SummaryLine label="Taxes" value={formatCurrency(order.total_taxes_and_charges, order.currency)} />
+            )}
             <SummaryLine label="Grand Total" value={formatCurrency(order.grand_total, order.currency)} />
             <SummaryLine label="Rounded Total" value={formatCurrency(order.rounded_total, order.currency)} />
           </div>

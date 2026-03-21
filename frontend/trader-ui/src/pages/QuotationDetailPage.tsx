@@ -175,6 +175,7 @@ export default function QuotationDetailPage() {
             <InfoRow icon={Calendar} label="Valid Till" value={formatDate(quotation.valid_till)} />
             <InfoRow icon={ShoppingCart} label="Order Type" value={quotation.order_type || 'Sales'} />
             <InfoRow icon={FileText} label="Quotation To" value={quotation.quotation_to || 'Customer'} />
+            <InfoRow icon={ReceiptText} label="Tax Template" value={quotation.taxes_and_charges || 'None'} />
             <InfoRow icon={ReceiptText} label="Remarks" value={quotation.remarks || quotation.note || '—'} />
           </div>
         </div>
@@ -186,7 +187,17 @@ export default function QuotationDetailPage() {
           </div>
           <div className="card-body space-y-4">
             <SummaryLine label="Net Total" value={formatCurrency(quotation.net_total, quotation.currency)} />
-            <SummaryLine label="Taxes" value={formatCurrency(quotation.total_taxes_and_charges, quotation.currency)} />
+            {(quotation.taxes || []).length > 0 ? (
+              (quotation.taxes as any[]).map((tax: any, i: number) => (
+                <SummaryLine
+                  key={i}
+                  label={`${tax.description || 'Tax'} (${tax.rate || 0}%)${tax.included_in_print_rate ? ' incl.' : ''}`}
+                  value={formatCurrency(tax.tax_amount, quotation.currency)}
+                />
+              ))
+            ) : (
+              <SummaryLine label="Taxes" value={formatCurrency(quotation.total_taxes_and_charges, quotation.currency)} />
+            )}
             <SummaryLine label="Grand Total" value={formatCurrency(quotation.grand_total, quotation.currency)} />
             <SummaryLine label="Rounded Total" value={formatCurrency(quotation.rounded_total, quotation.currency)} />
           </div>

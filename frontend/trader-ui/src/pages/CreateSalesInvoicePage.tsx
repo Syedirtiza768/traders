@@ -39,6 +39,7 @@ export default function CreateSalesInvoicePage() {
   const [taxTemplates, setTaxTemplates] = useState<any[]>([]);
   const [taxTemplate, setTaxTemplate] = useState('');
   const [taxRate, setTaxRate] = useState(0);
+  const [taxInclusive, setTaxInclusive] = useState(false);
   const sourceType = searchParams.get('sourceType');
   const sourceName = searchParams.get('sourceName');
   const listSearch = searchParams.get('list');
@@ -89,7 +90,7 @@ export default function CreateSalesInvoicePage() {
         ]);
         setCustomers(customersRes.data.message?.data || []);
         setItems(itemsRes.data.message?.data || []);
-        const templates = taxRes.data.message || [];
+        const templates = taxRes.data.message?.templates || taxRes.data.message || [];
         setTaxTemplates(templates);
         const defaultTpl = templates.find((t: any) => t.is_default);
         if (defaultTpl) {
@@ -111,8 +112,12 @@ export default function CreateSalesInvoicePage() {
     () => lines.reduce((sum, line) => sum + (Number(line.qty) || 0) * (Number(line.rate) || 0), 0),
     [lines],
   );
-  const taxAmount = useMemo(() => total * taxRate / 100, [total, taxRate]);
-  const grandTotal = useMemo(() => total + taxAmount, [total, taxAmount]);
+  const taxAmount = useMemo(() => {
+    if (!taxRate) return 0;
+    if (taxInclusive) return total - total / (1 + taxRate / 100);
+    return total * taxRate / 100;
+  }, [total, taxRate, taxInclusive]);
+  const grandTotal = useMemo(() => taxInclusive ? total : total + taxAmount, [total, taxAmount, taxInclusive]);
   const validLineCount = useMemo(
     () => lines.filter((line) => line.item_code && Number(line.qty) > 0).length,
     [lines],
@@ -173,6 +178,7 @@ export default function CreateSalesInvoicePage() {
         due_date: dueDate,
         items: validLines.map((l) => ({ item_code: l.item_code, description: l.description || undefined, qty: l.qty, rate: l.rate })),
         taxes_and_charges: taxTemplate || undefined,
+        tax_inclusive: taxInclusive ? 1 : 0,
       });
       const created = response.data.message;
       navigate(appendPreservedListQuery(`/sales/${encodeURIComponent(created.name)}`, listSearch));
@@ -247,6 +253,31 @@ export default function CreateSalesInvoicePage() {
             </Field>
           </div>
 
+          {taxTemplate && taxRate > 0 && (
+            <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-2">
+              <span className="text-xs font-medium uppercase tracking-wide text-gray-500">Tax Mode</span>
+              <button
+                onClick={() => setTaxInclusive(false)}
+                className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                  !taxInclusive ? 'bg-brand-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-100'
+                }`}
+              >
+                Exclusive
+              </button>
+              <button
+                onClick={() => setTaxInclusive(true)}
+                className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                  taxInclusive ? 'bg-brand-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-100'
+                }`}
+              >
+                Inclusive
+              </button>
+              <span className="text-xs text-gray-400 ml-1">
+                {taxInclusive ? 'Rates entered include tax' : 'Tax added on top of rates'}
+              </span>
+            </div>
+          )}
+
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">Invoice Items</h2>
@@ -316,9 +347,19 @@ export default function CreateSalesInvoicePage() {
             <div className="mt-1 text-2xl font-semibold">{formatCurrency(grandTotal)}</div>
           </div>
           <SummaryRow label="Valid Lines" value={String(validLineCount)} />
-          <SummaryRow label="Net Total" value={formatCurrency(total)} />
-          {taxRate > 0 && (
-            <SummaryRow label={`Tax (${taxRate}%)`} value={formatCurrency(taxAmount)} />
+          {taxInclusive && taxRate > 0 ? (
+            <>
+              <SummaryRow label="Entered Total (incl. tax)" value={formatCurrency(total)} />
+              <SummaryRow label={`GST (${taxRate}%) included`} value={formatCurrency(taxAmount)} />
+              <SummaryRow label="Net Total (excl. tax)" value={formatCurrency(total - taxAmount)} />
+            </>
+          ) : (
+            <>
+              <SummaryRow label="Net Total" value={formatCurrency(total)} />
+              {taxRate > 0 && (
+                <SummaryRow label={`Tax (${taxRate}%)`} value={formatCurrency(taxAmount)} />
+              )}
+            </>
           )}
           <SummaryRow label="Grand Total" value={formatCurrency(grandTotal)} />
           <SummaryRow label="Posting Date" value={postingDate} />
