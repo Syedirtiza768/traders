@@ -12,7 +12,7 @@ Every screen, route, layout, user actions, and current status in the Traders fro
 - `frontend/trader-ui/src/layouts/*.tsx`
 
 ## Last Audit Basis
-All route definitions and page components — 2026-03-19
+All route definitions and page components — 2026-03-21
 
 ---
 

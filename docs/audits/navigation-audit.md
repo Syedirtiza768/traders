@@ -11,7 +11,7 @@ Every navigation item in the sidebar and its reachability status.
 - `frontend/trader-ui/src/App.tsx`
 
 ## Last Audit Basis
-All `navItems` and `bottomItems` arrays — 2026-03-19
+All `navItems` and `bottomItems` arrays — 2026-03-21
 
 ---
 
