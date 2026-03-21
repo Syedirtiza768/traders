@@ -75,7 +75,7 @@ export const REPORTS: ReportDef[] = [
       { label: 'Margin %', value: m.summary?.gross_margin_pct, format: 'percent' },
       { label: 'Total Qty', value: m.summary?.qty, format: 'number' },
     ],
-    chart: { type: 'bar', xKey: 'label', bars: [
+    chart: { type: 'bar', xKey: 'period', bars: [
       { dataKey: 'net_sales', name: 'Net Sales', color: '#2563eb' },
       { dataKey: 'gross_profit', name: 'Gross Profit', color: '#059669' },
     ], title: 'Revenue & Profit', dataPath: 'chart' },

@@ -494,7 +494,7 @@ def get_sales_performance_report(company=None, from_date=None, to_date=None,
         'item': 'sii.item_code',
         'item_group': 'sii.item_group',
         'brand': 'i.brand',
-        'sales_person': 'COALESCE(st.sales_person, "Unassigned")',
+        'sales_person': "COALESCE(st.sales_person, 'Unassigned')",
     }
     group_expr = allowed_groups.get(group_by, allowed_groups['month'])
     dim_alias = 'dimension'
@@ -550,16 +550,16 @@ def get_sales_performance_report(company=None, from_date=None, to_date=None,
 
     # Chart data (always by month)
     chart = frappe.db.sql(f"""
-        SELECT DATE_FORMAT(si.posting_date, '%%Y-%%m') AS label,
+        SELECT DATE_FORMAT(si.posting_date, '%%Y-%%m') AS period,
                COALESCE(SUM(sii.amount), 0) AS net_sales,
                COALESCE(SUM(sii.amount) - SUM(sii.qty * COALESCE(sii.valuation_rate, 0)), 0) AS gross_profit
         {joins}
         WHERE {where}
-        GROUP BY label
-        ORDER BY label
+        GROUP BY DATE_FORMAT(si.posting_date, '%%Y-%%m')
+        ORDER BY DATE_FORMAT(si.posting_date, '%%Y-%%m')
     """, params, as_dict=True)
 
-    allowed_sort = ['net_sales', 'gross_profit', 'gross_margin_pct', 'qty', 'invoice_count', 'dimension']
+    allowed_sort = ['net_sales', 'gross_profit', 'qty', 'invoice_count']
     order_col = sort_by if sort_by in allowed_sort else 'net_sales'
     order_dir = 'ASC' if sort_order == 'asc' else 'DESC'
 
@@ -568,7 +568,7 @@ def get_sales_performance_report(company=None, from_date=None, to_date=None,
             SELECT {group_expr} AS dim
             {joins}
             WHERE {where}
-            GROUP BY dim
+            GROUP BY {group_expr}
         ) sub
     """, params)[0][0]
 
@@ -583,7 +583,7 @@ def get_sales_performance_report(company=None, from_date=None, to_date=None,
                COUNT(DISTINCT si.name) AS invoice_count
         {joins}
         WHERE {where}
-        GROUP BY dimension
+        GROUP BY {group_expr}
         ORDER BY {order_col} {order_dir}
         LIMIT %(page_size)s OFFSET %(offset)s
     """, {**params, "page_size": page_size, "offset": offset}, as_dict=True)
@@ -638,13 +638,12 @@ def get_customer_profitability_report(company=None, from_date=None, to_date=None
 
     rows = frappe.db.sql(f"""
         SELECT si.customer,
-               si.customer_name,
+               MAX(si.customer_name) AS customer_name,
                COALESCE(SUM(sii.amount), 0) AS revenue,
                COALESCE(SUM(sii.amount) - SUM(sii.qty * COALESCE(sii.valuation_rate, 0)), 0) AS gross_profit,
                COALESCE(SUM(sii.qty * COALESCE(sii.valuation_rate, 0)), 0) AS cogs,
                COUNT(DISTINCT si.name) AS invoice_count,
-               COALESCE(SUM(si.outstanding_amount), 0) AS outstanding_amount,
-               c.credit_limit
+               COALESCE(SUM(si.outstanding_amount), 0) AS outstanding_amount
         FROM `tabSales Invoice Item` sii
         INNER JOIN `tabSales Invoice` si ON si.name = sii.parent
         LEFT JOIN `tabCustomer` c ON c.name = si.customer
@@ -656,8 +655,7 @@ def get_customer_profitability_report(company=None, from_date=None, to_date=None
 
     for row in rows:
         row['gross_margin_pct'] = _safe_pct(row['gross_profit'], row['revenue'])
-        cl = flt(row.get('credit_limit'))
-        row['credit_utilization_pct'] = _safe_pct(row['outstanding_amount'], cl) if cl else None
+        row['credit_utilization_pct'] = None
 
     if format == 'csv':
         cols = ['customer', 'customer_name', 'revenue', 'gross_profit', 'gross_margin_pct', 'outstanding_amount', 'invoice_count']
