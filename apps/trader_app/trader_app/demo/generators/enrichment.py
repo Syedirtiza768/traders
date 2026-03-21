@@ -451,6 +451,10 @@ class EnrichmentGenerator(BaseGenerator):
                     "return_against": orig.name,
                     "currency": orig.currency,
                     "debit_to": orig.debit_to,
+                    "selling_price_list": orig.selling_price_list,
+                    "price_list_currency": orig.price_list_currency,
+                    "plc_conversion_rate": orig.plc_conversion_rate or 1,
+                    "conversion_rate": orig.conversion_rate or 1,
                     "update_stock": 0,
                 })
 
