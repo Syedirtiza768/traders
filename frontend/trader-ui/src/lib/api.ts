@@ -378,6 +378,43 @@ export const reportsApi = {
 
   getGeneralLedger: (params?: Record<string, any>) =>
     call('trader_app.api.reports.get_general_ledger', params),
+
+  // ─── Phase 1: New report endpoints ─────────────────────────────
+  getSalesPerformanceReport: (params?: Record<string, any>) =>
+    call('trader_app.api.reports.get_sales_performance_report', params),
+
+  getCustomerProfitabilityReport: (params?: Record<string, any>) =>
+    call('trader_app.api.reports.get_customer_profitability_report', params),
+
+  getStockAgingReport: (params?: Record<string, any>) =>
+    call('trader_app.api.reports.get_stock_aging_report', params),
+
+  getInventoryMovementReport: (params?: Record<string, any>) =>
+    call('trader_app.api.reports.get_inventory_movement_report', params),
+
+  getReorderReport: (params?: Record<string, any>) =>
+    call('trader_app.api.reports.get_reorder_report', params),
+
+  getSupplierScorecardReport: (params?: Record<string, any>) =>
+    call('trader_app.api.reports.get_supplier_scorecard_report', params),
+
+  getPurchasePriceVarianceReport: (params?: Record<string, any>) =>
+    call('trader_app.api.reports.get_purchase_price_variance_report', params),
+
+  getReceivableAgingInvoiceDetail: (params?: Record<string, any>) =>
+    call('trader_app.api.reports.get_receivable_aging_invoice_detail', params),
+
+  getPayableAgingInvoiceDetail: (params?: Record<string, any>) =>
+    call('trader_app.api.reports.get_payable_aging_invoice_detail', params),
+
+  getTaxSummaryReport: (params?: Record<string, any>) =>
+    call('trader_app.api.reports.get_tax_summary_report', params),
+
+  getOpenPurchaseOrdersReport: (params?: Record<string, any>) =>
+    call('trader_app.api.reports.get_open_purchase_orders_report', params),
+
+  getCollectionEfficiencyReport: (params?: Record<string, any>) =>
+    call('trader_app.api.reports.get_collection_efficiency_report', params),
 };
 
 export default http;

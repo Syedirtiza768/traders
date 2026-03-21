@@ -31,7 +31,7 @@ import InventoryPage from './pages/InventoryPage';
 import CustomersPage from './pages/CustomersPage';
 import SuppliersPage from './pages/SuppliersPage';
 import FinancePage from './pages/FinancePage';
-import ReportsPage from './pages/ReportsPage';
+import ReportsPage from './pages/ReportsPageNew';
 import SettingsPage from './pages/SettingsPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
