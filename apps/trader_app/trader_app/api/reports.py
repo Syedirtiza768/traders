@@ -539,8 +539,8 @@ def get_sales_performance_report(company=None, from_date=None, to_date=None,
             COALESCE(SUM(sii.amount), 0) AS net_sales,
             COALESCE(SUM(sii.qty * sii.rate), 0) AS gross_sales,
             COALESCE(SUM(sii.qty * sii.rate) - SUM(sii.amount), 0) AS discount_amount,
-            COALESCE(SUM(sii.qty * COALESCE(sii.valuation_rate, 0)), 0) AS cogs,
-            COALESCE(SUM(sii.amount) - SUM(sii.qty * COALESCE(sii.valuation_rate, 0)), 0) AS gross_profit,
+            COALESCE(SUM(sii.qty * COALESCE(sii.incoming_rate, 0)), 0) AS cogs,
+            COALESCE(SUM(sii.amount) - SUM(sii.qty * COALESCE(sii.incoming_rate, 0)), 0) AS gross_profit,
             COALESCE(SUM(sii.qty), 0) AS qty,
             COUNT(DISTINCT si.name) AS invoice_count
         {joins}
@@ -552,7 +552,7 @@ def get_sales_performance_report(company=None, from_date=None, to_date=None,
     chart = frappe.db.sql(f"""
         SELECT DATE_FORMAT(si.posting_date, '%%Y-%%m') AS period,
                COALESCE(SUM(sii.amount), 0) AS net_sales,
-               COALESCE(SUM(sii.amount) - SUM(sii.qty * COALESCE(sii.valuation_rate, 0)), 0) AS gross_profit
+               COALESCE(SUM(sii.amount) - SUM(sii.qty * COALESCE(sii.incoming_rate, 0)), 0) AS gross_profit
         {joins}
         WHERE {where}
         GROUP BY DATE_FORMAT(si.posting_date, '%%Y-%%m')
@@ -578,8 +578,8 @@ def get_sales_performance_report(company=None, from_date=None, to_date=None,
                COALESCE(SUM(sii.amount), 0) AS net_sales,
                COALESCE(SUM(sii.qty * sii.rate), 0) AS gross_sales,
                COALESCE(SUM(sii.qty * sii.rate) - SUM(sii.amount), 0) AS discount_amount,
-               COALESCE(SUM(sii.qty * COALESCE(sii.valuation_rate, 0)), 0) AS cogs,
-               COALESCE(SUM(sii.amount) - SUM(sii.qty * COALESCE(sii.valuation_rate, 0)), 0) AS gross_profit,
+               COALESCE(SUM(sii.qty * COALESCE(sii.incoming_rate, 0)), 0) AS cogs,
+               COALESCE(SUM(sii.amount) - SUM(sii.qty * COALESCE(sii.incoming_rate, 0)), 0) AS gross_profit,
                COUNT(DISTINCT si.name) AS invoice_count
         {joins}
         WHERE {where}
@@ -640,8 +640,8 @@ def get_customer_profitability_report(company=None, from_date=None, to_date=None
         SELECT si.customer,
                MAX(si.customer_name) AS customer_name,
                COALESCE(SUM(sii.amount), 0) AS revenue,
-               COALESCE(SUM(sii.amount) - SUM(sii.qty * COALESCE(sii.valuation_rate, 0)), 0) AS gross_profit,
-               COALESCE(SUM(sii.qty * COALESCE(sii.valuation_rate, 0)), 0) AS cogs,
+               COALESCE(SUM(sii.amount) - SUM(sii.qty * COALESCE(sii.incoming_rate, 0)), 0) AS gross_profit,
+               COALESCE(SUM(sii.qty * COALESCE(sii.incoming_rate, 0)), 0) AS cogs,
                COUNT(DISTINCT si.name) AS invoice_count,
                COALESCE(SUM(si.outstanding_amount), 0) AS outstanding_amount
         FROM `tabSales Invoice Item` sii
@@ -1777,7 +1777,7 @@ def get_salesperson_performance_report(company=None, from_date=None, to_date=Non
     rows = frappe.db.sql("""
         SELECT st.sales_person,
                COALESCE(SUM(sii.amount * st.allocated_percentage / 100), 0) AS revenue,
-               COALESCE(SUM((sii.amount - COALESCE(sii.valuation_rate * sii.qty, 0)) * st.allocated_percentage / 100), 0) AS gross_profit,
+               COALESCE(SUM((sii.amount - COALESCE(sii.incoming_rate * sii.qty, 0)) * st.allocated_percentage / 100), 0) AS gross_profit,
                COUNT(DISTINCT si.name) AS invoice_count,
                COUNT(DISTINCT si.customer) AS customer_count,
                COALESCE(SUM(sii.qty * st.allocated_percentage / 100), 0) AS qty_sold
