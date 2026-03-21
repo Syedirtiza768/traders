@@ -486,7 +486,7 @@ def create_material_request(items, company=None, transaction_date=None, schedule
 
 @frappe.whitelist()
 def create_supplier_quotation(supplier, items, company=None, transaction_date=None, valid_till=None,
-                              material_request=None):
+                              material_request=None, taxes_and_charges=None, tax_inclusive=0):
     """Create an RFQ using Supplier Quotation."""
     import json
     if isinstance(items, str):
@@ -509,6 +509,13 @@ def create_supplier_quotation(supplier, items, company=None, transaction_date=No
             'rate': flt(item.get('rate', 0)),
             'material_request': item.get('material_request') or material_request,
         })
+
+    if taxes_and_charges:
+        sq.taxes_and_charges = taxes_and_charges
+        sq.run_method('set_taxes')
+        if cint(tax_inclusive):
+            for tax_row in sq.taxes:
+                tax_row.included_in_print_rate = 1
 
     sq.insert(ignore_permissions=True)
     return {'name': sq.name, 'status': 'Draft'}
