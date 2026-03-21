@@ -48,17 +48,12 @@ Full scan of all API namespaces and page-level call sites — 2026-03-21
 | Method | HTTP | Endpoint | Parameters |
 |---|---|---|---|
 
-### `suppliersApi`
-
-| Method | HTTP | Endpoint | Parameters |
-|---|---|---|---|
-
-### `financeApi`
-
-| Method | HTTP | Endpoint | Parameters |
-|---|---|---|---|
-
 ### `reportsApi`
+
+| Method | HTTP | Endpoint | Parameters |
+|---|---|---|---|
+
+### `settingsApi`
 
 | Method | HTTP | Endpoint | Parameters |
 |---|---|---|---|
