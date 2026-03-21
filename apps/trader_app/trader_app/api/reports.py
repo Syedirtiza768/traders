@@ -1414,3 +1414,479 @@ def get_collection_efficiency_report(company=None, from_date=None, to_date=None,
         return
 
     return {"summary": summary, "data": rows, "total": len(rows), "page": page, "page_size": page_size}
+
+
+# ────────────────────────────────────────────────────────────────
+# Phase 2 Endpoints
+# ────────────────────────────────────────────────────────────────
+
+# ── 24. DAILY SALES REPORT ─────────────────────────────────────
+@frappe.whitelist()
+def get_daily_sales_report(company=None, from_date=None, to_date=None,
+                           page=1, page_size=50, format=None):
+    """Daily sales breakdown — invoice count, revenue, outstanding per day."""
+    company = company or _default_company()
+    from_date, to_date = _date_range(from_date, to_date, default_months=1)
+    page, page_size, offset = _paginate(page, page_size)
+
+    params = {"company": company, "from_date": from_date, "to_date": to_date}
+
+    rows = frappe.db.sql("""
+        SELECT si.posting_date AS date,
+               COUNT(*) AS invoice_count,
+               COALESCE(SUM(si.net_total), 0) AS net_total,
+               COALESCE(SUM(si.grand_total), 0) AS grand_total,
+               COALESCE(SUM(si.outstanding_amount), 0) AS outstanding,
+               COALESCE(SUM(si.grand_total - si.outstanding_amount), 0) AS collected
+        FROM `tabSales Invoice` si
+        WHERE si.company = %(company)s AND si.docstatus = 1
+              AND si.posting_date BETWEEN %(from_date)s AND %(to_date)s
+        GROUP BY si.posting_date
+        ORDER BY si.posting_date DESC
+        LIMIT %(page_size)s OFFSET %(offset)s
+    """, {**params, "page_size": page_size, "offset": offset}, as_dict=True)
+
+    total_row = frappe.db.sql("""
+        SELECT COUNT(DISTINCT si.posting_date) AS total_days,
+               COALESCE(SUM(si.grand_total), 0) AS total_revenue,
+               COALESCE(SUM(si.outstanding_amount), 0) AS total_outstanding,
+               COUNT(*) AS total_invoices,
+               COALESCE(AVG(si.grand_total), 0) AS avg_invoice_value
+        FROM `tabSales Invoice` si
+        WHERE si.company = %(company)s AND si.docstatus = 1
+              AND si.posting_date BETWEEN %(from_date)s AND %(to_date)s
+    """, params, as_dict=True)[0]
+
+    summary = {
+        'total_days': cint(total_row.get('total_days')),
+        'total_revenue': flt(total_row.get('total_revenue')),
+        'total_invoices': cint(total_row.get('total_invoices')),
+        'avg_daily_revenue': flt(total_row.get('total_revenue')) / max(cint(total_row.get('total_days')), 1),
+        'avg_invoice_value': flt(total_row.get('avg_invoice_value')),
+    }
+
+    chart = [{"label": str(r['date']), "revenue": flt(r['grand_total']), "invoices": cint(r['invoice_count'])} for r in reversed(rows)]
+
+    if format == 'csv':
+        cols = ['date', 'invoice_count', 'net_total', 'grand_total', 'outstanding', 'collected']
+        _csv_response(cols, rows, 'daily_sales.csv')
+        return
+
+    return {"summary": summary, "data": rows, "chart": chart, "total": summary['total_days'], "page": page, "page_size": page_size}
+
+
+# ── 25. SALES RETURN REPORT ───────────────────────────────────
+@frappe.whitelist()
+def get_sales_return_report(company=None, from_date=None, to_date=None,
+                            customer=None, page=1, page_size=50, format=None):
+    """Sales returns (credit notes) — grouped by customer."""
+    company = company or _default_company()
+    from_date, to_date = _date_range(from_date, to_date)
+    page, page_size, offset = _paginate(page, page_size)
+
+    params = {"company": company, "from_date": from_date, "to_date": to_date}
+    extra = ""
+    if customer:
+        extra = " AND si.customer = %(customer)s"
+        params["customer"] = customer
+
+    rows = frappe.db.sql(f"""
+        SELECT si.customer, si.customer_name,
+               COUNT(*) AS return_count,
+               COALESCE(SUM(ABS(si.grand_total)), 0) AS return_value,
+               COALESCE(SUM(ABS(si.net_total)), 0) AS net_return_value
+        FROM `tabSales Invoice` si
+        WHERE si.company = %(company)s AND si.docstatus = 1 AND si.is_return = 1
+              AND si.posting_date BETWEEN %(from_date)s AND %(to_date)s{extra}
+        GROUP BY si.customer
+        ORDER BY return_value DESC
+        LIMIT %(page_size)s OFFSET %(offset)s
+    """, {**params, "page_size": page_size, "offset": offset}, as_dict=True)
+
+    total_row = frappe.db.sql(f"""
+        SELECT COUNT(*) AS total_returns,
+               COALESCE(SUM(ABS(si.grand_total)), 0) AS total_return_value,
+               COUNT(DISTINCT si.customer) AS customers_with_returns
+        FROM `tabSales Invoice` si
+        WHERE si.company = %(company)s AND si.docstatus = 1 AND si.is_return = 1
+              AND si.posting_date BETWEEN %(from_date)s AND %(to_date)s{extra}
+    """, params, as_dict=True)[0]
+
+    summary = {
+        'total_returns': cint(total_row.get('total_returns')),
+        'total_return_value': flt(total_row.get('total_return_value')),
+        'customers_with_returns': cint(total_row.get('customers_with_returns')),
+    }
+
+    if format == 'csv':
+        cols = ['customer', 'customer_name', 'return_count', 'return_value', 'net_return_value']
+        _csv_response(cols, rows, 'sales_returns.csv')
+        return
+
+    return {"summary": summary, "data": rows, "total": cint(total_row.get('customers_with_returns')), "page": page, "page_size": page_size}
+
+
+# ── 26. PURCHASE RETURN REPORT ────────────────────────────────
+@frappe.whitelist()
+def get_purchase_return_report(company=None, from_date=None, to_date=None,
+                               supplier=None, page=1, page_size=50, format=None):
+    """Purchase returns (debit notes) — grouped by supplier."""
+    company = company or _default_company()
+    from_date, to_date = _date_range(from_date, to_date)
+    page, page_size, offset = _paginate(page, page_size)
+
+    params = {"company": company, "from_date": from_date, "to_date": to_date}
+    extra = ""
+    if supplier:
+        extra = " AND pi.supplier = %(supplier)s"
+        params["supplier"] = supplier
+
+    rows = frappe.db.sql(f"""
+        SELECT pi.supplier, pi.supplier_name,
+               COUNT(*) AS return_count,
+               COALESCE(SUM(ABS(pi.grand_total)), 0) AS return_value,
+               COALESCE(SUM(ABS(pi.net_total)), 0) AS net_return_value
+        FROM `tabPurchase Invoice` pi
+        WHERE pi.company = %(company)s AND pi.docstatus = 1 AND pi.is_return = 1
+              AND pi.posting_date BETWEEN %(from_date)s AND %(to_date)s{extra}
+        GROUP BY pi.supplier
+        ORDER BY return_value DESC
+        LIMIT %(page_size)s OFFSET %(offset)s
+    """, {**params, "page_size": page_size, "offset": offset}, as_dict=True)
+
+    total_row = frappe.db.sql(f"""
+        SELECT COUNT(*) AS total_returns,
+               COALESCE(SUM(ABS(pi.grand_total)), 0) AS total_return_value,
+               COUNT(DISTINCT pi.supplier) AS suppliers_with_returns
+        FROM `tabPurchase Invoice` pi
+        WHERE pi.company = %(company)s AND pi.docstatus = 1 AND pi.is_return = 1
+              AND pi.posting_date BETWEEN %(from_date)s AND %(to_date)s{extra}
+    """, params, as_dict=True)[0]
+
+    summary = {
+        'total_returns': cint(total_row.get('total_returns')),
+        'total_return_value': flt(total_row.get('total_return_value')),
+        'suppliers_with_returns': cint(total_row.get('suppliers_with_returns')),
+    }
+
+    if format == 'csv':
+        cols = ['supplier', 'supplier_name', 'return_count', 'return_value', 'net_return_value']
+        _csv_response(cols, rows, 'purchase_returns.csv')
+        return
+
+    return {"summary": summary, "data": rows, "total": cint(total_row.get('suppliers_with_returns')), "page": page, "page_size": page_size}
+
+
+# ── 27. CASH FLOW REPORT ─────────────────────────────────────
+@frappe.whitelist()
+def get_cashflow_report(company=None, from_date=None, to_date=None,
+                        group_by='month', page=1, page_size=50, format=None):
+    """Cash flow — payment entries in vs out, grouped by month or payment type."""
+    company = company or _default_company()
+    from_date, to_date = _date_range(from_date, to_date)
+    page, page_size, offset = _paginate(page, page_size)
+
+    params = {"company": company, "from_date": from_date, "to_date": to_date}
+
+    if group_by == 'payment_type':
+        dim_expr = 'pe.payment_type'
+    else:
+        dim_expr = "DATE_FORMAT(pe.posting_date, '%%Y-%%m')"
+
+    rows = frappe.db.sql(f"""
+        SELECT {dim_expr} AS label,
+               COALESCE(SUM(CASE WHEN pe.payment_type = 'Receive' THEN pe.paid_amount ELSE 0 END), 0) AS inflow,
+               COALESCE(SUM(CASE WHEN pe.payment_type = 'Pay' THEN pe.paid_amount ELSE 0 END), 0) AS outflow,
+               COALESCE(SUM(CASE WHEN pe.payment_type = 'Internal Transfer' THEN pe.paid_amount ELSE 0 END), 0) AS transfers,
+               COUNT(*) AS entry_count
+        FROM `tabPayment Entry` pe
+        WHERE pe.company = %(company)s AND pe.docstatus = 1
+              AND pe.posting_date BETWEEN %(from_date)s AND %(to_date)s
+        GROUP BY label
+        ORDER BY label
+        LIMIT %(page_size)s OFFSET %(offset)s
+    """, {**params, "page_size": page_size, "offset": offset}, as_dict=True)
+
+    for row in rows:
+        row['net_flow'] = flt(row['inflow']) - flt(row['outflow'])
+
+    total_inflow = sum(flt(r['inflow']) for r in rows)
+    total_outflow = sum(flt(r['outflow']) for r in rows)
+
+    summary = {
+        'total_inflow': total_inflow,
+        'total_outflow': total_outflow,
+        'net_flow': total_inflow - total_outflow,
+        'total_entries': sum(cint(r['entry_count']) for r in rows),
+    }
+
+    chart = [{"label": r['label'], "inflow": flt(r['inflow']), "outflow": flt(r['outflow']), "net_flow": flt(r['net_flow'])} for r in rows]
+
+    if format == 'csv':
+        cols = ['label', 'inflow', 'outflow', 'net_flow', 'transfers', 'entry_count']
+        _csv_response(cols, rows, 'cashflow.csv')
+        return
+
+    return {"summary": summary, "data": rows, "chart": chart, "total": len(rows), "page": page, "page_size": page_size}
+
+
+# ── 28. PROFIT & LOSS SUMMARY REPORT ─────────────────────────
+@frappe.whitelist()
+def get_profit_loss_summary_report(company=None, from_date=None, to_date=None,
+                                    format=None):
+    """Enhanced P&L — income, COGS, gross profit, expenses, net profit via GL entries."""
+    company = company or _default_company()
+    from_date, to_date = _date_range(from_date, to_date)
+
+    params = {"company": company, "from_date": from_date, "to_date": to_date}
+
+    rows = frappe.db.sql("""
+        SELECT a.root_type, a.parent_account, a.name AS account,
+               COALESCE(SUM(gl.credit - gl.debit), 0) AS net_amount
+        FROM `tabGL Entry` gl
+        INNER JOIN `tabAccount` a ON a.name = gl.account
+        WHERE gl.company = %(company)s AND gl.is_cancelled = 0
+              AND gl.posting_date BETWEEN %(from_date)s AND %(to_date)s
+              AND a.root_type IN ('Income', 'Expense')
+        GROUP BY a.name
+        ORDER BY a.root_type, a.parent_account, a.name
+    """, params, as_dict=True)
+
+    income_rows = [r for r in rows if r['root_type'] == 'Income']
+    expense_rows = [r for r in rows if r['root_type'] == 'Expense']
+
+    total_income = sum(flt(r['net_amount']) for r in income_rows)
+    total_expense = sum(abs(flt(r['net_amount'])) for r in expense_rows)
+
+    # Try to identify COGS accounts for gross profit
+    cogs_keywords = ['cost of goods', 'cost of sales', 'cogs', 'direct cost']
+    cogs_total = 0
+    for r in expense_rows:
+        acct = (r.get('account') or '').lower()
+        parent = (r.get('parent_account') or '').lower()
+        if any(kw in acct or kw in parent for kw in cogs_keywords):
+            cogs_total += abs(flt(r['net_amount']))
+
+    gross_profit = total_income - cogs_total
+    net_profit = total_income - total_expense
+
+    summary = {
+        'total_income': total_income,
+        'cogs': cogs_total,
+        'gross_profit': gross_profit,
+        'gp_margin': _safe_pct(gross_profit, total_income),
+        'total_expense': total_expense,
+        'net_profit': net_profit,
+        'net_margin': _safe_pct(net_profit, total_income),
+    }
+
+    # Format for display
+    for r in rows:
+        r['amount'] = abs(flt(r['net_amount']))
+        r['type'] = r['root_type']
+
+    if format == 'csv':
+        cols = ['account', 'root_type', 'parent_account', 'amount']
+        _csv_response(cols, rows, 'profit_and_loss.csv')
+        return
+
+    return {"summary": summary, "data": rows, "total": len(rows)}
+
+
+# ── 29. STOCK BALANCE REPORT ─────────────────────────────────
+@frappe.whitelist()
+def get_stock_balance_report(company=None, warehouse=None, item_group=None,
+                             page=1, page_size=50, format=None):
+    """Warehouse-wise stock balance and value from Bin table."""
+    company = company or _default_company()
+    page, page_size, offset = _paginate(page, page_size)
+
+    conditions = ["b.actual_qty != 0"]
+    params: dict = {}
+
+    if warehouse:
+        conditions.append("b.warehouse LIKE %(warehouse)s")
+        params["warehouse"] = f"%{warehouse}%"
+    if item_group:
+        conditions.append("i.item_group = %(item_group)s")
+        params["item_group"] = item_group
+
+    # filter by company warehouse
+    conditions.append("w.company = %(company)s")
+    params["company"] = company
+
+    where = " AND ".join(conditions)
+
+    total = frappe.db.sql(f"""
+        SELECT COUNT(*)
+        FROM `tabBin` b
+        INNER JOIN `tabItem` i ON i.name = b.item_code
+        INNER JOIN `tabWarehouse` w ON w.name = b.warehouse
+        WHERE {where}
+    """, params)[0][0]
+
+    rows = frappe.db.sql(f"""
+        SELECT b.item_code, i.item_name, i.item_group,
+               b.warehouse,
+               b.actual_qty, b.reserved_qty, b.ordered_qty, b.planned_qty,
+               b.stock_value,
+               CASE WHEN b.actual_qty > 0 THEN b.stock_value / b.actual_qty ELSE 0 END AS valuation_rate
+        FROM `tabBin` b
+        INNER JOIN `tabItem` i ON i.name = b.item_code
+        INNER JOIN `tabWarehouse` w ON w.name = b.warehouse
+        WHERE {where}
+        ORDER BY b.stock_value DESC
+        LIMIT %(page_size)s OFFSET %(offset)s
+    """, {**params, "page_size": page_size, "offset": offset}, as_dict=True)
+
+    summary_row = frappe.db.sql(f"""
+        SELECT COALESCE(SUM(b.actual_qty), 0) AS total_qty,
+               COALESCE(SUM(b.stock_value), 0) AS total_value,
+               COUNT(DISTINCT b.item_code) AS unique_items,
+               COUNT(DISTINCT b.warehouse) AS warehouses
+        FROM `tabBin` b
+        INNER JOIN `tabItem` i ON i.name = b.item_code
+        INNER JOIN `tabWarehouse` w ON w.name = b.warehouse
+        WHERE {where}
+    """, params, as_dict=True)[0]
+
+    summary = {
+        'total_qty': flt(summary_row.get('total_qty')),
+        'total_value': flt(summary_row.get('total_value')),
+        'unique_items': cint(summary_row.get('unique_items')),
+        'warehouses': cint(summary_row.get('warehouses')),
+    }
+
+    if format == 'csv':
+        cols = ['item_code', 'item_name', 'item_group', 'warehouse', 'actual_qty', 'reserved_qty', 'ordered_qty', 'stock_value', 'valuation_rate']
+        _csv_response(cols, rows, 'stock_balance.csv')
+        return
+
+    return {"summary": summary, "data": rows, "total": cint(total), "page": page, "page_size": page_size}
+
+
+# ── 30. SALESPERSON PERFORMANCE REPORT ────────────────────────
+@frappe.whitelist()
+def get_salesperson_performance_report(company=None, from_date=None, to_date=None,
+                                        page=1, page_size=50, format=None):
+    """Revenue, GP, margin and contribution per salesperson."""
+    company = company or _default_company()
+    from_date, to_date = _date_range(from_date, to_date)
+    page, page_size, offset = _paginate(page, page_size)
+
+    params = {"company": company, "from_date": from_date, "to_date": to_date}
+
+    rows = frappe.db.sql("""
+        SELECT st.sales_person,
+               COALESCE(SUM(sii.amount * st.allocated_percentage / 100), 0) AS revenue,
+               COALESCE(SUM((sii.amount - COALESCE(sii.valuation_rate * sii.qty, 0)) * st.allocated_percentage / 100), 0) AS gross_profit,
+               COUNT(DISTINCT si.name) AS invoice_count,
+               COUNT(DISTINCT si.customer) AS customer_count,
+               COALESCE(SUM(sii.qty * st.allocated_percentage / 100), 0) AS qty_sold
+        FROM `tabSales Team` st
+        INNER JOIN `tabSales Invoice` si ON si.name = st.parent AND si.docstatus = 1
+        INNER JOIN `tabSales Invoice Item` sii ON sii.parent = si.name
+        WHERE si.company = %(company)s
+              AND si.posting_date BETWEEN %(from_date)s AND %(to_date)s
+        GROUP BY st.sales_person
+        ORDER BY revenue DESC
+        LIMIT %(page_size)s OFFSET %(offset)s
+    """, {**params, "page_size": page_size, "offset": offset}, as_dict=True)
+
+    for row in rows:
+        row['gp_margin'] = _safe_pct(flt(row['gross_profit']), flt(row['revenue']))
+
+    total_rev = sum(flt(r['revenue']) for r in rows)
+    for row in rows:
+        row['revenue_share'] = _safe_pct(flt(row['revenue']), total_rev)
+
+    total_count = frappe.db.sql("""
+        SELECT COUNT(DISTINCT st.sales_person)
+        FROM `tabSales Team` st
+        INNER JOIN `tabSales Invoice` si ON si.name = st.parent AND si.docstatus = 1
+        WHERE si.company = %(company)s
+              AND si.posting_date BETWEEN %(from_date)s AND %(to_date)s
+    """, params)[0][0]
+
+    summary = {
+        'total_salespersons': cint(total_count),
+        'total_revenue': total_rev,
+        'total_gp': sum(flt(r['gross_profit']) for r in rows),
+        'avg_margin': _safe_pct(sum(flt(r['gross_profit']) for r in rows), total_rev),
+    }
+
+    if format == 'csv':
+        cols = ['sales_person', 'revenue', 'gross_profit', 'gp_margin', 'invoice_count', 'customer_count', 'qty_sold', 'revenue_share']
+        _csv_response(cols, rows, 'salesperson_performance.csv')
+        return
+
+    return {"summary": summary, "data": rows, "total": cint(total_count), "page": page, "page_size": page_size}
+
+
+# ── 31. ITEM-WISE PURCHASE REPORT ─────────────────────────────
+@frappe.whitelist()
+def get_item_purchase_report(company=None, from_date=None, to_date=None,
+                             item_group=None, supplier=None,
+                             page=1, page_size=50, format=None):
+    """Item-wise purchase breakdown — qty, value, avg rate, supplier count."""
+    company = company or _default_company()
+    from_date, to_date = _date_range(from_date, to_date)
+    page, page_size, offset = _paginate(page, page_size)
+
+    params = {"company": company, "from_date": from_date, "to_date": to_date}
+    extra = ""
+    if item_group:
+        extra += " AND pii.item_group = %(item_group)s"
+        params["item_group"] = item_group
+    if supplier:
+        extra += " AND pi.supplier = %(supplier)s"
+        params["supplier"] = supplier
+
+    total = frappe.db.sql(f"""
+        SELECT COUNT(DISTINCT pii.item_code)
+        FROM `tabPurchase Invoice Item` pii
+        INNER JOIN `tabPurchase Invoice` pi ON pi.name = pii.parent
+        WHERE pi.company = %(company)s AND pi.docstatus = 1 AND COALESCE(pi.is_return, 0) = 0
+              AND pi.posting_date BETWEEN %(from_date)s AND %(to_date)s{extra}
+    """, params)[0][0]
+
+    rows = frappe.db.sql(f"""
+        SELECT pii.item_code, pii.item_name, pii.item_group,
+               COALESCE(SUM(pii.qty), 0) AS total_qty,
+               COALESCE(SUM(pii.amount), 0) AS total_amount,
+               COALESCE(AVG(pii.rate), 0) AS avg_rate,
+               MIN(pii.rate) AS min_rate,
+               MAX(pii.rate) AS max_rate,
+               COUNT(DISTINCT pi.supplier) AS supplier_count,
+               COUNT(DISTINCT pi.name) AS invoice_count
+        FROM `tabPurchase Invoice Item` pii
+        INNER JOIN `tabPurchase Invoice` pi ON pi.name = pii.parent
+        WHERE pi.company = %(company)s AND pi.docstatus = 1 AND COALESCE(pi.is_return, 0) = 0
+              AND pi.posting_date BETWEEN %(from_date)s AND %(to_date)s{extra}
+        GROUP BY pii.item_code
+        ORDER BY total_amount DESC
+        LIMIT %(page_size)s OFFSET %(offset)s
+    """, {**params, "page_size": page_size, "offset": offset}, as_dict=True)
+
+    summary_row = frappe.db.sql(f"""
+        SELECT COALESCE(SUM(pii.amount), 0) AS total_value,
+               COALESCE(SUM(pii.qty), 0) AS total_qty,
+               COUNT(DISTINCT pii.item_code) AS unique_items
+        FROM `tabPurchase Invoice Item` pii
+        INNER JOIN `tabPurchase Invoice` pi ON pi.name = pii.parent
+        WHERE pi.company = %(company)s AND pi.docstatus = 1 AND COALESCE(pi.is_return, 0) = 0
+              AND pi.posting_date BETWEEN %(from_date)s AND %(to_date)s{extra}
+    """, params, as_dict=True)[0]
+
+    summary = {
+        'total_value': flt(summary_row.get('total_value')),
+        'total_qty': flt(summary_row.get('total_qty')),
+        'unique_items': cint(summary_row.get('unique_items')),
+    }
+
+    if format == 'csv':
+        cols = ['item_code', 'item_name', 'item_group', 'total_qty', 'total_amount', 'avg_rate', 'min_rate', 'max_rate', 'supplier_count', 'invoice_count']
+        _csv_response(cols, rows, 'item_purchases.csv')
+        return
+
+    return {"summary": summary, "data": rows, "total": cint(total), "page": page, "page_size": page_size}

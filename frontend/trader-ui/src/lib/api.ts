@@ -415,6 +415,31 @@ export const reportsApi = {
 
   getCollectionEfficiencyReport: (params?: Record<string, any>) =>
     call('trader_app.api.reports.get_collection_efficiency_report', params),
+
+  // ─── Phase 2: New report endpoints ─────────────────────────────
+  getDailySalesReport: (params?: Record<string, any>) =>
+    call('trader_app.api.reports.get_daily_sales_report', params),
+
+  getSalesReturnReport: (params?: Record<string, any>) =>
+    call('trader_app.api.reports.get_sales_return_report', params),
+
+  getPurchaseReturnReport: (params?: Record<string, any>) =>
+    call('trader_app.api.reports.get_purchase_return_report', params),
+
+  getCashflowReport: (params?: Record<string, any>) =>
+    call('trader_app.api.reports.get_cashflow_report', params),
+
+  getProfitLossSummaryReport: (params?: Record<string, any>) =>
+    call('trader_app.api.reports.get_profit_loss_summary_report', params),
+
+  getStockBalanceReport: (params?: Record<string, any>) =>
+    call('trader_app.api.reports.get_stock_balance_report', params),
+
+  getSalespersonPerformanceReport: (params?: Record<string, any>) =>
+    call('trader_app.api.reports.get_salesperson_performance_report', params),
+
+  getItemPurchaseReport: (params?: Record<string, any>) =>
+    call('trader_app.api.reports.get_item_purchase_report', params),
 };
 
 export default http;

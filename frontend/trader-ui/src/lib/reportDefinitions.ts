@@ -380,6 +380,272 @@ export const REPORTS: ReportDef[] = [
       { key: 'net_tax', label: 'Net Tax', format: 'currency', align: 'right' },
     ],
   },
+
+  // ══════════════════════════════════════════════════════════════
+  // PHASE 2 REPORTS
+  // ══════════════════════════════════════════════════════════════
+
+  // ──── SALES (phase 2) ───────────────────────────────────────────
+  {
+    id: 'daily-sales',
+    category: 'sales',
+    title: 'Daily Sales',
+    description: 'Day-by-day revenue, invoice count and collection breakdown',
+    fetch: (p) => reportsApi.getDailySalesReport(p),
+    filters: [fromDateFilter, toDateFilter],
+    kpis: (m) => {
+      const s = m.summary || {};
+      return [
+        { label: 'Total Revenue', value: s.total_revenue, format: 'currency', color: 'text-green-700' },
+        { label: 'Total Invoices', value: s.total_invoices, format: 'number' },
+        { label: 'Avg Daily Revenue', value: s.avg_daily_revenue, format: 'currency', color: 'text-blue-700' },
+        { label: 'Avg Invoice Value', value: s.avg_invoice_value, format: 'currency' },
+      ];
+    },
+    chart: { type: 'bar', xKey: 'label', bars: [
+      { dataKey: 'revenue', name: 'Revenue', color: '#2563eb' },
+    ], title: 'Daily Revenue Trend', dataPath: 'chart' },
+    columns: [
+      { key: 'date', label: 'Date', format: 'date' },
+      { key: 'invoice_count', label: 'Invoices', format: 'number', align: 'right' },
+      { key: 'grand_total', label: 'Revenue', format: 'currency', align: 'right' },
+      { key: 'net_total', label: 'Net Total', format: 'currency', align: 'right' },
+      { key: 'collected', label: 'Collected', format: 'currency', align: 'right' },
+      { key: 'outstanding', label: 'Outstanding', format: 'currency', align: 'right' },
+    ],
+  },
+  {
+    id: 'sales-returns',
+    category: 'sales',
+    title: 'Sales Returns',
+    description: 'Credit notes / returns analysis by customer',
+    fetch: (p) => reportsApi.getSalesReturnReport(p),
+    filters: [fromDateFilter, toDateFilter, { key: 'customer', label: 'Customer', type: 'text' }],
+    kpis: (m) => {
+      const s = m.summary || {};
+      return [
+        { label: 'Total Returns', value: s.total_returns, format: 'number', color: 'text-red-600' },
+        { label: 'Return Value', value: s.total_return_value, format: 'currency', color: 'text-red-700' },
+        { label: 'Customers w/ Returns', value: s.customers_with_returns, format: 'number' },
+      ];
+    },
+    columns: [
+      { key: 'customer_name', label: 'Customer' },
+      { key: 'return_count', label: 'Returns', format: 'number', align: 'right' },
+      { key: 'return_value', label: 'Return Value', format: 'currency', align: 'right' },
+      { key: 'net_return_value', label: 'Net Value', format: 'currency', align: 'right' },
+    ],
+  },
+  {
+    id: 'salesperson-performance',
+    category: 'sales',
+    title: 'Salesperson Performance',
+    description: 'Revenue, gross profit, margins and contribution per salesperson',
+    fetch: (p) => reportsApi.getSalespersonPerformanceReport(p),
+    filters: [fromDateFilter, toDateFilter],
+    kpis: (m) => {
+      const s = m.summary || {};
+      return [
+        { label: 'Salespersons', value: s.total_salespersons, format: 'number' },
+        { label: 'Total Revenue', value: s.total_revenue, format: 'currency', color: 'text-green-700' },
+        { label: 'Total GP', value: s.total_gp, format: 'currency', color: 'text-blue-700' },
+        { label: 'Avg Margin', value: s.avg_margin, format: 'percent' },
+      ];
+    },
+    chart: { type: 'horizontal-bar', xKey: 'sales_person', bars: [
+      { dataKey: 'revenue', name: 'Revenue', color: '#2563eb' },
+      { dataKey: 'gross_profit', name: 'Gross Profit', color: '#059669' },
+    ], title: 'Salesperson Revenue', dataPath: 'data' },
+    columns: [
+      { key: 'sales_person', label: 'Salesperson' },
+      { key: 'revenue', label: 'Revenue', format: 'currency', align: 'right' },
+      { key: 'gross_profit', label: 'Gross Profit', format: 'currency', align: 'right' },
+      { key: 'gp_margin', label: 'Margin %', format: 'percent', align: 'right' },
+      { key: 'invoice_count', label: 'Invoices', format: 'number', align: 'right' },
+      { key: 'customer_count', label: 'Customers', format: 'number', align: 'right' },
+      { key: 'revenue_share', label: 'Share %', format: 'percent', align: 'right' },
+    ],
+  },
+  {
+    id: 'top-selling-items',
+    category: 'sales',
+    title: 'Top Selling Items',
+    description: 'Best selling items ranked by revenue with quantity and invoice count',
+    fetch: (p) => reportsApi.getItemSalesReport(p),
+    filters: [fromDateFilter, toDateFilter, { key: 'item_group', label: 'Item Group', type: 'text' }],
+    kpis: (m) => [
+      { label: 'Items', value: m.total, format: 'number' },
+    ],
+    chart: { type: 'horizontal-bar', xKey: 'item_name', bars: [
+      { dataKey: 'total_amount', name: 'Revenue', color: '#2563eb' },
+    ], title: 'Top Items by Revenue', dataPath: 'data' },
+    columns: [
+      { key: 'item_name', label: 'Item' },
+      { key: 'item_group', label: 'Group' },
+      { key: 'total_qty', label: 'Qty Sold', format: 'number', align: 'right' },
+      { key: 'total_amount', label: 'Revenue', format: 'currency', align: 'right' },
+      { key: 'invoice_count', label: 'Invoices', format: 'number', align: 'right' },
+    ],
+  },
+
+  // ──── PURCHASING (phase 2) ──────────────────────────────────────
+  {
+    id: 'purchase-returns',
+    category: 'purchasing',
+    title: 'Purchase Returns',
+    description: 'Debit notes / returns analysis by supplier',
+    fetch: (p) => reportsApi.getPurchaseReturnReport(p),
+    filters: [fromDateFilter, toDateFilter, { key: 'supplier', label: 'Supplier', type: 'text' }],
+    kpis: (m) => {
+      const s = m.summary || {};
+      return [
+        { label: 'Total Returns', value: s.total_returns, format: 'number', color: 'text-red-600' },
+        { label: 'Return Value', value: s.total_return_value, format: 'currency', color: 'text-red-700' },
+        { label: 'Suppliers w/ Returns', value: s.suppliers_with_returns, format: 'number' },
+      ];
+    },
+    columns: [
+      { key: 'supplier_name', label: 'Supplier' },
+      { key: 'return_count', label: 'Returns', format: 'number', align: 'right' },
+      { key: 'return_value', label: 'Return Value', format: 'currency', align: 'right' },
+      { key: 'net_return_value', label: 'Net Value', format: 'currency', align: 'right' },
+    ],
+  },
+  {
+    id: 'item-purchases',
+    category: 'purchasing',
+    title: 'Item-wise Purchases',
+    description: 'Purchase breakdown by item — qty, value, avg rate, supplier count',
+    fetch: (p) => reportsApi.getItemPurchaseReport(p),
+    filters: [fromDateFilter, toDateFilter, { key: 'item_group', label: 'Item Group', type: 'text' }, { key: 'supplier', label: 'Supplier', type: 'text' }],
+    kpis: (m) => {
+      const s = m.summary || {};
+      return [
+        { label: 'Unique Items', value: s.unique_items, format: 'number' },
+        { label: 'Total Value', value: s.total_value, format: 'currency', color: 'text-blue-700' },
+        { label: 'Total Qty', value: s.total_qty, format: 'number' },
+      ];
+    },
+    chart: { type: 'horizontal-bar', xKey: 'item_name', bars: [
+      { dataKey: 'total_amount', name: 'Purchase Value', color: '#059669' },
+    ], title: 'Top Purchased Items', dataPath: 'data' },
+    columns: [
+      { key: 'item_name', label: 'Item' },
+      { key: 'item_group', label: 'Group' },
+      { key: 'total_qty', label: 'Qty', format: 'number', align: 'right' },
+      { key: 'total_amount', label: 'Value', format: 'currency', align: 'right' },
+      { key: 'avg_rate', label: 'Avg Rate', format: 'currency', align: 'right' },
+      { key: 'min_rate', label: 'Min Rate', format: 'currency', align: 'right' },
+      { key: 'max_rate', label: 'Max Rate', format: 'currency', align: 'right' },
+      { key: 'supplier_count', label: 'Suppliers', format: 'number', align: 'right' },
+    ],
+  },
+
+  // ──── INVENTORY (phase 2) ───────────────────────────────────────
+  {
+    id: 'stock-balance',
+    category: 'inventory',
+    title: 'Stock Balance',
+    description: 'Warehouse-wise stock quantities and valuation',
+    fetch: (p) => reportsApi.getStockBalanceReport(p),
+    filters: [{ key: 'warehouse', label: 'Warehouse', type: 'text' }, { key: 'item_group', label: 'Item Group', type: 'text' }],
+    kpis: (m) => {
+      const s = m.summary || {};
+      return [
+        { label: 'Unique Items', value: s.unique_items, format: 'number' },
+        { label: 'Warehouses', value: s.warehouses, format: 'number' },
+        { label: 'Total Qty', value: s.total_qty, format: 'number' },
+        { label: 'Total Value', value: s.total_value, format: 'currency', color: 'text-green-700' },
+      ];
+    },
+    columns: [
+      { key: 'item_name', label: 'Item' },
+      { key: 'item_group', label: 'Group' },
+      { key: 'warehouse', label: 'Warehouse' },
+      { key: 'actual_qty', label: 'Actual Qty', format: 'number', align: 'right' },
+      { key: 'reserved_qty', label: 'Reserved', format: 'number', align: 'right' },
+      { key: 'ordered_qty', label: 'Ordered', format: 'number', align: 'right' },
+      { key: 'stock_value', label: 'Value', format: 'currency', align: 'right' },
+      { key: 'valuation_rate', label: 'Rate', format: 'currency', align: 'right' },
+    ],
+  },
+
+  // ──── FINANCE (phase 2) ─────────────────────────────────────────
+  {
+    id: 'profit-and-loss',
+    category: 'finance',
+    title: 'Profit & Loss',
+    description: 'Income, COGS, gross profit, expenses and net profit summary',
+    fetch: (p) => reportsApi.getProfitLossSummaryReport(p),
+    filters: [fromDateFilter, toDateFilter],
+    kpis: (m) => {
+      const s = m.summary || {};
+      return [
+        { label: 'Total Income', value: s.total_income, format: 'currency', color: 'text-green-700' },
+        { label: 'COGS', value: s.cogs, format: 'currency', color: 'text-orange-600' },
+        { label: 'Gross Profit', value: s.gross_profit, format: 'currency', color: 'text-blue-700' },
+        { label: 'GP Margin', value: s.gp_margin, format: 'percent' },
+        { label: 'Total Expenses', value: s.total_expense, format: 'currency', color: 'text-red-600' },
+        { label: 'Net Profit', value: s.net_profit, format: 'currency', color: s.net_profit >= 0 ? 'text-green-700' : 'text-red-700' },
+      ];
+    },
+    columns: [
+      { key: 'account', label: 'Account' },
+      { key: 'type', label: 'Type' },
+      { key: 'parent_account', label: 'Parent Account' },
+      { key: 'amount', label: 'Amount', format: 'currency', align: 'right' },
+    ],
+  },
+  {
+    id: 'cashflow',
+    category: 'finance',
+    title: 'Cash Flow',
+    description: 'Payment entries — inflow vs outflow by month or payment type',
+    fetch: (p) => reportsApi.getCashflowReport(p),
+    filters: [fromDateFilter, toDateFilter, groupByFilter(['month', 'payment_type'])],
+    kpis: (m) => {
+      const s = m.summary || {};
+      return [
+        { label: 'Total Inflow', value: s.total_inflow, format: 'currency', color: 'text-green-700' },
+        { label: 'Total Outflow', value: s.total_outflow, format: 'currency', color: 'text-red-600' },
+        { label: 'Net Cash Flow', value: s.net_flow, format: 'currency', color: s.net_flow >= 0 ? 'text-green-700' : 'text-red-700' },
+        { label: 'Total Entries', value: s.total_entries, format: 'number' },
+      ];
+    },
+    chart: { type: 'bar', xKey: 'label', bars: [
+      { dataKey: 'inflow', name: 'Inflow', color: '#059669' },
+      { dataKey: 'outflow', name: 'Outflow', color: '#dc2626' },
+    ], title: 'Cash Inflow vs Outflow', dataPath: 'chart' },
+    columns: [
+      { key: 'label', label: 'Period / Type' },
+      { key: 'inflow', label: 'Inflow', format: 'currency', align: 'right' },
+      { key: 'outflow', label: 'Outflow', format: 'currency', align: 'right' },
+      { key: 'net_flow', label: 'Net Flow', format: 'currency', align: 'right' },
+      { key: 'transfers', label: 'Transfers', format: 'currency', align: 'right' },
+      { key: 'entry_count', label: 'Entries', format: 'number', align: 'right' },
+    ],
+  },
+  {
+    id: 'general-ledger',
+    category: 'finance',
+    title: 'General Ledger',
+    description: 'Full general ledger with debit/credit entries',
+    fetch: (p) => reportsApi.getGeneralLedger(p),
+    filters: [fromDateFilter, toDateFilter, { key: 'account', label: 'Account', type: 'text' }, { key: 'party', label: 'Party', type: 'text' }],
+    kpis: (m) => [
+      { label: 'Entries', value: m.total, format: 'number' },
+    ],
+    columns: [
+      { key: 'posting_date', label: 'Date', format: 'date' },
+      { key: 'account', label: 'Account' },
+      { key: 'party_type', label: 'Party Type' },
+      { key: 'party', label: 'Party' },
+      { key: 'debit', label: 'Debit', format: 'currency', align: 'right' },
+      { key: 'credit', label: 'Credit', format: 'currency', align: 'right' },
+      { key: 'voucher_type', label: 'Voucher Type' },
+      { key: 'voucher_no', label: 'Voucher No' },
+    ],
+  },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────
