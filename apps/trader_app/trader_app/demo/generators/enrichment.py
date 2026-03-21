@@ -363,6 +363,7 @@ class EnrichmentGenerator(BaseGenerator):
 
             po = frappe.get_doc({
                 "doctype": "Purchase Order",
+                "title": supplier,
                 "company": self.company,
                 "supplier": supplier,
                 "transaction_date": posting_date,
@@ -370,6 +371,7 @@ class EnrichmentGenerator(BaseGenerator):
                 "currency": self.currency,
                 "buying_price_list": "Standard Buying",
                 "set_warehouse": self.warehouse,
+                "status": "Draft",
             })
 
             for item in selected:
