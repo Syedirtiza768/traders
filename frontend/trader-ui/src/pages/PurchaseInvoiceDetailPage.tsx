@@ -142,6 +142,27 @@ export default function PurchaseInvoiceDetailPage() {
     return appendPreservedListQuery(`/purchases/orders/${encodeURIComponent(orderName)}`, listSearch);
   };
 
+  const buildReturnPath = () => {
+    const params = new URLSearchParams();
+
+    if (invoice?.name) params.set('invoiceName', invoice.name);
+    if (invoice?.supplier) params.set('supplier', invoice.supplier);
+    if (invoice?.posting_date) params.set('postingDate', invoice.posting_date);
+    if (invoice?.due_date) params.set('dueDate', invoice.due_date);
+    if (Array.isArray(invoice?.items) && invoice.items.length > 0) {
+      params.set('lines', encodeURIComponent(JSON.stringify(invoice.items.map((item: any) => ({
+        item_code: item.item_code || '',
+        qty: Math.abs(Number(item.qty) || 0),
+        rate: Number(item.rate) || 0,
+        warehouse: item.warehouse || '',
+      })))));
+    }
+    if (listSearch) params.set('list', listSearch);
+
+    const query = params.toString();
+    return `/purchases/returns/new${query ? `?${query}` : ''}`;
+  };
+
   if (loading) {
     return <div className="py-16 flex justify-center"><div className="spinner" /></div>;
   }
@@ -181,12 +202,20 @@ export default function PurchaseInvoiceDetailPage() {
               Pay Supplier
             </button>
           )}
+          {invoice.docstatus === 1 && !invoice.is_return && (
+            <button
+              onClick={() => navigate(buildReturnPath())}
+              className="btn-secondary"
+            >
+              Create Return
+            </button>
+          )}
           {invoice.docstatus === 0 && (
             <button onClick={handleSubmitInvoice} disabled={submitting} className="btn-primary disabled:opacity-60">
               {submitting ? 'Submitting…' : 'Submit Invoice'}
             </button>
           )}
-          {invoice.docstatus === 1 && (
+          {invoice.docstatus === 1 && !invoice.is_return && (
             <button onClick={handleCancelInvoice} disabled={cancelling} className="btn-danger disabled:opacity-60">
               {cancelling ? 'Cancelling…' : 'Cancel Invoice'}
             </button>
@@ -205,6 +234,14 @@ export default function PurchaseInvoiceDetailPage() {
           label="Started from purchase order"
           value={invoice.purchase_order}
           onClick={() => navigate(buildSourceOrderPath(invoice.purchase_order))}
+        />
+      )}
+
+      {invoice.return_against && (
+        <TraceBanner
+          label="Return against invoice"
+          value={invoice.return_against}
+          onClick={() => navigate(appendPreservedListQuery(`/purchases/${encodeURIComponent(invoice.return_against)}`, listSearch))}
         />
       )}
 

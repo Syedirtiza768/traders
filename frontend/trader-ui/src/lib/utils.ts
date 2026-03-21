@@ -88,128 +88,59 @@ export function debounce<T extends (...args: any[]) => void>(fn: T, ms = 300): T
   }) as T;
 }
 
-export function toCsv(rows: Array<Record<string, any>>): string {
-  if (!rows.length) {
-    return '';
-  }
-
-  const headers = Array.from(
-    rows.reduce<Set<string>>((set, row) => {
-      Object.keys(row).forEach((key) => set.add(key));
-      return set;
-    }, new Set<string>()),
-  );
-
-  const escapeCell = (value: any) => {
-    const text = value == null ? '' : String(value);
-    if (/[,"\n]/.test(text)) {
-      return `"${text.replace(/"/g, '""')}"`;
-    }
-    return text;
-  };
-
-  return [
-    headers.join(','),
-    ...rows.map((row) => headers.map((header) => escapeCell(row[header])).join(',')),
-  ].join('\n');
-}
-
-export function downloadTextFile(filename: string, content: string, mimeType = 'text/plain;charset=utf-8') {
-  const blob = new Blob([content], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-}
-
-export function parseListContext(listSearch: string | null | undefined): URLSearchParams | null {
-  if (!listSearch) return null;
-  return new URLSearchParams(listSearch);
-}
-
-export function isReportContext(listSearch: string | null | undefined): boolean {
-  const parsed = parseListContext(listSearch);
-  if (!parsed) return false;
-  return parsed.has('tab') || parsed.has('receivableSearch') || parsed.has('payableSearch');
-}
-
-export function isFilterListContext(listSearch: string | null | undefined): boolean {
-  const parsed = parseListContext(listSearch);
-  if (!parsed) return false;
-  return parsed.has('group') || parsed.has('search');
-}
-
-export function isWorkflowContext(listSearch: string | null | undefined): boolean {
-  const parsed = parseListContext(listSearch);
-  if (!parsed) return false;
-  return parsed.has('workflow');
-}
-
-export function isOperationsContext(listSearch: string | null | undefined): boolean {
-  const parsed = parseListContext(listSearch);
-  if (!parsed) return false;
-  return parsed.has('module') || parsed.has('openOnly');
-}
-
-export function buildPreservedListQuery(listSearch: string | null | undefined, key = 'list'): string {
-  if (!listSearch) return '';
-  return `?${key}=${encodeURIComponent(listSearch)}`;
-}
-
-export function appendPreservedListQuery(path: string, listSearch: string | null | undefined, key = 'list'): string {
-  if (!listSearch) return path;
-  const separator = path.includes('?') ? '&' : '?';
-  return `${path}${separator}${key}=${encodeURIComponent(listSearch)}`;
-}
+// ─── Navigation Helpers ──────────────────────────────────────────
 
 /**
- * Extract a human-readable error message from a Frappe/ERPNext Axios error.
- *
- * Frappe can return the user-facing message in three places:
- *   1. response.data._server_messages — JSON-encoded array of message objects
- *   2. response.data.exception        — raw exception string (dev mode)
- *   3. response.data.message          — plain string fallback
- *
- * Falls back to `fallback` when none of those yield anything useful.
+ * Append a `?list=<listSearch>` param to a path so detail pages can
+ * navigate back to the originating list view with filters intact.
+ */
+export function appendPreservedListQuery(path: string, listSearch: string | null | undefined): string {
+  if (!listSearch) return path;
+  const separator = path.includes('?') ? '&' : '?';
+  return `${path}${separator}list=${encodeURIComponent(listSearch)}`;
+}
+
+/** Check whether a list-search string represents an Operations context. */
+export function isOperationsContext(listSearch: string | null | undefined): boolean {
+  return Boolean(listSearch && listSearch.includes('ctx=operations'));
+}
+
+/** Check whether a list-search string represents a Report context. */
+export function isReportContext(listSearch: string | null | undefined): boolean {
+  return Boolean(listSearch && listSearch.includes('ctx=report'));
+}
+
+/** Check whether a list-search string represents a filter-list (party detail) context. */
+export function isFilterListContext(listSearch: string | null | undefined): boolean {
+  return Boolean(listSearch && listSearch.includes('ctx=filter'));
+}
+
+/** Check whether a list-search string represents a workflow context. */
+export function isWorkflowContext(listSearch: string | null | undefined): boolean {
+  return Boolean(listSearch && listSearch.includes('ctx=workflow'));
+}
+
+// ─── Error Extraction ────────────────────────────────────────────
+
+/**
+ * Pull a human-readable error message from a Frappe API error response,
+ * falling back to a provided default string.
  */
 export function extractFrappeError(err: any, fallback = 'An unexpected error occurred.'): string {
-  const data = err?.response?.data;
-  if (!data) return fallback;
-
-  // 1. _server_messages is a JSON string like '[{"message":"...","title":"..."}]'
-  if (data._server_messages) {
+  const exc = err?.response?.data?.exception
+    || err?.response?.data?._server_messages
+    || err?.message;
+  if (typeof exc === 'string') {
     try {
-      const parsed = JSON.parse(data._server_messages);
-      const msgs: string[] = (Array.isArray(parsed) ? parsed : [parsed])
-        .map((m: any) => {
-          if (typeof m === 'string') {
-            // Each entry may itself be a JSON object string
-            try { m = JSON.parse(m); } catch { /* ignore */ }
-          }
-          return typeof m === 'object' ? (m.message || m.msg || '') : String(m);
-        })
-        .map((m: string) => m.replace(/<[^>]+>/g, '').trim())   // strip HTML tags
-        .filter(Boolean);
-      if (msgs.length) return msgs.join(' ');
-    } catch { /* fall through */ }
+      const parsed = JSON.parse(exc);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const inner = JSON.parse(parsed[0]);
+        return inner?.message || fallback;
+      }
+    } catch {
+      // not JSON — return the string as-is
+      return exc;
+    }
   }
-
-  // 2. exception string — strip the Python class prefix (e.g. "NegativeStockError: ...")
-  if (data.exception) {
-    const raw = String(data.exception).replace(/<[^>]+>/g, '').trim();
-    const colonIdx = raw.indexOf(':');
-    const msg = colonIdx > 0 ? raw.slice(colonIdx + 1).trim() : raw;
-    if (msg) return msg;
-  }
-
-  // 3. Plain message field
-  if (typeof data.message === 'string' && data.message) {
-    return data.message.replace(/<[^>]+>/g, '').trim();
-  }
-
   return fallback;
 }

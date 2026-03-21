@@ -329,8 +329,21 @@ def get_purchase_order_detail(name):
 
 @frappe.whitelist()
 def create_purchase_invoice(supplier, items, company=None, posting_date=None,
-                            due_date=None, taxes_and_charges=None):
-    """Create a Purchase Invoice."""
+                            due_date=None, taxes_and_charges=None,
+                            tax_inclusive=0,
+                            is_return=0, return_against=None,
+                            update_stock=1):
+    """Create a Purchase Invoice.
+
+    Parameters
+    ----------
+    supplier : str
+    items : list of dict — each with item_code, qty, rate
+    tax_inclusive : int — default 0; pass 1 for tax-inclusive pricing
+    is_return : int — default 0; pass 1 to create a debit note (purchase return)
+    return_against : str — source Purchase Invoice name when is_return=1
+    update_stock : int — default 1; pass 0 for invoice-only entries
+    """
     import json
     if isinstance(items, str):
         items = json.loads(items)
@@ -343,12 +356,15 @@ def create_purchase_invoice(supplier, items, company=None, posting_date=None,
     pi.supplier = supplier
     pi.posting_date = posting_date or nowdate()
     pi.due_date = due_date or pi.posting_date
-    pi.update_stock = 1
+    pi.update_stock = cint(update_stock)
+    pi.is_return = cint(is_return)
+    if return_against:
+        pi.return_against = return_against
 
     for item in items:
         pi.append("items", {
             "item_code": item.get("item_code"),
-            "qty": flt(item.get("qty", 1)),
+            "qty": -abs(flt(item.get("qty", 1))) if cint(is_return) else flt(item.get("qty", 1)),
             "rate": flt(item.get("rate", 0)),
             "warehouse": item.get("warehouse") or f"Main Warehouse - {abbr}",
         })
@@ -356,6 +372,9 @@ def create_purchase_invoice(supplier, items, company=None, posting_date=None,
     if taxes_and_charges:
         pi.taxes_and_charges = taxes_and_charges
         pi.run_method("set_taxes")
+        if cint(tax_inclusive):
+            for tax_row in pi.taxes:
+                tax_row.included_in_print_rate = 1
 
     pi.insert(ignore_permissions=True)
     return {"name": pi.name, "status": "Draft"}
@@ -363,7 +382,8 @@ def create_purchase_invoice(supplier, items, company=None, posting_date=None,
 
 @frappe.whitelist()
 def create_purchase_order(supplier, items, company=None, transaction_date=None,
-                          schedule_date=None, taxes_and_charges=None):
+                          schedule_date=None, taxes_and_charges=None,
+                          tax_inclusive=0):
     """Create a Purchase Order."""
     import json
     if isinstance(items, str):
@@ -391,6 +411,9 @@ def create_purchase_order(supplier, items, company=None, transaction_date=None,
     if taxes_and_charges:
         po.taxes_and_charges = taxes_and_charges
         po.run_method("set_taxes")
+        if cint(tax_inclusive):
+            for tax_row in po.taxes:
+                tax_row.included_in_print_rate = 1
 
     po.insert(ignore_permissions=True)
     return {"name": po.name, "status": "Draft"}
@@ -551,6 +574,26 @@ def cancel_purchase_order(name):
     return {"name": doc.name, "status": "Cancelled"}
 
 
+@frappe.whitelist()
+def cancel_material_request(name):
+    """Cancel a submitted Material Request."""
+    doc = frappe.get_doc("Material Request", name)
+    doc.check_permission("cancel")
+    doc.cancel()
+    frappe.db.commit()
+    return {"name": doc.name, "status": "Cancelled"}
+
+
+@frappe.whitelist()
+def cancel_supplier_quotation(name):
+    """Cancel a submitted Supplier Quotation."""
+    doc = frappe.get_doc("Supplier Quotation", name)
+    doc.check_permission("cancel")
+    doc.cancel()
+    frappe.db.commit()
+    return {"name": doc.name, "status": "Cancelled"}
+
+
 # ────────────────────────────────────────────────────────────────
 # 3.  PURCHASE SUMMARY
 # ────────────────────────────────────────────────────────────────
@@ -602,6 +645,15 @@ def on_purchase_invoice_submit(doc, method):
     frappe.publish_realtime(
         "purchase_invoice_submitted",
         {"invoice": doc.name, "supplier": doc.supplier, "total": doc.grand_total},
+        user=frappe.session.user,
+    )
+
+
+def on_purchase_invoice_cancel(doc, method):
+    """Runs on Purchase Invoice cancel."""
+    frappe.publish_realtime(
+        "purchase_invoice_cancelled",
+        {"invoice": doc.name},
         user=frappe.session.user,
     )
 

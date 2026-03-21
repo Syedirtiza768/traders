@@ -68,6 +68,7 @@ doc_events = {
     "Purchase Invoice": {
         "validate": "trader_app.api.purchases.validate_purchase_invoice",
         "on_submit": "trader_app.api.purchases.on_purchase_invoice_submit",
+        "on_cancel": "trader_app.api.purchases.on_purchase_invoice_cancel",
     },
     "Payment Entry": {
         "on_submit": "trader_app.api.finance.on_payment_entry_submit",
