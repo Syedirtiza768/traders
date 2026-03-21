@@ -336,7 +336,8 @@ class EnrichmentGenerator(BaseGenerator):
         """Create Purchase Orders — some open, some partially received."""
         suppliers = frappe.get_all("Supplier", filters={"disabled": 0}, pluck="name")
         items = frappe.get_all("Item",
-                               filters={"is_stock_item": 1, "disabled": 0},
+                               filters={"is_stock_item": 1, "disabled": 0,
+                                        "is_purchase_item": 1},
                                fields=["name", "item_name", "stock_uom"],
                                limit_page_length=0)
 
@@ -403,6 +404,8 @@ class EnrichmentGenerator(BaseGenerator):
                                         update_modified=False)
                 count += 1
             except Exception as e:
+                if len(self.errors) < 5:
+                    print(f"  ⚠️  PO failed for {supplier}: {e}")
                 self.errors.append(f"PO: {str(e)}")
 
             if count % 20 == 0:
@@ -426,51 +429,55 @@ class EnrichmentGenerator(BaseGenerator):
 
         count = 0
         for inv in invoices:
-            items = frappe.get_all("Sales Invoice Item",
-                                   filters={"parent": inv["name"]},
-                                   fields=["item_code", "item_name", "qty",
-                                            "rate", "uom", "stock_uom",
-                                            "warehouse"])
-            if not items:
-                continue
+            try:
+                # Load original doc to copy required account fields
+                orig = frappe.get_doc("Sales Invoice", inv["name"])
+                if not orig.items:
+                    continue
 
-            return_date = add_days(inv["posting_date"], random.randint(1, 14))
-            if getdate(return_date) > getdate(nowdate()):
-                return_date = nowdate()
+                return_date = add_days(inv["posting_date"], random.randint(1, 14))
+                if getdate(return_date) > getdate(nowdate()):
+                    return_date = nowdate()
 
-            ret = frappe.get_doc({
-                "doctype": "Sales Invoice",
-                "company": self.company,
-                "customer": inv["customer"],
-                "posting_date": return_date,
-                "due_date": return_date,
-                "is_return": 1,
-                "return_against": inv["name"],
-                "currency": self.currency,
-                "update_stock": 0,
-            })
-
-            # Return 1-2 items, partial quantity
-            return_items = random.sample(items, min(random.randint(1, 2), len(items)))
-            for item in return_items:
-                ret_qty = max(1, random.randint(1, max(1, cint(item["qty"]) // 2)))
-                ret.append("items", {
-                    "item_code": item["item_code"],
-                    "item_name": item["item_name"],
-                    "qty": ret_qty * -1,
-                    "rate": item["rate"],
-                    "uom": item.get("uom", "Nos"),
-                    "stock_uom": item.get("stock_uom", "Nos"),
-                    "conversion_factor": 1,
-                    "warehouse": item.get("warehouse", self.warehouse),
+                ret = frappe.get_doc({
+                    "doctype": "Sales Invoice",
+                    "company": self.company,
+                    "customer": orig.customer,
+                    "posting_date": return_date,
+                    "due_date": return_date,
+                    "is_return": 1,
+                    "return_against": orig.name,
+                    "currency": orig.currency,
+                    "debit_to": orig.debit_to,
+                    "update_stock": 0,
                 })
 
-            try:
+                # Return 1-2 items, partial quantity — copy all account fields from original
+                return_items = random.sample(orig.items,
+                                             min(random.randint(1, 2), len(orig.items)))
+                for item in return_items:
+                    ret_qty = max(1, random.randint(1, max(1, cint(item.qty) // 2)))
+                    ret.append("items", {
+                        "item_code": item.item_code,
+                        "item_name": item.item_name,
+                        "qty": ret_qty * -1,
+                        "rate": item.rate,
+                        "uom": item.uom,
+                        "stock_uom": item.stock_uom,
+                        "conversion_factor": item.conversion_factor or 1,
+                        "warehouse": item.warehouse or self.warehouse,
+                        "income_account": item.income_account,
+                        "cost_center": item.cost_center,
+                        "expense_account": item.expense_account,
+                    })
+
                 ret.insert(ignore_permissions=True)
                 ret.submit()
                 self.created_records.append(("Sales Invoice Return", ret.name))
                 count += 1
             except Exception as e:
+                if len(self.errors) < 5:
+                    print(f"  ⚠️  Sales Return failed for {inv['name']}: {e}")
                 self.errors.append(f"Sales Return: {str(e)}")
 
         frappe.db.commit()
