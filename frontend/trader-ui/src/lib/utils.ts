@@ -93,8 +93,8 @@ export function debounce<T extends (...args: any[]) => void>(fn: T, ms = 300): T
 /**
  * Trigger a browser download of a plain-text file.
  */
-export function downloadTextFile(filename: string, content: string): void {
-  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+export function downloadTextFile(filename: string, content: string, mimeType = 'text/plain;charset=utf-8'): void {
+  const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
