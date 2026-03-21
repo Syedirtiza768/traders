@@ -24,3 +24,17 @@ def uninstall_demo():
 
     installer = DemoInstaller()
     installer.uninstall()
+
+
+def enrich_reports():
+    """Run ONLY the enrichment generator on an existing demo dataset.
+
+    Usage:
+        bench --site <site> execute trader_app.demo.enrich_reports
+    """
+    from trader_app.demo.seed_engine.config import DEMO_CONFIG
+    from trader_app.demo.generators.enrichment import EnrichmentGenerator
+
+    gen = EnrichmentGenerator(DEMO_CONFIG)
+    gen.run()
+    gen.run_validation()
