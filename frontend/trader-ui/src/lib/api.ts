@@ -220,10 +220,16 @@ export const inventoryApi = {
   getItems: (params?: Record<string, any>) =>
     call('trader_app.api.inventory.get_items', params),
 
+  getItemDetail: (itemCode: string) =>
+    call('trader_app.api.inventory.get_item_detail', { item_code: itemCode }),
+
   getWarehouses: (company?: string) =>
     call('trader_app.api.inventory.get_warehouses', { company }),
 
   getSummary: (company?: string) =>
+    call('trader_app.api.inventory.get_inventory_summary', { company }),
+
+  getInventorySummary: (company?: string) =>
     call('trader_app.api.inventory.get_inventory_summary', { company }),
 
   getLowStockItems: (params?: Record<string, any>) =>
@@ -232,8 +238,17 @@ export const inventoryApi = {
   getItemGroups: () =>
     call('trader_app.api.inventory.get_item_groups'),
 
+  createItem: (data: Record<string, any>) =>
+    call('trader_app.api.inventory.create_item', data),
+
   createStockEntry: (data: Record<string, any>) =>
     call('trader_app.api.inventory.create_stock_entry', data),
+
+  createPurchaseReceipt: (data: Record<string, any>) =>
+    call('trader_app.api.inventory.create_purchase_receipt', data),
+
+  createSalesDispatch: (data: Record<string, any>) =>
+    call('trader_app.api.inventory.create_sales_dispatch', data),
 };
 
 // ─── Customers API ───────────────────────────────────────────────
@@ -250,7 +265,17 @@ export const customersApi = {
 
   getTransactions: (customer: string, params?: Record<string, any>) =>
     call('trader_app.api.customers.get_customer_transactions', { customer, ...params }),
-};
+  create: (data: Record<string, any>) =>
+    call('trader_app.api.customers.create_customer', data),
+
+  update: (data: Record<string, any>) =>
+    call('trader_app.api.customers.update_customer', data),
+
+  enable: (name: string) =>
+    call('trader_app.api.customers.enable_customer', { name }),
+
+  disable: (name: string) =>
+    call('trader_app.api.customers.disable_customer', { name }),};
 
 // ─── Suppliers API ───────────────────────────────────────────────
 
@@ -266,7 +291,17 @@ export const suppliersApi = {
 
   getTransactions: (supplier: string, params?: Record<string, any>) =>
     call('trader_app.api.suppliers.get_supplier_transactions', { supplier, ...params }),
-};
+  create: (data: Record<string, any>) =>
+    call('trader_app.api.suppliers.create_supplier', data),
+
+  update: (data: Record<string, any>) =>
+    call('trader_app.api.suppliers.update_supplier', data),
+
+  enable: (name: string) =>
+    call('trader_app.api.suppliers.enable_supplier', { name }),
+
+  disable: (name: string) =>
+    call('trader_app.api.suppliers.disable_supplier', { name }),};
 
 // ─── Finance API ─────────────────────────────────────────────────
 
@@ -346,6 +381,19 @@ export const reportsApi = {
 };
 
 export default http;
+
+// ─── Settings API ────────────────────────────────────────────────
+
+export const settingsApi = {
+  get: () =>
+    call('trader_app.api.settings.get_settings'),
+
+  save: (data: Record<string, any>) =>
+    call('trader_app.api.settings.save_settings', { data }),
+
+  getRoles: () =>
+    call('trader_app.api.settings.get_current_user_roles'),
+};
 
 // ─── GST / Tax API ───────────────────────────────────────────────
 

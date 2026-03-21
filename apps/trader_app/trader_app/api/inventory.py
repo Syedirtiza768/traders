@@ -286,98 +286,119 @@ def get_item_groups():
     return frappe.get_all("Item Group", filters={"is_group": 0}, pluck="name", order_by="name")
 
 
+# ────────────────────────────────────────────────────────────────
+# 8.  ITEM DETAIL & CREATE
+# ────────────────────────────────────────────────────────────────
+
 @frappe.whitelist()
 def get_item_detail(item_code):
-    """Full item detail with stock and pricing info."""
+    """Full Item record with current stock totals."""
     doc = frappe.get_doc("Item", item_code)
     doc.check_permission("read")
     company = _default_company()
 
-    data = doc.as_dict()
+    stock_qty = flt(frappe.db.sql(
+        "SELECT COALESCE(SUM(actual_qty), 0) FROM `tabBin` WHERE item_code = %s",
+        (item_code,)
+    )[0][0])
 
-    # Attach aggregated stock info
-    stock = frappe.db.sql("""
-        SELECT SUM(b.actual_qty) AS actual_qty,
-               SUM(b.stock_value) AS stock_value,
-               GROUP_CONCAT(DISTINCT b.warehouse) AS warehouses
-        FROM `tabBin` b
-        INNER JOIN `tabWarehouse` w ON w.name = b.warehouse
-        WHERE b.item_code = %s AND w.company = %s
-    """, (item_code, company), as_dict=True)
+    stock_value = flt(frappe.db.sql(
+        "SELECT COALESCE(SUM(stock_value), 0) FROM `tabBin` WHERE item_code = %s",
+        (item_code,)
+    )[0][0])
 
-    if stock:
-        data["actual_qty"] = flt(stock[0].actual_qty)
-        data["stock_value"] = flt(stock[0].stock_value)
-        data["warehouses"] = stock[0].warehouses or ""
-
-    # Attach pricing
-    selling_price = frappe.db.get_value(
+    selling_price = flt(frappe.db.get_value(
         "Item Price",
         {"item_code": item_code, "price_list": "Standard Selling"},
-        "price_list_rate",
-    )
-    buying_price = frappe.db.get_value(
+        "price_list_rate"
+    ) or 0)
+
+    buying_price = flt(frappe.db.get_value(
         "Item Price",
         {"item_code": item_code, "price_list": "Standard Buying"},
-        "price_list_rate",
-    )
-    data["selling_price"] = flt(selling_price)
-    data["buying_price"] = flt(buying_price)
+        "price_list_rate"
+    ) or 0)
 
-    return data
+    result = doc.as_dict()
+    result["stock_qty"] = stock_qty
+    result["stock_value"] = stock_value
+    result["selling_price"] = selling_price
+    result["buying_price"] = buying_price
+    result["company"] = company
+    return result
 
 
 @frappe.whitelist()
-def create_item(item_code, item_name=None, item_group=None, stock_uom=None,
-                is_stock_item=1, opening_stock=0, standard_rate=0, description=None):
-    """Create a new Item from the Trader UI."""
+def create_item(item_code, item_name=None, item_group=None, stock_uom=None, is_stock_item=1):
+    """Create a new Item record."""
     doc = frappe.new_doc("Item")
     doc.item_code = item_code
     doc.item_name = item_name or item_code
-    doc.item_group = item_group or _default_item_group()
+    doc.item_group = item_group or frappe.db.get_single_value("Stock Settings", "item_group") or "All Item Groups"
     doc.stock_uom = stock_uom or "Nos"
     doc.is_stock_item = cint(is_stock_item)
-    doc.opening_stock = flt(opening_stock)
-    doc.standard_rate = flt(standard_rate)
-    if description:
-        doc.description = description
     doc.insert(ignore_permissions=False)
     frappe.db.commit()
-    return {"name": doc.name, "item_code": doc.item_code, "status": "Created"}
+    return {"item_code": doc.item_code, "item_name": doc.item_name, "status": "Created"}
 
 
 @frappe.whitelist()
-def update_item(item_code, item_name=None, item_group=None, stock_uom=None,
-                description=None, is_stock_item=None):
-    """Update an existing Item."""
-    doc = frappe.get_doc("Item", item_code)
-    doc.check_permission("write")
+def create_purchase_receipt(items, posting_date=None, company=None):
+    """Create a Stock Entry with purpose Material Receipt (goods into warehouse)."""
+    import json
+    if isinstance(items, str):
+        items = json.loads(items)
 
-    if item_name is not None:
-        doc.item_name = item_name
-    if item_group is not None:
-        doc.item_group = item_group
-    if stock_uom is not None:
-        doc.stock_uom = stock_uom
-    if description is not None:
-        doc.description = description
-    if is_stock_item is not None:
-        doc.is_stock_item = cint(is_stock_item)
+    company = company or _default_company()
+    abbr = frappe.get_cached_value("Company", company, "abbr")
 
-    doc.save(ignore_permissions=False)
-    frappe.db.commit()
-    return {"name": doc.name, "item_code": doc.item_code, "status": "Updated"}
+    se = frappe.new_doc("Stock Entry")
+    se.company = company
+    se.purpose = "Material Receipt"
+    se.stock_entry_type = "Material Receipt"
+    se.posting_date = posting_date or nowdate()
+
+    for item in items:
+        se.append("items", {
+            "item_code": item.get("item_code"),
+            "qty": flt(item.get("qty", 1)),
+            "basic_rate": flt(item.get("rate", 0)),
+            "t_warehouse": item.get("warehouse") or f"Main Warehouse - {abbr}",
+        })
+
+    se.insert(ignore_permissions=False)
+    return {"name": se.name, "status": "Draft"}
 
 
-def _default_item_group():
-    """Get a sensible default item group."""
-    return frappe.get_all(
-        "Item Group", filters={"is_group": 0}, order_by="name", limit=1, pluck="name"
-    )[0] if frappe.get_all("Item Group", filters={"is_group": 0}, limit=1) else "Products"
+@frappe.whitelist()
+def create_sales_dispatch(items, posting_date=None, company=None):
+    """Create a Stock Entry with purpose Material Issue (goods out of warehouse)."""
+    import json
+    if isinstance(items, str):
+        items = json.loads(items)
+
+    company = company or _default_company()
+    abbr = frappe.get_cached_value("Company", company, "abbr")
+
+    se = frappe.new_doc("Stock Entry")
+    se.company = company
+    se.purpose = "Material Issue"
+    se.stock_entry_type = "Material Issue"
+    se.posting_date = posting_date or nowdate()
+
+    for item in items:
+        se.append("items", {
+            "item_code": item.get("item_code"),
+            "qty": flt(item.get("qty", 1)),
+            "s_warehouse": item.get("warehouse") or f"Main Warehouse - {abbr}",
+        })
+
+    se.insert(ignore_permissions=False)
+    return {"name": se.name, "status": "Draft"}
 
 
 # ────────────────────────────────────────────────────────────────
-# 8.  STOCK ENTRY (create)
+# 9.  STOCK ENTRY (create)
 # ────────────────────────────────────────────────────────────────
 
 @frappe.whitelist()
@@ -455,9 +476,8 @@ def update_reorder_levels():
 # ────────────────────────────────────────────────────────────────
 
 def _default_company():
-    companies = frappe.get_all("Company", limit=1, pluck="name")
     return (
         frappe.defaults.get_user_default("Company")
         or frappe.db.get_single_value("Global Defaults", "default_company")
-        or (companies[0] if companies else None)
+        or frappe.get_all("Company", limit=1, pluck="name")[0]
     )

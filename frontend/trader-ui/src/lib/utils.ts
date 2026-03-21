@@ -88,6 +88,39 @@ export function debounce<T extends (...args: any[]) => void>(fn: T, ms = 300): T
   }) as T;
 }
 
+// ─── CSV / Download helpers ──────────────────────────────────────
+
+/**
+ * Trigger a browser download of a plain-text file.
+ */
+export function downloadTextFile(filename: string, content: string): void {
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Convert an array of objects to a CSV string.
+ * Optionally supply a header row; otherwise the keys of the first row are used.
+ */
+export function toCsv(rows: Record<string, any>[], headers?: string[]): string {
+  if (rows.length === 0) return '';
+  const cols = headers ?? Object.keys(rows[0]);
+  const escape = (v: any): string => {
+    const s = v == null ? '' : String(v);
+    return s.includes(',') || s.includes('"') || s.includes('\n')
+      ? `"${s.replace(/"/g, '""')}"`
+      : s;
+  };
+  const header = cols.join(',');
+  const body = rows.map((r) => cols.map((c) => escape(r[c])).join(',')).join('\n');
+  return `${header}\n${body}`;
+}
+
 // ─── Navigation Helpers ──────────────────────────────────────────
 
 /**
