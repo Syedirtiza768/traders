@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { AlertTriangle } from 'lucide-react';
 import type { ReportDef } from '../../lib/reportDefinitions';
 import ReportFiltersBar from './ReportFiltersBar';
 import ReportKpiStrip from './ReportKpiStrip';
@@ -19,16 +20,22 @@ export default function ReportView({ report }: Props) {
   const [page, setPage] = useState(1);
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const params: Record<string, any> = { page, page_size: 50 };
       Object.entries(filters).forEach(([k, v]) => { if (v) params[k] = v; });
       const res = await report.fetch(params);
       setData(res.data.message);
-    } catch {
+    } catch (err: any) {
       setData(null);
+      const msg = err?.response?.data?._server_messages
+        ? JSON.parse(JSON.parse(err.response.data._server_messages)[0])?.message
+        : err?.message || 'Failed to load report';
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -77,11 +84,22 @@ export default function ReportView({ report }: Props) {
         <ReportFiltersBar filters={report.filters} values={filters} onChange={handleFiltersChange} onExport={handleExport} />
       )}
 
+      {/* Error */}
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-6 flex flex-col items-center gap-3 text-center">
+          <AlertTriangle className="h-8 w-8 text-red-500" />
+          <p className="text-sm text-red-700">{error}</p>
+          <button onClick={load} className="px-4 py-1.5 text-sm font-medium rounded-md bg-red-600 text-white hover:bg-red-700">
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* KPIs */}
-      {kpis.length > 0 && <ReportKpiStrip items={kpis} />}
+      {!error && kpis.length > 0 && <ReportKpiStrip items={kpis} />}
 
       {/* Chart */}
-      {report.chart && chartData.length > 0 && (
+      {!error && report.chart && chartData.length > 0 && (
         <ReportChartPanel
           type={report.chart.type}
           data={chartData}
@@ -92,15 +110,17 @@ export default function ReportView({ report }: Props) {
       )}
 
       {/* Table */}
-      <ReportTable
-        columns={report.columns}
-        data={tableData}
-        page={page}
-        pageSize={50}
-        total={total}
-        onPageChange={setPage}
-        loading={loading}
-      />
+      {!error && (
+        <ReportTable
+          columns={report.columns}
+          data={tableData}
+          page={page}
+          pageSize={50}
+          total={total}
+          onPageChange={setPage}
+          loading={loading}
+        />
+      )}
     </div>
   );
 }

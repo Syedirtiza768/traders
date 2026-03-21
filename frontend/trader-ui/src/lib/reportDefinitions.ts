@@ -70,21 +70,21 @@ export const REPORTS: ReportDef[] = [
       groupByFilter(['month', 'customer', 'item', 'item_group', 'brand', 'sales_person']),
     ],
     kpis: (m) => [
-      { label: 'Total Revenue', value: m.summary?.total_revenue, format: 'currency', color: 'text-green-700' },
-      { label: 'Gross Profit', value: m.summary?.total_gp, format: 'currency', color: 'text-blue-700' },
-      { label: 'Avg Margin', value: m.summary?.avg_margin, format: 'percent' },
-      { label: 'Total Qty', value: m.summary?.total_qty, format: 'number' },
+      { label: 'Net Sales', value: m.summary?.net_sales, format: 'currency', color: 'text-green-700' },
+      { label: 'Gross Profit', value: m.summary?.gross_profit, format: 'currency', color: 'text-blue-700' },
+      { label: 'Margin %', value: m.summary?.gross_margin_pct, format: 'percent' },
+      { label: 'Total Qty', value: m.summary?.qty, format: 'number' },
     ],
     chart: { type: 'bar', xKey: 'label', bars: [
-      { dataKey: 'revenue', name: 'Revenue', color: '#2563eb' },
+      { dataKey: 'net_sales', name: 'Net Sales', color: '#2563eb' },
       { dataKey: 'gross_profit', name: 'Gross Profit', color: '#059669' },
     ], title: 'Revenue & Profit', dataPath: 'chart' },
     columns: [
-      { key: 'label', label: 'Group', width: '200px' },
-      { key: 'revenue', label: 'Revenue', format: 'currency', align: 'right' },
-      { key: 'cost', label: 'Cost', format: 'currency', align: 'right' },
+      { key: 'dimension', label: 'Group', width: '200px' },
+      { key: 'net_sales', label: 'Net Sales', format: 'currency', align: 'right' },
+      { key: 'cogs', label: 'Cost', format: 'currency', align: 'right' },
       { key: 'gross_profit', label: 'Gross Profit', format: 'currency', align: 'right' },
-      { key: 'gp_margin', label: 'Margin %', format: 'percent', align: 'right' },
+      { key: 'gross_margin_pct', label: 'Margin %', format: 'percent', align: 'right' },
       { key: 'qty', label: 'Qty', format: 'number', align: 'right' },
       { key: 'avg_selling_price', label: 'Avg Price', format: 'currency', align: 'right' },
     ],
@@ -107,11 +107,11 @@ export const REPORTS: ReportDef[] = [
     columns: [
       { key: 'customer_name', label: 'Customer', width: '200px' },
       { key: 'revenue', label: 'Revenue', format: 'currency', align: 'right' },
-      { key: 'cost', label: 'Cost', format: 'currency', align: 'right' },
+      { key: 'cogs', label: 'Cost', format: 'currency', align: 'right' },
       { key: 'gross_profit', label: 'Gross Profit', format: 'currency', align: 'right' },
-      { key: 'gp_margin', label: 'Margin %', format: 'percent', align: 'right' },
-      { key: 'outstanding', label: 'Outstanding', format: 'currency', align: 'right' },
-      { key: 'credit_utilization', label: 'Credit Util %', format: 'percent', align: 'right' },
+      { key: 'gross_margin_pct', label: 'Margin %', format: 'percent', align: 'right' },
+      { key: 'outstanding_amount', label: 'Outstanding', format: 'currency', align: 'right' },
+      { key: 'credit_utilization_pct', label: 'Credit Util %', format: 'percent', align: 'right' },
     ],
   },
   {
@@ -124,16 +124,16 @@ export const REPORTS: ReportDef[] = [
     kpis: (m) => [
       { label: 'Total Billed', value: m.summary?.total_billed, format: 'currency' },
       { label: 'Total Collected', value: m.summary?.total_collected, format: 'currency', color: 'text-green-700' },
-      { label: 'Efficiency', value: m.summary?.efficiency_pct, format: 'percent', color: 'text-blue-700' },
+      { label: 'Efficiency', value: m.summary?.overall_efficiency_pct, format: 'percent', color: 'text-blue-700' },
     ],
-    chart: { type: 'bar', xKey: 'label', bars: [
-      { dataKey: 'billed', name: 'Billed', color: '#2563eb' },
-      { dataKey: 'collected', name: 'Collected', color: '#059669' },
-    ], title: 'Billed vs Collected', dataPath: 'chart' },
+    chart: { type: 'bar', xKey: 'dimension', bars: [
+      { dataKey: 'billed_amount', name: 'Billed', color: '#2563eb' },
+      { dataKey: 'collected_amount', name: 'Collected', color: '#059669' },
+    ], title: 'Billed vs Collected', dataPath: 'data' },
     columns: [
-      { key: 'label', label: 'Period / Customer', width: '200px' },
-      { key: 'billed', label: 'Billed', format: 'currency', align: 'right' },
-      { key: 'collected', label: 'Collected', format: 'currency', align: 'right' },
+      { key: 'dimension', label: 'Period / Customer', width: '200px' },
+      { key: 'billed_amount', label: 'Billed', format: 'currency', align: 'right' },
+      { key: 'collected_amount', label: 'Collected', format: 'currency', align: 'right' },
       { key: 'efficiency_pct', label: 'Efficiency %', format: 'percent', align: 'right' },
     ],
   },
@@ -158,7 +158,7 @@ export const REPORTS: ReportDef[] = [
       { key: 'purchase_value', label: 'Value', format: 'currency', align: 'right' },
       { key: 'total_qty', label: 'Qty', format: 'number', align: 'right' },
       { key: 'avg_rate', label: 'Avg Rate', format: 'currency', align: 'right' },
-      { key: 'outstanding', label: 'Outstanding', format: 'currency', align: 'right' },
+      { key: 'payable_outstanding', label: 'Outstanding', format: 'currency', align: 'right' },
     ],
   },
   {
@@ -644,6 +644,79 @@ export const REPORTS: ReportDef[] = [
       { key: 'credit', label: 'Credit', format: 'currency', align: 'right' },
       { key: 'voucher_type', label: 'Voucher Type' },
       { key: 'voucher_no', label: 'Voucher No' },
+    ],
+  },
+
+  // ──── FINANCE (phase 3 — ledgers) ──────────────────────────────
+  {
+    id: 'customer-ledger',
+    category: 'finance',
+    title: 'Customer Ledger',
+    description: 'GL entries and running balance for a specific customer',
+    fetch: async (p) => {
+      const res = await reportsApi.getCustomerLedger(p.customer || '', p);
+      // Legacy endpoint returns flat array — normalize
+      const rows = res.data.message || [];
+      return { data: { message: { data: rows, total: rows.length } } };
+    },
+    filters: [
+      { key: 'customer', label: 'Customer', type: 'text' },
+      fromDateFilter, toDateFilter,
+    ],
+    kpis: (m) => {
+      const rows = m.data || [];
+      const totalDebit = rows.reduce((s: number, r: any) => s + (r.debit || 0), 0);
+      const totalCredit = rows.reduce((s: number, r: any) => s + (r.credit || 0), 0);
+      return [
+        { label: 'Entries', value: rows.length, format: 'number' },
+        { label: 'Total Debit', value: totalDebit, format: 'currency', color: 'text-red-600' },
+        { label: 'Total Credit', value: totalCredit, format: 'currency', color: 'text-green-600' },
+        { label: 'Balance', value: totalDebit - totalCredit, format: 'currency', color: 'text-blue-700' },
+      ];
+    },
+    columns: [
+      { key: 'posting_date', label: 'Date', format: 'date' },
+      { key: 'voucher_type', label: 'Voucher Type' },
+      { key: 'voucher_no', label: 'Voucher No' },
+      { key: 'debit', label: 'Debit', format: 'currency', align: 'right' },
+      { key: 'credit', label: 'Credit', format: 'currency', align: 'right' },
+      { key: 'balance', label: 'Balance', format: 'currency', align: 'right' },
+      { key: 'remarks', label: 'Remarks' },
+    ],
+  },
+  {
+    id: 'supplier-ledger',
+    category: 'finance',
+    title: 'Supplier Ledger',
+    description: 'GL entries and running balance for a specific supplier',
+    fetch: async (p) => {
+      const res = await reportsApi.getSupplierLedger(p.supplier || '', p);
+      const rows = res.data.message || [];
+      return { data: { message: { data: rows, total: rows.length } } };
+    },
+    filters: [
+      { key: 'supplier', label: 'Supplier', type: 'text' },
+      fromDateFilter, toDateFilter,
+    ],
+    kpis: (m) => {
+      const rows = m.data || [];
+      const totalDebit = rows.reduce((s: number, r: any) => s + (r.debit || 0), 0);
+      const totalCredit = rows.reduce((s: number, r: any) => s + (r.credit || 0), 0);
+      return [
+        { label: 'Entries', value: rows.length, format: 'number' },
+        { label: 'Total Debit', value: totalDebit, format: 'currency', color: 'text-red-600' },
+        { label: 'Total Credit', value: totalCredit, format: 'currency', color: 'text-green-600' },
+        { label: 'Balance', value: totalCredit - totalDebit, format: 'currency', color: 'text-blue-700' },
+      ];
+    },
+    columns: [
+      { key: 'posting_date', label: 'Date', format: 'date' },
+      { key: 'voucher_type', label: 'Voucher Type' },
+      { key: 'voucher_no', label: 'Voucher No' },
+      { key: 'debit', label: 'Debit', format: 'currency', align: 'right' },
+      { key: 'credit', label: 'Credit', format: 'currency', align: 'right' },
+      { key: 'balance', label: 'Balance', format: 'currency', align: 'right' },
+      { key: 'remarks', label: 'Remarks' },
     ],
   },
 ];

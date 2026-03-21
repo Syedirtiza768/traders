@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { TrendingUp, ShoppingCart, Package, DollarSign, ChevronRight } from 'lucide-react';
-import { REPORTS, CATEGORIES, getReportsByCategory } from '../lib/reportDefinitions';
+import { REPORTS, CATEGORIES, getReportsByCategory, getReportById } from '../lib/reportDefinitions';
 import type { ReportCategory, ReportDef } from '../lib/reportDefinitions';
 import ReportView from '../components/reports/ReportView';
 
@@ -12,8 +13,38 @@ const ICONS: Record<string, React.ReactNode> = {
 };
 
 export default function ReportsPage() {
-  const [activeCategory, setActiveCategory] = useState<ReportCategory>('sales');
-  const [activeReport, setActiveReport] = useState<ReportDef | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const paramCategory = searchParams.get('cat') as ReportCategory | null;
+  const paramReport = searchParams.get('id');
+
+  const [activeCategory, setActiveCategory] = useState<ReportCategory>(paramCategory || 'sales');
+  const [activeReport, setActiveReport] = useState<ReportDef | null>(
+    paramReport ? getReportById(paramReport) ?? null : null,
+  );
+
+  // Sync URL → state on browser back/forward
+  useEffect(() => {
+    const cat = searchParams.get('cat') as ReportCategory | null;
+    const id = searchParams.get('id');
+    if (cat && CATEGORIES.some((c) => c.key === cat)) setActiveCategory(cat);
+    setActiveReport(id ? getReportById(id) ?? null : null);
+  }, [searchParams]);
+
+  const selectCategory = (key: ReportCategory) => {
+    setActiveCategory(key);
+    setActiveReport(null);
+    setSearchParams({ cat: key });
+  };
+
+  const selectReport = (r: ReportDef) => {
+    setActiveReport(r);
+    setSearchParams({ cat: activeCategory, id: r.id });
+  };
+
+  const goBack = () => {
+    setActiveReport(null);
+    setSearchParams({ cat: activeCategory });
+  };
 
   const categoryReports = getReportsByCategory(activeCategory);
 
@@ -30,7 +61,7 @@ export default function ReportsPage() {
         {CATEGORIES.map((cat) => (
           <button
             key={cat.key}
-            onClick={() => { setActiveCategory(cat.key); setActiveReport(null); }}
+            onClick={() => { selectCategory(cat.key); }}
             className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors ${
               activeCategory === cat.key
                 ? 'bg-white shadow text-brand-700'
@@ -47,7 +78,7 @@ export default function ReportsPage() {
       {activeReport ? (
         <div>
           <button
-            onClick={() => setActiveReport(null)}
+            onClick={goBack}
             className="text-sm text-brand-600 hover:underline mb-4 flex items-center gap-1"
           >
             ← Back to {CATEGORIES.find((c) => c.key === activeCategory)?.label} reports
@@ -59,7 +90,7 @@ export default function ReportsPage() {
           {categoryReports.map((r) => (
             <button
               key={r.id}
-              onClick={() => setActiveReport(r)}
+              onClick={() => selectReport(r)}
               className="card p-5 text-left hover:shadow-md transition-shadow group"
             >
               <div className="flex items-start justify-between">

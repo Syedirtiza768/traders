@@ -16,9 +16,31 @@ type Props = {
   onExport?: () => void;
 };
 
+function isoDate(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+const DATE_PRESETS: { label: string; from: () => string; to: () => string }[] = [
+  { label: 'Today', from: () => isoDate(new Date()), to: () => isoDate(new Date()) },
+  { label: 'Last 7d', from: () => { const d = new Date(); d.setDate(d.getDate() - 7); return isoDate(d); }, to: () => isoDate(new Date()) },
+  { label: 'This Month', from: () => { const d = new Date(); return isoDate(new Date(d.getFullYear(), d.getMonth(), 1)); }, to: () => isoDate(new Date()) },
+  { label: 'Last 30d', from: () => { const d = new Date(); d.setDate(d.getDate() - 30); return isoDate(d); }, to: () => isoDate(new Date()) },
+  { label: 'This Quarter', from: () => { const d = new Date(); const q = Math.floor(d.getMonth() / 3) * 3; return isoDate(new Date(d.getFullYear(), q, 1)); }, to: () => isoDate(new Date()) },
+  { label: 'YTD', from: () => isoDate(new Date(new Date().getFullYear(), 0, 1)), to: () => isoDate(new Date()) },
+  { label: 'Last 12m', from: () => { const d = new Date(); d.setFullYear(d.getFullYear() - 1); return isoDate(d); }, to: () => isoDate(new Date()) },
+];
+
 export default function ReportFiltersBar({ filters, values, onChange, onExport }: Props) {
   const [local, setLocal] = useState(values);
   const update = (key: string, val: string) => setLocal((p) => ({ ...p, [key]: val }));
+
+  const hasDateFilters = filters.some((f) => f.key === 'from_date') && filters.some((f) => f.key === 'to_date');
+
+  const applyPreset = (preset: typeof DATE_PRESETS[number]) => {
+    const next = { ...local, from_date: preset.from(), to_date: preset.to() };
+    setLocal(next);
+    onChange(next);
+  };
 
   const apply = () => onChange(local);
   const reset = () => {
@@ -29,7 +51,18 @@ export default function ReportFiltersBar({ filters, values, onChange, onExport }
   };
 
   return (
-    <div className="flex flex-wrap items-end gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+    <div className="space-y-2">
+      {hasDateFilters && (
+        <div className="flex flex-wrap gap-1">
+          {DATE_PRESETS.map((p) => (
+            <button key={p.label} onClick={() => applyPreset(p)}
+                    className="px-2 py-1 rounded text-xs font-medium bg-gray-100 hover:bg-brand-50 hover:text-brand-700 text-gray-600 transition-colors">
+              {p.label}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="flex flex-wrap items-end gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
       {filters.map((f) => (
         <div key={f.key} className="flex flex-col gap-1">
           <label className="text-xs font-medium text-gray-500">{f.label}</label>
@@ -76,6 +109,7 @@ export default function ReportFiltersBar({ filters, values, onChange, onExport }
             <Download size={14} /> Export
           </button>
         )}
+      </div>
       </div>
     </div>
   );
