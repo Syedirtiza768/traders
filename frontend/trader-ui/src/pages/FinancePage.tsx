@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { DollarSign, TrendingUp, TrendingDown, CreditCard } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, CreditCard, BookOpen, Wallet } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { reportsApi, dashboardApi } from '../lib/api';
 import { formatCurrency, formatCompact } from '../lib/utils';
@@ -61,17 +61,19 @@ export default function FinancePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Finance</h1>
-        <p className="text-gray-500 mt-1">Financial overview and key metrics</p>
-      </div>
-
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-        <button onClick={() => navigate('/operations')} className="btn-secondary">Operations Queues</button>
-        <button onClick={() => navigate('/finance/payments')} className="btn-secondary">Payment Entries</button>
-        <button onClick={() => navigate('/finance/journals')} className="btn-secondary">Journal Entries</button>
-        <button onClick={() => navigate('/finance/customer-outstanding?source=finance')} className="btn-secondary">Customer Outstanding</button>
-        <button onClick={() => navigate('/finance/customer-aging?source=finance')} className="btn-secondary">Customer Aging</button>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Finance</h1>
+          <p className="text-gray-500 mt-1">Financial overview and key metrics</p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => navigate('/finance/journals')} className="btn-secondary flex items-center gap-1.5 text-sm">
+            <BookOpen className="w-4 h-4" /> Journals
+          </button>
+          <button onClick={() => navigate('/finance/payments')} className="btn-secondary flex items-center gap-1.5 text-sm">
+            <Wallet className="w-4 h-4" /> Payments
+          </button>
+        </div>
       </div>
 
       {/* KPI Cards */}

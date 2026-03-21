@@ -159,6 +159,12 @@ export const purchasesApi = {
   getRequisitions: (params?: Record<string, any>) =>
     call('trader_app.api.purchases.get_material_requests', params),
 
+  getRequisitionDetail: (name: string) =>
+    call('trader_app.api.purchases.get_material_request_detail', { name }),
+
+  submitRequisition: (name: string) =>
+    call('trader_app.api.purchases.submit_material_request', { name }),
+
   getRfqs: (params?: Record<string, any>) =>
     call('trader_app.api.purchases.get_supplier_quotations', params),
 

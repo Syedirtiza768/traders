@@ -1,6 +1,6 @@
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Package, Warehouse, AlertTriangle, DollarSign, Search, ChevronLeft, ChevronRight, ArrowRightLeft, Plus } from 'lucide-react';
+import { Package, Warehouse, AlertTriangle, DollarSign, Search, ChevronLeft, ChevronRight, Plus, Activity } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { inventoryApi } from '../lib/api';
 import { formatCurrency, formatCompact, debounce } from '../lib/utils';
@@ -17,15 +17,13 @@ export default function InventoryPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   const pageSize = 15;
 
   const load = useCallback(async () => {
     setLoading(true);
-    setError(null);
     try {
-      const [summaryRes] = await Promise.all([inventoryApi.getInventorySummary()]);
+      const [summaryRes] = await Promise.all([inventoryApi.getSummary()]);
       setSummary(summaryRes.data.message);
 
       let result: any;
@@ -55,9 +53,6 @@ export default function InventoryPage() {
       setTotal(d?.total || 0);
     } catch (err) {
       console.error('Failed to load inventory:', err);
-      setError('We could not load inventory data right now. Please refresh and try again.');
-      setData([]);
-      setTotal(0);
     } finally {
       setLoading(false);
     }
@@ -70,53 +65,27 @@ export default function InventoryPage() {
     [],
   );
 
-  const warehouseRows = useMemo(() => Array.isArray(data) ? data : [], [data]);
-
-  const canNavigateToItem = activeTab === 'Items' || activeTab === 'Stock Balance' || activeTab === 'Low Stock';
-
-  const handleItemNavigate = (row: any) => {
-    const itemCode = row.item_code;
-    if (!itemCode) return;
-
-    navigate(`/inventory/items/${encodeURIComponent(itemCode)}`, {
-      state: {
-        item: row,
-        sourceTab: activeTab,
-      },
-    });
-  };
-
-  const handleWarehouseNavigate = (row: any) => {
-    const warehouseId = row.warehouse || row.warehouse_name;
-    if (!warehouseId) return;
-
-    navigate(`/inventory/warehouses/${encodeURIComponent(warehouseId)}`, {
-      state: {
-        warehouse: row,
-      },
-    });
-  };
-
   const totalPages = Math.ceil(total / pageSize);
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Inventory</h1>
           <p className="text-gray-500 mt-1">Stock levels, items, and warehouse management</p>
         </div>
-        <button onClick={() => navigate('/inventory/items/new')} className="btn-primary inline-flex items-center gap-2">
-          <Plus className="w-4 h-4" />
-          Add Item
-        </button>
-      </div>
-
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
+        <div className="flex gap-2">
+          <button onClick={() => navigate('/inventory/warehouse')} className="btn-secondary flex items-center gap-1.5 text-sm">
+            <Warehouse className="w-4 h-4" /> Warehouse
+          </button>
+          <button onClick={() => navigate('/inventory/movements')} className="btn-secondary flex items-center gap-1.5 text-sm">
+            <Activity className="w-4 h-4" /> Movements
+          </button>
+          <button onClick={() => navigate('/inventory/items/new')} className="btn-primary flex items-center gap-1.5 text-sm">
+            <Plus className="w-4 h-4" /> New Item
+          </button>
         </div>
-      )}
+      </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -205,44 +174,14 @@ export default function InventoryPage() {
             </button>
           ))}
         </div>
-        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
-          {activeTab !== 'Warehouses' && (
-            <div className="relative w-full sm:w-72">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input type="text" placeholder={`Search ${activeTab.toLowerCase()}...`}
-                     onChange={(e) => debouncedSearch(e.target.value)} className="input-field pl-9" />
-            </div>
-          )}
-          <button
-            onClick={() => navigate('/inventory/movements')}
-            className="btn-secondary inline-flex items-center justify-center gap-2 whitespace-nowrap"
-          >
-            <ArrowRightLeft className="h-4 w-4" />
-            Stock Movement View
-          </button>
-        </div>
+        {activeTab !== 'Warehouses' && (
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input type="text" placeholder={`Search ${activeTab.toLowerCase()}...`}
+                   onChange={(e) => debouncedSearch(e.target.value)} className="input-field pl-9" />
+          </div>
+        )}
       </div>
-
-      {activeTab === 'Warehouses' && warehouseRows.length > 0 && (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="card p-5">
-            <p className="text-xs text-gray-500">Warehouses</p>
-            <p className="mt-1 text-2xl font-bold text-gray-900">{warehouseRows.length}</p>
-          </div>
-          <div className="card p-5">
-            <p className="text-xs text-gray-500">Total Qty</p>
-            <p className="mt-1 text-2xl font-bold text-gray-900">
-              {warehouseRows.reduce((sum, row) => sum + Number(row.total_qty || 0), 0).toLocaleString()}
-            </p>
-          </div>
-          <div className="card p-5">
-            <p className="text-xs text-gray-500">Total Stock Value</p>
-            <p className="mt-1 text-2xl font-bold text-gray-900">
-              {formatCurrency(warehouseRows.reduce((sum, row) => sum + Number(row.stock_value || 0), 0))}
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* Table */}
       <div className="table-container">
@@ -295,17 +234,7 @@ export default function InventoryPage() {
               <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-400">No data found.</td></tr>
             ) : (
               data.map((row, idx) => (
-                <tr
-                  key={idx}
-                  className={`hover:bg-gray-50 transition-colors ${(canNavigateToItem || activeTab === 'Warehouses') ? 'cursor-pointer' : ''}`}
-                  onClick={() => {
-                    if (canNavigateToItem) {
-                      handleItemNavigate(row);
-                    } else if (activeTab === 'Warehouses') {
-                      handleWarehouseNavigate(row);
-                    }
-                  }}
-                >
+                <tr key={idx} className={`hover:bg-gray-50 transition-colors ${activeTab === 'Items' || activeTab === 'Stock Balance' ? 'cursor-pointer' : ''}`} onClick={() => { if ((activeTab === 'Items' || activeTab === 'Stock Balance') && row.item_code) navigate(`/inventory/items/${encodeURIComponent(row.item_code)}`); }}>
                   {activeTab === 'Stock Balance' && (
                     <>
                       <td className="px-6 py-3 text-sm font-medium text-brand-700">{row.item_code}</td>
