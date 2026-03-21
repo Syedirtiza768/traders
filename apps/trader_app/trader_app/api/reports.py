@@ -914,7 +914,7 @@ def get_reorder_report(company=None, warehouse=None, item_group=None,
                s30.sold_qty_30d,
                ir.warehouse_reorder_level AS reorder_level,
                ir.warehouse_reorder_qty AS reorder_qty,
-               ir.lead_time AS lead_time_days,
+               i.lead_time_days,
                d.default_supplier AS preferred_supplier
         FROM `tabBin` b
         INNER JOIN `tabWarehouse` w ON w.name = b.warehouse
