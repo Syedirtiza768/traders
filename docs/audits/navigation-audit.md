@@ -26,9 +26,8 @@ All `navItems` and `bottomItems` arrays — 2026-03-22
 | 5 | Main Menu | Customers | `/customers` | Users | ✅ | ✅ | ✅ |
 | 6 | Main Menu | Suppliers | `/suppliers` | Truck | ✅ | ✅ | ✅ |
 | 7 | Main Menu | Finance | `/finance` | DollarSign | ✅ | ✅ | ✅ |
-| 8 | Main Menu | Operations | `/operations` | Activity | ❌ | ✅ | ✅ |
-| 9 | Main Menu | Reports | `/reports` | BarChart2 | ✅ | ✅ | ✅ |
-| 10 | System | Settings | `/settings` | Settings | ✅ | ✅ | ✅ |
+| 8 | Main Menu | Reports | `/reports` | BarChart2 | ✅ | ✅ | ✅ |
+| 9 | System | Settings | `/settings` | Settings | ✅ | ✅ | ✅ |
 
 ## Routes Without Navigation
 

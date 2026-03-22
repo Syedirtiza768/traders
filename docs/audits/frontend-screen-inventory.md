@@ -74,7 +74,7 @@ All route definitions and page components — 2026-03-22
 | 52 | `settings` | SettingsPage | ProtectedRoute | DashboardLayout | ✅ Active |
 | 53 | `settings/gst` | GstSettingsPage | ProtectedRoute | DashboardLayout | ✅ Active |
 | 54 | `print` | DocumentPrintPage | ProtectedRoute | DashboardLayout | ✅ Active |
-| 55 | `*` | Navigate (redirect to /) | None | None | ✅ Active |
+| 55 | `*` | NotFoundPage | ProtectedRoute | None | ✅ Active |
 | 56 | `/sales` | SalesPage | ProtectedRoute | DashboardLayout | ✅ Active |
 | 57 | `/purchases` | PurchasesPage | ProtectedRoute | DashboardLayout | ✅ Active |
 | 58 | `/inventory` | InventoryPage | ProtectedRoute | DashboardLayout | ✅ Active |
