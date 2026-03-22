@@ -69,7 +69,7 @@ export default function DashboardLayout() {
       </main>
 
       {/* Mobile bottom navigation — visible below lg */}
-      <MobileNav />
+      <MobileNav onMorePress={toggleSidebar} />
     </div>
   );
 }

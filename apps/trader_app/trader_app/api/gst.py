@@ -166,6 +166,11 @@ def _read_gst_config(company):
 @frappe.whitelist()
 def save_gst_settings(company=None, config=None):
     """Save GST configuration for the company."""
+    if frappe.session.user == 'Guest' or not any(
+        r in frappe.get_roles()
+        for r in ('System Manager', 'Trader Admin', 'Trader Accountant', 'Trader Finance Manager')
+    ):
+        frappe.throw(_('Not permitted'), frappe.PermissionError)
     company = company or _default_company()
     if isinstance(config, str):
         config = json.loads(config)
@@ -193,6 +198,13 @@ def save_gst_settings(company=None, config=None):
 @frappe.whitelist()
 def seed_punjab_gst_templates(company=None):
     """Create the default Punjab GST tax templates if they don't exist.
+    Restricted to admin and finance roles.
+    """
+    if frappe.session.user == 'Guest' or not any(
+        r in frappe.get_roles()
+        for r in ('System Manager', 'Trader Admin', 'Trader Accountant', 'Trader Finance Manager')
+    ):
+        frappe.throw(_('Not permitted'), frappe.PermissionError)
 
     Creates both Sales and Purchase tax template variants.
     """

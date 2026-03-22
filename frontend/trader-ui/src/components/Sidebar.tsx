@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -14,22 +15,78 @@ import {
   FileText,
   Activity,
   X,
+  ChevronDown,
+  ClipboardList,
+  Receipt,
+  BookOpen,
+  CreditCard,
+  Layers,
+  ArrowLeftRight,
+  FilePlus2,
+  ShoppingBag,
+  ScrollText,
 } from 'lucide-react';
+import { useAuthStore } from '../stores/authStore';
+import { hasCapability, type AppCapability } from '../lib/permissions';
 
-const navItems = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, exact: true },
-  { to: '/sales', label: 'Sales', icon: TrendingUp },
-  { to: '/purchases', label: 'Purchases', icon: TrendingDown },
-  { to: '/inventory', label: 'Inventory', icon: Warehouse },
-  { to: '/customers', label: 'Customers', icon: Users },
-  { to: '/suppliers', label: 'Suppliers', icon: Truck },
-  { to: '/finance', label: 'Finance', icon: DollarSign },
-  { to: '/operations', label: 'Operations', icon: Activity },
-  { to: '/reports', label: 'Reports', icon: BarChart2 },
+interface NavChild {
+  to: string;
+  label: string;
+}
+
+interface NavItem {
+  to: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  exact?: boolean;
+  capability?: AppCapability;
+  children?: NavChild[];
+}
+
+const navItems: NavItem[] = [
+  { to: '/', label: 'Dashboard', icon: LayoutDashboard, exact: true, capability: 'dashboard:view' },
+  {
+    to: '/sales', label: 'Sales', icon: TrendingUp, capability: 'sales:view',
+    children: [
+      { to: '/sales', label: 'Invoices' },
+      { to: '/sales/orders', label: 'Sales Orders' },
+      { to: '/sales/quotations', label: 'Quotations' },
+    ],
+  },
+  {
+    to: '/purchases', label: 'Purchases', icon: TrendingDown, capability: 'purchases:view',
+    children: [
+      { to: '/purchases', label: 'Invoices' },
+      { to: '/purchases/orders', label: 'Purchase Orders' },
+      { to: '/purchases/requisitions', label: 'Requisitions' },
+      { to: '/purchases/rfqs', label: 'Supplier Quotations' },
+    ],
+  },
+  {
+    to: '/inventory', label: 'Inventory', icon: Warehouse, capability: 'inventory:view',
+    children: [
+      { to: '/inventory', label: 'Items & Stock' },
+      { to: '/inventory/bundles', label: 'Bundles' },
+      { to: '/inventory/warehouse', label: 'Warehouse Stock' },
+      { to: '/inventory/movements', label: 'Stock Movements' },
+    ],
+  },
+  { to: '/customers', label: 'Customers', icon: Users, capability: 'customers:view' },
+  { to: '/suppliers', label: 'Suppliers', icon: Truck, capability: 'suppliers:view' },
+  {
+    to: '/finance', label: 'Finance', icon: DollarSign, capability: 'finance:view',
+    children: [
+      { to: '/finance', label: 'Overview' },
+      { to: '/finance/payments', label: 'Payments' },
+      { to: '/finance/journals', label: 'Journal Entries' },
+    ],
+  },
+  { to: '/operations', label: 'Operations', icon: Activity, capability: 'operations:view' },
+  { to: '/reports', label: 'Reports', icon: BarChart2, capability: 'reports:view' },
 ];
 
-const bottomItems = [
-  { to: '/settings', label: 'Settings', icon: Settings },
+const bottomItems: NavItem[] = [
+  { to: '/settings', label: 'Settings', icon: Settings, capability: 'settings:view' },
 ];
 
 interface SidebarProps {
@@ -39,6 +96,86 @@ interface SidebarProps {
 
 export default function Sidebar({ mobile = false, onClose }: SidebarProps) {
   const location = useLocation();
+  const roles = useAuthStore((s) => s.roles);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  const toggleExpand = (key: string) => {
+    setExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const isParentActive = (item: NavItem) => {
+    if (item.exact) return location.pathname === item.to;
+    return location.pathname === item.to || location.pathname.startsWith(item.to + '/');
+  };
+
+  const isChildActive = (child: NavChild, parent: NavItem) => {
+    // For exact parent path children (e.g., /sales -> Invoices), match exactly
+    if (child.to === parent.to) {
+      return location.pathname === child.to;
+    }
+    return location.pathname === child.to || location.pathname.startsWith(child.to + '/');
+  };
+
+  const isOpen = (item: NavItem) => expanded[item.to] ?? isParentActive(item);
+
+  const renderItem = (item: NavItem) => {
+    // Check capability-based access
+    if (item.capability && roles.length > 0 && !hasCapability(roles, item.capability)) {
+      return null;
+    }
+
+    const active = isParentActive(item);
+
+    if (item.children) {
+      const open = isOpen(item);
+      return (
+        <div key={item.to}>
+          <button
+            onClick={() => toggleExpand(item.to)}
+            className={`sidebar-link w-full justify-between ${active ? 'active' : ''}`}
+          >
+            <span className="flex items-center gap-3">
+              <item.icon className="w-5 h-5 flex-shrink-0" />
+              <span>{item.label}</span>
+            </span>
+            <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+          </button>
+          {open && (
+            <div className="ml-8 mt-0.5 space-y-0.5 border-l-2 border-gray-100 pl-3">
+              {item.children.map((child) => (
+                <NavLink
+                  key={child.to}
+                  to={child.to}
+                  end={child.to === item.to}
+                  className={`block px-3 py-1.5 text-sm rounded-md transition-colors ${
+                    isChildActive(child, item)
+                      ? 'text-brand-700 bg-brand-50 font-medium'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  }`}
+                  onClick={mobile ? onClose : undefined}
+                >
+                  {child.label}
+                </NavLink>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <NavLink
+        key={item.to}
+        to={item.to}
+        end={item.exact}
+        className={`sidebar-link ${active ? 'active' : ''}`}
+        onClick={mobile ? onClose : undefined}
+      >
+        <item.icon className="w-5 h-5 flex-shrink-0" />
+        <span>{item.label}</span>
+      </NavLink>
+    );
+  };
 
   return (
     <aside
@@ -67,43 +204,14 @@ export default function Sidebar({ mobile = false, onClose }: SidebarProps) {
         <p className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
           Main Menu
         </p>
-        {navItems.map((item) => {
-          const isActive = item.exact
-            ? location.pathname === item.to
-            : location.pathname.startsWith(item.to);
-
-          return (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={`sidebar-link ${isActive ? 'active' : ''}`}
-              onClick={mobile ? onClose : undefined}
-            >
-              <item.icon className="w-5 h-5 flex-shrink-0" />
-              <span>{item.label}</span>
-            </NavLink>
-          );
-        })}
+        {navItems.map(renderItem)}
 
         <div className="my-4 border-t border-gray-100" />
 
         <p className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
           System
         </p>
-        {bottomItems.map((item) => {
-          const isActive = location.pathname.startsWith(item.to);
-          return (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={`sidebar-link ${isActive ? 'active' : ''}`}
-              onClick={mobile ? onClose : undefined}
-            >
-              <item.icon className="w-5 h-5 flex-shrink-0" />
-              <span>{item.label}</span>
-            </NavLink>
-          );
-        })}
+        {bottomItems.map(renderItem)}
       </nav>
 
       {/* Footer */}

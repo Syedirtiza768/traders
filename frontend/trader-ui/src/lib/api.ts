@@ -23,10 +23,16 @@ const http: AxiosInstance = axios.create({
 http.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 403) {
-      // Token might have expired — refresh & retry once
+    // Session expired — redirect to login
+    if (err.response?.status === 401) {
+      window.location.href = '/login';
+      return Promise.reject(err);
+    }
+    // CSRF token mismatch — refresh & retry once
+    if (err.response?.status === 403 && !err.config._retried) {
       const token = getCsrfToken();
       if (token) {
+        err.config._retried = true;
         err.config.headers['X-Frappe-CSRF-Token'] = token;
         return http.request(err.config);
       }
@@ -65,6 +71,9 @@ export const authApi = {
 
   getLoggedUser: () =>
     http.get('/api/method/frappe.auth.get_logged_user'),
+
+  getRoles: () =>
+    call('trader_app.api.settings.get_current_user_roles'),
 };
 
 // ─── Dashboard API ───────────────────────────────────────────────

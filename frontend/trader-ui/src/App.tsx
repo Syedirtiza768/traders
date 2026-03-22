@@ -1,9 +1,10 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
 import LoginPage from './pages/LoginPage';
 import DashboardLayout from './layouts/DashboardLayout';
 import DashboardPage from './pages/DashboardPage';
+import NotFoundPage from './pages/NotFoundPage';
 
 /* ---------- lazy-loaded pages ---------- */
 const SalesPage = lazy(() => import('./pages/SalesPage'));
@@ -67,7 +68,14 @@ function PageLoader() {
 }
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const { isAuthenticated, initialized } = useAuthStore();
+  if (!initialized) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="spinner" />
+      </div>
+    );
+  }
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
@@ -75,6 +83,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const checkAuth = useAuthStore((s) => s.checkAuth);
+  useEffect(() => { checkAuth(); }, [checkAuth]);
+
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
@@ -153,7 +164,7 @@ export default function App() {
         <Route path="settings/gst" element={<GstSettingsPage />} />
         <Route path="print" element={<DocumentPrintPage />} />
       </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 }

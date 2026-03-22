@@ -6,8 +6,8 @@ interface AuthState {
   user: string | null;
   fullName: string | null;
   roles: string[];
-  loading: boolean;
   initialized: boolean;
+  loading: boolean;
   error: string | null;
 
   login: (username: string, password: string) => Promise<void>;
@@ -21,39 +21,27 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   fullName: null,
   roles: [],
-  loading: false,
   initialized: false,
+  loading: false,
   error: null,
 
   login: async (username: string, password: string) => {
     set({ loading: true, error: null });
     try {
       await authApi.login(username, password);
-      const rolesRes = await fetch('/api/method/trader_app.api.settings.get_current_user_roles', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Frappe-CSRF-Token': document.cookie
-            .split('; ')
-            .find((c) => c.startsWith('csrf_token='))
-            ?.split('=')[1] || '',
-        },
-        body: JSON.stringify({}),
-      }).then((r) => r.json());
-
-      const currentUser = document.cookie
-        .split('; ')
-        .find((c) => c.startsWith('full_name='))
-        ?.split('=')[1] || username;
-
+      const res = await authApi.getLoggedUser();
+      let roles: string[] = [];
+      try {
+        const rolesRes = await authApi.getRoles();
+        roles = rolesRes.data.message || [];
+      } catch { /* ignore */ }
       set({
         isAuthenticated: true,
-        user: currentUser,
-        fullName: currentUser,
-        roles: rolesRes.message || [],
-        loading: false,
+        user: res.data.message,
+        fullName: res.data.message,
+        roles,
         initialized: true,
+        loading: false,
       });
     } catch (err: any) {
       const message =
@@ -69,44 +57,30 @@ export const useAuthStore = create<AuthState>((set) => ({
     } catch {
       // ignore
     }
-    set({ isAuthenticated: false, user: null, fullName: null, roles: [], initialized: true, loading: false });
+    set({ isAuthenticated: false, user: null, fullName: null, roles: [], initialized: true });
   },
 
   checkAuth: async () => {
-    set({ loading: true });
     try {
-      const rolesRes = await fetch('/api/method/trader_app.api.settings.get_current_user_roles', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Frappe-CSRF-Token': document.cookie
-            .split('; ')
-            .find((c) => c.startsWith('csrf_token='))
-            ?.split('=')[1] || '',
-        },
-        body: JSON.stringify({}),
-      }).then((r) => r.json());
-
-      if (Array.isArray(rolesRes.message)) {
-        const currentUser = document.cookie
-          .split('; ')
-          .find((c) => c.startsWith('full_name='))
-          ?.split('=')[1] || 'User';
-
+      const res = await authApi.getLoggedUser();
+      if (res.data.message && res.data.message !== 'Guest') {
+        let roles: string[] = [];
+        try {
+          const rolesRes = await authApi.getRoles();
+          roles = rolesRes.data.message || [];
+        } catch { /* ignore */ }
         set({
           isAuthenticated: true,
-          user: currentUser,
-          fullName: currentUser,
-          roles: rolesRes.message || [],
-          loading: false,
+          user: res.data.message,
+          fullName: res.data.message,
+          roles,
           initialized: true,
         });
       } else {
-        set({ isAuthenticated: false, user: null, fullName: null, roles: [], loading: false, initialized: true });
+        set({ isAuthenticated: false, user: null, roles: [], initialized: true });
       }
     } catch {
-      set({ isAuthenticated: false, user: null, fullName: null, roles: [], loading: false, initialized: true });
+      set({ isAuthenticated: false, user: null, roles: [], initialized: true });
     }
   },
 
