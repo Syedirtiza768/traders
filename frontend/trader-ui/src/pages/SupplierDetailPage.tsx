@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Building2, CreditCard, Edit, Globe, Ban, Mail, Package, Phone, ReceiptText, Truck } from 'lucide-react';
+import { ArrowLeft, Building2, CreditCard, Edit, FilePlus2, Globe, Ban, Mail, Package, Phone, Plus, ReceiptText, Truck } from 'lucide-react';
 import { suppliersApi } from '../lib/api';
 import { appendPreservedListQuery, formatCurrency, formatDate, getStatusColor, isOperationsContext, isReportContext } from '../lib/utils';
 
@@ -130,13 +130,24 @@ export default function SupplierDetailPage() {
         </div>
       </div>
 
-      <div className="flex justify-end gap-3">
+      <div className="flex flex-wrap justify-end gap-2">
+        <button
+          onClick={() => navigate(`/purchases/new?supplier=${encodeURIComponent(supplier.name)}`)}
+          className="btn-secondary inline-flex items-center gap-2"
+        >
+          <FilePlus2 className="w-4 h-4" /> New Purchase Invoice
+        </button>
+        <button
+          onClick={() => navigate(`/purchases/orders/new?supplier=${encodeURIComponent(supplier.name)}`)}
+          className="btn-secondary inline-flex items-center gap-2"
+        >
+          <Plus className="w-4 h-4" /> New Purchase Order
+        </button>
         <button
           onClick={() => navigate(appendPreservedListQuery(`/suppliers/${encodeURIComponent(supplier.name)}/edit`, listSearch))}
           className="btn-secondary inline-flex items-center gap-2"
         >
-          <Edit className="w-4 h-4" />
-          Edit
+          <Edit className="w-4 h-4" /> Edit
         </button>
         <button
           onClick={handleToggleDisable}

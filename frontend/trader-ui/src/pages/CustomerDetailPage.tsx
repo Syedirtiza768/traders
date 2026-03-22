@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Building2, CreditCard, Edit, Mail, MapPin, Phone, ReceiptText, TrendingUp, User, Ban } from 'lucide-react';
+import { ArrowLeft, Building2, CreditCard, Edit, FilePlus2, Mail, MapPin, Phone, Plus, ReceiptText, TrendingUp, User, Ban } from 'lucide-react';
 import { customersApi } from '../lib/api';
 import { appendPreservedListQuery, formatCurrency, formatDate, getStatusColor, isOperationsContext, isReportContext } from '../lib/utils';
 
@@ -138,46 +138,41 @@ export default function CustomerDetailPage() {
         </div>
       </div>
 
-      {(customer.outstanding_amount || 0) > 0 && (
-        <div className="flex justify-end gap-2">
-          <button
-            onClick={() => navigate(`/customers/${encodeURIComponent(customer.name)}/edit`)}
-            className="btn-secondary flex items-center gap-2"
-          >
-            <Edit className="w-4 h-4" /> Edit
-          </button>
-          <button
-            onClick={handleToggleDisable}
-            disabled={toggling}
-            className="btn-secondary flex items-center gap-2 text-amber-700 hover:text-amber-800 disabled:opacity-60"
-          >
-            <Ban className="w-4 h-4" /> {customer.disabled ? (toggling ? 'Enabling…' : 'Enable') : (toggling ? 'Disabling…' : 'Disable')}
-          </button>
+      <div className="flex flex-wrap justify-end gap-2">
+        <button
+          onClick={() => navigate(`/sales/new?customer=${encodeURIComponent(customer.name)}`)}
+          className="btn-secondary flex items-center gap-2"
+        >
+          <FilePlus2 className="w-4 h-4" /> New Invoice
+        </button>
+        <button
+          onClick={() => navigate(`/sales/orders/new?customer=${encodeURIComponent(customer.name)}`)}
+          className="btn-secondary flex items-center gap-2"
+        >
+          <Plus className="w-4 h-4" /> New Order
+        </button>
+        <button
+          onClick={() => navigate(`/customers/${encodeURIComponent(customer.name)}/edit`)}
+          className="btn-secondary flex items-center gap-2"
+        >
+          <Edit className="w-4 h-4" /> Edit
+        </button>
+        <button
+          onClick={handleToggleDisable}
+          disabled={toggling}
+          className="btn-secondary flex items-center gap-2 text-amber-700 hover:text-amber-800 disabled:opacity-60"
+        >
+          <Ban className="w-4 h-4" /> {customer.disabled ? (toggling ? 'Enabling…' : 'Enable') : (toggling ? 'Disabling…' : 'Disable')}
+        </button>
+        {(customer.outstanding_amount || 0) > 0 && (
           <button
             onClick={() => navigate(appendPreservedListQuery(`/finance/payments/new?paymentType=Receive&partyType=Customer&party=${encodeURIComponent(customer.name)}&amount=${encodeURIComponent(String(customer.outstanding_amount || 0))}`, listSearch))}
             className="btn-primary"
           >
             Collect Payment
           </button>
-        </div>
-      )}
-      {!(customer.outstanding_amount > 0) && (
-        <div className="flex justify-end gap-2">
-          <button
-            onClick={() => navigate(`/customers/${encodeURIComponent(customer.name)}/edit`)}
-            className="btn-secondary flex items-center gap-2"
-          >
-            <Edit className="w-4 h-4" /> Edit
-          </button>
-          <button
-            onClick={handleToggleDisable}
-            disabled={toggling}
-            className="btn-secondary flex items-center gap-2 text-amber-700 hover:text-amber-800 disabled:opacity-60"
-          >
-            <Ban className="w-4 h-4" /> {customer.disabled ? (toggling ? 'Enabling…' : 'Enable') : (toggling ? 'Disabling…' : 'Disable')}
-          </button>
-        </div>
-      )}
+        )}
+      </div>
 
       {feedback && (
         <div className={`rounded-lg px-4 py-3 text-sm ${feedback.type === 'success' ? 'border border-green-200 bg-green-50 text-green-700' : 'border border-red-200 bg-red-50 text-red-700'}`}>

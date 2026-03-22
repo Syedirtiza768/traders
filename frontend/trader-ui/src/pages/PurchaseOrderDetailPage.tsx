@@ -167,7 +167,7 @@ export default function PurchaseOrderDetailPage() {
               )}
               {canCreateReceipt && (
                 <button
-                  onClick={() => navigate(appendPreservedListQuery(`/inventory/receipts/new?orderName=${encodeURIComponent(order.name || '')}&supplier=${encodeURIComponent(order.supplier || '')}&warehouse=${encodeURIComponent(order.set_warehouse || '')}&postingDate=${encodeURIComponent(order.schedule_date || order.transaction_date || '')}&lines=${encodedLines}`, listSearch))}
+                  onClick={() => navigate(appendPreservedListQuery(`/purchases/receipts/new?orderName=${encodeURIComponent(order.name || '')}&supplier=${encodeURIComponent(order.supplier || '')}&warehouse=${encodeURIComponent(order.set_warehouse || '')}&postingDate=${encodeURIComponent(order.schedule_date || order.transaction_date || '')}&lines=${encodedLines}`, listSearch))}
                   className="btn-secondary"
                 >
                   Create Receipt
