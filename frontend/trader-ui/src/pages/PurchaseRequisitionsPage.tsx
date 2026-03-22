@@ -61,10 +61,10 @@ export default function PurchaseRequisitionsPage() {
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Purchase Requisitions</h1>
-        <p className="mt-1 text-gray-500">Track internal purchase demand before supplier quotation and ordering.</p>
+        <h1 className="page-title">Purchase Requisitions</h1>
+        <p className="mt-1 text-gray-500 text-sm">Track internal purchase demand before supplier quotation and ordering.</p>
       </div>
 
       {workflow === 'approval-review' && (
@@ -81,14 +81,14 @@ export default function PurchaseRequisitionsPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
         <StatCard icon={ClipboardList} label="Visible Requisitions" value={String(filtered.length)} />
         <StatCard icon={ShoppingBag} label="Draft Count" value={String(rows.filter((row) => (row.docstatus || 0) === 0).length)} />
         <StatCard icon={ClipboardList} label="Pending Ordering" value={String(rows.filter((row) => (row.per_ordered || 0) < 100).length)} />
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex gap-1 overflow-x-auto rounded-lg bg-gray-100 p-1">
+        <div className="flex gap-1 overflow-x-auto scrollbar-hide rounded-lg bg-gray-100 p-1 w-full sm:w-auto">
           {STATUS_TABS.map((entry) => (
             <button
               key={entry}
@@ -106,7 +106,8 @@ export default function PurchaseRequisitionsPage() {
         </div>
       </div>
 
-      <div className="table-container">
+      {/* Desktop Table */}
+      <div className="hidden md:block table-container">
         <table className="w-full">
           <thead>
             <tr className="bg-gray-50">
@@ -145,8 +146,30 @@ export default function PurchaseRequisitionsPage() {
         </table>
       </div>
 
+      {/* Mobile Card List */}
+      <div className="md:hidden card divide-y divide-gray-100">
+        {loading ? (
+          <div className="px-4 py-12 text-center text-gray-400"><div className="spinner mx-auto" /></div>
+        ) : filtered.length === 0 ? (
+          <div className="px-4 py-12 text-center text-gray-400 text-sm">No requisitions found.</div>
+        ) : filtered.map((row) => (
+          <div key={row.name} className="px-4 py-3 space-y-1.5 active:bg-gray-50" onClick={() => navigate(appendPreservedListQuery(`/purchases/requisitions/${encodeURIComponent(row.name)}`, listSearch))}>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-brand-700">{row.name}</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${getStatusColor(row.status || (row.docstatus === 0 ? 'Draft' : 'Open'))}`}>
+                {row.status || (row.docstatus === 0 ? 'Draft' : 'Open')}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-gray-400">{formatDate(row.transaction_date)}</span>
+              <span className="text-gray-500">Schedule: {formatDate(row.schedule_date)}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
       {totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-gray-500">
+        <div className="flex items-center justify-between text-xs sm:text-sm text-gray-500">
           <span>Showing {((page - 1) * PAGE_SIZE) + 1}–{Math.min(page * PAGE_SIZE, total)} of {total}</span>
           <div className="flex gap-1">
             <button onClick={() => updateSearchParams({ page: page > 2 ? String(page - 1) : null })} disabled={page === 1} className="btn-secondary px-2 py-1 text-xs"><ChevronLeft className="h-4 w-4" /></button>
@@ -160,12 +183,12 @@ export default function PurchaseRequisitionsPage() {
 
 function StatCard({ icon: Icon, label, value }: { icon: any; label: string; value: string }) {
   return (
-    <div className="card p-5">
-      <div className="flex items-center gap-3">
-        <div className="rounded-lg bg-blue-50 p-2"><Icon className="h-5 w-5 text-blue-600" /></div>
-        <div>
-          <p className="text-xs text-gray-500">{label}</p>
-          <p className="text-lg font-bold text-gray-900">{value}</p>
+    <div className="card p-4 sm:p-5">
+      <div className="flex items-center gap-2 sm:gap-3">
+        <div className="rounded-lg bg-blue-50 p-1.5 sm:p-2"><Icon className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" /></div>
+        <div className="min-w-0">
+          <p className="text-[10px] sm:text-xs text-gray-500 truncate">{label}</p>
+          <p className="text-sm sm:text-lg font-bold text-gray-900">{value}</p>
         </div>
       </div>
     </div>

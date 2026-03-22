@@ -1,46 +1,30 @@
 import { useState, useEffect } from 'react';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { BarChart3, Eye, EyeOff } from 'lucide-react';
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const { login, isAuthenticated, loading, initialized, error, clearError } = useAuthStore();
+  const { login, isAuthenticated, loading, error, clearError } = useAuthStore();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname || '/';
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate(from, { replace: true });
+      navigate('/', { replace: true });
     }
-  }, [from, isAuthenticated, navigate]);
+  }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       await login(username, password);
+      navigate('/', { replace: true });
     } catch {
       // Error handled in store
     }
   };
-
-  if (initialized && isAuthenticated) {
-    return <Navigate to={from} replace />;
-  }
-
-  if (!initialized && loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="flex items-center gap-3 text-sm text-gray-500">
-          <div className="spinner" />
-          Checking your session...
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex">
@@ -58,7 +42,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           <h2 className="text-4xl font-bold text-white leading-tight">
             Manage your trading<br />business with confidence
           </h2>
@@ -103,7 +87,7 @@ export default function LoginPage() {
 
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Welcome back</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Welcome back</h2>
               <p className="text-gray-500 mt-1">Sign in to your account to continue</p>
             </div>
 

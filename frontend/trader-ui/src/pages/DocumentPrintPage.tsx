@@ -139,14 +139,14 @@ export default function DocumentPrintPage() {
   const showFormatToggle = doctype === 'Sales Invoice';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Toolbar */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <button onClick={() => navigate(backPath)} className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
             <ArrowLeft size={16} /> Back to Document
           </button>
-          <h1 className="text-2xl font-bold text-gray-900">Print Preview</h1>
+          <h1 className="page-title">Print Preview</h1>
           <p className="mt-1 text-gray-500">{printData.doc_title} — {docName}</p>
         </div>
         <div className="flex flex-wrap gap-3">

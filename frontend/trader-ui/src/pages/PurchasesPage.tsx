@@ -1,58 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Download, FilePlus2, FileText, DollarSign, Truck, AlertCircle, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FileText, DollarSign, Truck, AlertCircle, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { purchasesApi } from '../lib/api';
-import { appendPreservedListQuery, debounce, downloadTextFile, formatCurrency, formatDate, formatCompact, getStatusColor, toCsv } from '../lib/utils';
+import { formatCurrency, formatDate, getStatusColor, formatCompact, debounce } from '../lib/utils';
 
 const STATUS_TABS = ['All', 'Unpaid', 'Paid', 'Overdue', 'Draft'];
 
 export default function PurchasesPage() {
-  const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
   const [invoices, setInvoices] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>(null);
   const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [status, setStatus] = useState('All');
+  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
 
-  const page = Math.max(1, Number(searchParams.get('page') || '1') || 1);
-  const status = searchParams.get('status') || 'All';
-  const search = searchParams.get('search') || '';
-  const listSearch = searchParams.toString();
-
   const pageSize = 15;
-
-  const updateSearchParams = (updates: Record<string, string | null>) => {
-    const nextParams = new URLSearchParams(searchParams);
-
-    Object.entries(updates).forEach(([key, value]) => {
-      if (value === null || value === '') {
-        nextParams.delete(key);
-      } else {
-        nextParams.set(key, value);
-      }
-    });
-
-    setSearchParams(nextParams);
-  };
-
-  const buildDetailPath = (invoiceName: string) => {
-    return appendPreservedListQuery(`/purchases/${encodeURIComponent(invoiceName)}`, listSearch);
-  };
-
-  const handleExport = () => {
-    const content = toCsv(
-      invoices.map((invoice) => ({
-        invoice: invoice.name,
-        supplier: invoice.supplier_name || invoice.supplier,
-        posting_date: invoice.posting_date,
-        status: invoice.status,
-        grand_total: invoice.grand_total,
-        outstanding_amount: invoice.outstanding_amount,
-      })),
-    );
-
-    downloadTextFile(`purchase-invoices-page-${page}.csv`, content || '');
-  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -80,32 +42,21 @@ export default function PurchasesPage() {
   useEffect(() => { load(); }, [load]);
 
   const debouncedSearch = useCallback(
-    debounce((value: string) => {
-      updateSearchParams({ search: value || null, page: null });
-    }, 400),
-    [searchParams],
+    debounce((val: string) => { setSearch(val); setPage(1); }, 400),
+    [],
   );
 
   const totalPages = Math.ceil(total / pageSize);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Purchases</h1>
-        <p className="text-gray-500 mt-1">Manage purchase invoices and orders</p>
-      </div>
-
-      <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-        <button onClick={handleExport} disabled={loading || invoices.length === 0} className="btn-secondary flex items-center gap-2 disabled:opacity-60">
-          <Download className="h-4 w-4" /> Export Visible
-        </button>
-        <button onClick={() => navigate(appendPreservedListQuery('/purchases/new', listSearch))} className="btn-primary flex items-center gap-2">
-          <FilePlus2 className="h-4 w-4" /> New Purchase Invoice
-        </button>
+        <h1 className="page-title">Purchases</h1>
+        <p className="text-gray-500 mt-1 text-sm">Manage purchase invoices and orders</p>
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatCard icon={FileText} label="Total Invoices" value={summary?.total_invoices} color="blue" />
         <StatCard icon={DollarSign} label="Monthly Purchases" value={summary?.monthly_purchases} format="currency" color="green" />
         <StatCard icon={AlertCircle} label="Outstanding Payable" value={summary?.total_outstanding} format="currency" color="red" />
@@ -114,14 +65,12 @@ export default function PurchasesPage() {
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-        <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
+        <div className="flex gap-1 bg-gray-100 p-1 rounded-lg overflow-x-auto scrollbar-hide w-full sm:w-auto">
           {STATUS_TABS.map((s) => (
             <button
               key={s}
-              onClick={() => {
-                updateSearchParams({ status: s === 'All' ? null : s, page: null });
-              }}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              onClick={() => { setStatus(s); setPage(1); }}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
                 status === s ? 'bg-white shadow text-brand-700' : 'text-gray-600 hover:text-gray-900'
               }`}
             >
@@ -135,15 +84,14 @@ export default function PurchasesPage() {
           <input
             type="text"
             placeholder="Search purchases..."
-            defaultValue={search}
             onChange={(e) => debouncedSearch(e.target.value)}
             className="input-field pl-9"
           />
         </div>
       </div>
 
-      {/* Table */}
-      <div className="table-container">
+      {/* Desktop Table */}
+      <div className="hidden md:block table-container">
         <table className="w-full">
           <thead>
             <tr className="bg-gray-50">
@@ -162,11 +110,7 @@ export default function PurchasesPage() {
               <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-400">No invoices found.</td></tr>
             ) : (
               invoices.map((inv) => (
-                <tr
-                  key={inv.name}
-                  className="hover:bg-gray-50 transition-colors cursor-pointer"
-                  onClick={() => navigate(buildDetailPath(inv.name))}
-                >
+                <tr key={inv.name} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-3 text-sm font-medium text-brand-700">{inv.name}</td>
                   <td className="px-6 py-3 text-sm text-gray-700">{inv.supplier_name || inv.supplier}</td>
                   <td className="px-6 py-3 text-sm text-gray-500">{formatDate(inv.posting_date)}</td>
@@ -184,15 +128,45 @@ export default function PurchasesPage() {
         </table>
       </div>
 
+      {/* Mobile Card List */}
+      <div className="md:hidden card divide-y divide-gray-100">
+        {loading ? (
+          <div className="px-4 py-12 text-center text-gray-400"><div className="spinner mx-auto" /></div>
+        ) : invoices.length === 0 ? (
+          <div className="px-4 py-12 text-center text-gray-400 text-sm">No invoices found.</div>
+        ) : (
+          invoices.map((inv) => (
+            <div key={inv.name} className="px-4 py-3 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-brand-700">{inv.name}</span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${getStatusColor(inv.status)}`}>
+                  {inv.status}
+                </span>
+              </div>
+              <div className="text-xs text-gray-500 truncate">{inv.supplier_name || inv.supplier}</div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-400">{formatDate(inv.posting_date)}</span>
+                <div className="flex gap-3">
+                  <span className="font-medium text-gray-900">{formatCurrency(inv.grand_total)}</span>
+                  {inv.outstanding_amount > 0 && (
+                    <span className="font-medium text-red-600">{formatCurrency(inv.outstanding_amount)}</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-gray-500">
+        <div className="flex items-center justify-between text-xs sm:text-sm text-gray-500">
           <span>Showing {((page - 1) * pageSize) + 1}–{Math.min(page * pageSize, total)} of {total}</span>
           <div className="flex gap-1">
-            <button onClick={() => updateSearchParams({ page: page > 2 ? String(page - 1) : null })} disabled={page === 1} className="btn-secondary px-2 py-1 text-xs">
+            <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1} className="btn-secondary px-2 py-1 text-xs" aria-label="Previous page">
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <button onClick={() => updateSearchParams({ page: String(Math.min(totalPages, page + 1)) })} disabled={page === totalPages} className="btn-secondary px-2 py-1 text-xs">
+            <button onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page === totalPages} className="btn-secondary px-2 py-1 text-xs" aria-label="Next page">
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
@@ -209,12 +183,12 @@ function StatCard({ icon: Icon, label, value, format, color = 'blue' }: {
   const ic = `text-${color}-600`;
   const display = value == null ? '—' : format === 'currency' ? formatCompact(value) : (value ?? 0).toLocaleString();
   return (
-    <div className="card p-5">
-      <div className="flex items-center gap-3">
-        <div className={`p-2 ${bg} rounded-lg`}><Icon className={`w-5 h-5 ${ic}`} /></div>
-        <div>
-          <p className="text-xs text-gray-500">{label}</p>
-          <p className="text-lg font-bold text-gray-900">{display}</p>
+    <div className="card p-4 sm:p-5">
+      <div className="flex items-center gap-2 sm:gap-3">
+        <div className={`p-1.5 sm:p-2 ${bg} rounded-lg`}><Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${ic}`} /></div>
+        <div className="min-w-0">
+          <p className="text-[10px] sm:text-xs text-gray-500 truncate">{label}</p>
+          <p className="text-sm sm:text-lg font-bold text-gray-900">{display}</p>
         </div>
       </div>
     </div>

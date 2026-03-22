@@ -73,10 +73,10 @@ export default function JournalEntriesPage() {
   const visibleCredit = entries.reduce((sum, row) => sum + (row.total_credit || 0), 0);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Journal Entries</h1>
-        <p className="mt-1 text-gray-500">Review general ledger adjustments, accruals, and reclassification entries.</p>
+        <h1 className="page-title">Journal Entries</h1>
+        <p className="mt-1 text-gray-500 text-sm">Review general ledger adjustments, accruals, and reclassification entries.</p>
       </div>
 
       <div className="flex justify-end">
@@ -85,7 +85,7 @@ export default function JournalEntriesPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
         <StatCard icon={BookText} label="Visible Entries" value={total.toLocaleString()} color="blue" />
         <StatCard icon={Scale} label="Visible Debit" value={formatCompact(visibleDebit)} color="green" />
         <StatCard icon={Scale} label="Visible Credit" value={formatCompact(visibleCredit)} color="amber" />
@@ -98,7 +98,8 @@ export default function JournalEntriesPage() {
         </div>
       </div>
 
-      <div className="table-container">
+      {/* Desktop Table */}
+      <div className="hidden md:block table-container">
         <table className="w-full">
           <thead>
             <tr className="bg-gray-50">
@@ -135,8 +136,34 @@ export default function JournalEntriesPage() {
         </table>
       </div>
 
+      {/* Mobile Card List */}
+      <div className="md:hidden card divide-y divide-gray-100">
+        {loading ? (
+          <div className="px-4 py-12 text-center text-gray-400"><div className="spinner mx-auto" /></div>
+        ) : entries.length === 0 ? (
+          <div className="px-4 py-12 text-center text-gray-400 text-sm">No journal entries found.</div>
+        ) : (
+          entries.map((entry) => (
+            <div key={entry.name} className="px-4 py-3 space-y-1.5 active:bg-gray-50" onClick={() => navigate(buildDetailPath(entry.name))}>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-brand-700">{entry.name}</span>
+                <span className="text-[10px] text-gray-500">{entry.voucher_type || 'Journal Entry'}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-400">{formatDate(entry.posting_date)}</span>
+                <div className="flex gap-3">
+                  <span className="font-medium text-gray-900">Dr {formatCurrency(entry.total_debit)}</span>
+                  <span className="font-medium text-gray-900">Cr {formatCurrency(entry.total_credit)}</span>
+                </div>
+              </div>
+              {entry.user_remark && <div className="text-[10px] text-gray-400 truncate">{entry.user_remark}</div>}
+            </div>
+          ))
+        )}
+      </div>
+
       {totalPages > 1 && !search && (
-        <div className="flex items-center justify-between text-sm text-gray-500">
+        <div className="flex items-center justify-between text-xs sm:text-sm text-gray-500">
           <span>Showing {((page - 1) * pageSize) + 1}–{Math.min(page * pageSize, total)} of {total}</span>
           <div className="flex gap-1">
             <button onClick={() => updateSearchParams({ page: page > 2 ? String(page - 1) : null })} disabled={page === 1} className="btn-secondary px-2 py-1 text-xs">
@@ -160,12 +187,12 @@ function StatCard({ icon: Icon, label, value, color }: { icon: any; label: strin
   }[color];
 
   return (
-    <div className="card p-5">
-      <div className="flex items-center gap-3">
-        <div className={`rounded-lg p-2 ${tone.bg}`}><Icon className={`h-5 w-5 ${tone.fg}`} /></div>
-        <div>
-          <p className="text-xs text-gray-500">{label}</p>
-          <p className="text-lg font-bold text-gray-900">{value}</p>
+    <div className="card p-4 sm:p-5">
+      <div className="flex items-center gap-2 sm:gap-3">
+        <div className={`rounded-lg p-1.5 sm:p-2 ${tone.bg}`}><Icon className={`h-4 w-4 sm:h-5 sm:w-5 ${tone.fg}`} /></div>
+        <div className="min-w-0">
+          <p className="text-[10px] sm:text-xs text-gray-500 truncate">{label}</p>
+          <p className="text-sm sm:text-lg font-bold text-gray-900">{value}</p>
         </div>
       </div>
     </div>

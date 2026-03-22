@@ -5,6 +5,14 @@ export default {
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
+    screens: {
+      'xs': '480px',
+      'sm': '640px',
+      'md': '768px',
+      'lg': '1024px',
+      'xl': '1280px',
+      '2xl': '1536px',
+    },
     extend: {
       colors: {
         brand: {
@@ -32,6 +40,20 @@ export default {
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+      },
+      fontSize: {
+        'fluid-xs': 'clamp(0.694rem, 0.66rem + 0.17vw, 0.8rem)',
+        'fluid-sm': 'clamp(0.8rem, 0.75rem + 0.25vw, 0.938rem)',
+        'fluid-base': 'clamp(0.875rem, 0.825rem + 0.25vw, 1rem)',
+        'fluid-lg': 'clamp(1rem, 0.925rem + 0.38vw, 1.2rem)',
+        'fluid-xl': 'clamp(1.25rem, 1.1rem + 0.75vw, 1.563rem)',
+        'fluid-2xl': 'clamp(1.5rem, 1.25rem + 1.25vw, 2rem)',
+      },
+      spacing: {
+        'safe-bottom': 'env(safe-area-inset-bottom, 0px)',
+        'safe-top': 'env(safe-area-inset-top, 0px)',
+        'safe-left': 'env(safe-area-inset-left, 0px)',
+        'safe-right': 'env(safe-area-inset-right, 0px)',
       },
     },
   },

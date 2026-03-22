@@ -13,6 +13,7 @@ import {
   TrendingDown,
   FileText,
   Activity,
+  X,
 } from 'lucide-react';
 
 const navItems = [
@@ -31,11 +32,36 @@ const bottomItems = [
   { to: '/settings', label: 'Settings', icon: Settings },
 ];
 
-export default function Sidebar() {
+interface SidebarProps {
+  mobile?: boolean;
+  onClose?: () => void;
+}
+
+export default function Sidebar({ mobile = false, onClose }: SidebarProps) {
   const location = useLocation();
 
   return (
-    <aside className="fixed left-0 top-16 bottom-0 w-[260px] bg-white border-r border-gray-200 z-40 flex flex-col">
+    <aside
+      className={`${
+        mobile
+          ? 'h-full w-full bg-white flex flex-col'
+          : 'fixed left-0 top-16 bottom-0 w-[260px] bg-white border-r border-gray-200 z-40 flex flex-col'
+      }`}
+    >
+      {/* Mobile header with close button */}
+      {mobile && (
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+          <span className="text-lg font-bold text-gray-900">Menu</span>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+            aria-label="Close menu"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      )}
+
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         <p className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
@@ -51,6 +77,7 @@ export default function Sidebar() {
               key={item.to}
               to={item.to}
               className={`sidebar-link ${isActive ? 'active' : ''}`}
+              onClick={mobile ? onClose : undefined}
             >
               <item.icon className="w-5 h-5 flex-shrink-0" />
               <span>{item.label}</span>
@@ -70,6 +97,7 @@ export default function Sidebar() {
               key={item.to}
               to={item.to}
               className={`sidebar-link ${isActive ? 'active' : ''}`}
+              onClick={mobile ? onClose : undefined}
             >
               <item.icon className="w-5 h-5 flex-shrink-0" />
               <span>{item.label}</span>
@@ -79,7 +107,7 @@ export default function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="px-4 py-3 border-t border-gray-100">
+      <div className="px-4 py-3 border-t border-gray-100 pb-safe">
         <div className="flex items-center gap-2 text-xs text-gray-400">
           <div className="w-2 h-2 bg-green-500 rounded-full" />
           <span>System Online</span>

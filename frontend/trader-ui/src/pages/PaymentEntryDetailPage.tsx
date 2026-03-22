@@ -158,13 +158,13 @@ export default function PaymentEntryDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <button onClick={() => navigate(backToPath)} className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
             <ArrowLeft className="h-4 w-4" /> {backLabel}
           </button>
-          <h1 className="text-2xl font-bold text-gray-900">{payment.name}</h1>
+          <h1 className="page-title">{payment.name}</h1>
           <p className="mt-1 text-gray-500">Payment entry detail, party context, and allocated references</p>
         </div>
         <div className="flex flex-col items-start gap-3 sm:items-end">
@@ -231,33 +231,55 @@ export default function PaymentEntryDetailPage() {
           <h2 className="text-lg font-semibold text-gray-900">Allocated References</h2>
           <p className="text-sm text-gray-500">Documents linked to this payment entry</p>
         </div>
-        <div className="table-container">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Reference Type</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Reference Name</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Allocated</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Outstanding</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {referenceRows.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="px-6 py-10 text-center text-gray-400">No references linked to this payment entry.</td>
+        {/* Desktop table */}
+        <div className="hidden md:block">
+          <div className="table-container">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Reference Type</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Reference Name</th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Allocated</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Outstanding</th>
                 </tr>
-              ) : (
-                referenceRows.map((reference, index) => (
-                  <tr key={`${reference.reference_doctype || 'ref'}-${index}`} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-3 text-sm text-gray-700">{reference.reference_doctype || '—'}</td>
-                    <td className="px-6 py-3 text-sm font-medium text-gray-900">{reference.reference_name || '—'}</td>
-                    <td className="px-6 py-3 text-right text-sm text-gray-900">{formatCurrency(reference.allocated_amount)}</td>
-                    <td className="px-6 py-3 text-sm text-gray-500">{formatCurrency(reference.outstanding_amount)}</td>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {referenceRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-10 text-center text-gray-400">No references linked to this payment entry.</td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  referenceRows.map((reference, index) => (
+                    <tr key={`${reference.reference_doctype || 'ref'}-${index}`} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-3 text-sm text-gray-700">{reference.reference_doctype || '—'}</td>
+                      <td className="px-6 py-3 text-sm font-medium text-gray-900">{reference.reference_name || '—'}</td>
+                      <td className="px-6 py-3 text-right text-sm text-gray-900">{formatCurrency(reference.allocated_amount)}</td>
+                      <td className="px-6 py-3 text-sm text-gray-500">{formatCurrency(reference.outstanding_amount)}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {/* Mobile cards */}
+        <div className="md:hidden divide-y divide-gray-100">
+          {referenceRows.length === 0 ? (
+            <p className="px-4 py-8 text-center text-sm text-gray-400">No references linked to this payment entry.</p>
+          ) : (
+            referenceRows.map((reference, index) => (
+              <div key={`m-${reference.reference_name || index}`} className="px-4 py-3">
+                <div className="flex justify-between items-start gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{reference.reference_name || '—'}</p>
+                    <p className="text-xs text-gray-500">{reference.reference_doctype || '—'}</p>
+                  </div>
+                  <p className="text-sm font-semibold text-gray-900 whitespace-nowrap">{formatCurrency(reference.allocated_amount)}</p>
+                </div>
+                <p className="text-xs text-gray-400 mt-0.5">Outstanding: {formatCurrency(reference.outstanding_amount)}</p>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>

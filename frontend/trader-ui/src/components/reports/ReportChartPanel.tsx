@@ -26,19 +26,22 @@ export default function ReportChartPanel({ type, data, xKey = 'label', bars = []
     return keys.slice(0, 3).map((k, i) => ({ dataKey: k, name: k.replace(/_/g, ' '), color: COLORS[i] }));
   }, [data, bars, xKey]);
 
+  // Responsive height: smaller on mobile
+  const chartHeight = typeof window !== 'undefined' && window.innerWidth < 640 ? Math.min(height, 260) : height;
+
   if (!data.length) {
     return (
-      <div className="card p-6">
-        {title && <h3 className="text-lg font-semibold mb-4">{title}</h3>}
+      <div className="card p-4 sm:p-6">
+        {title && <h3 className="text-base sm:text-lg font-semibold mb-4">{title}</h3>}
         <div className="flex items-center justify-center h-48 text-gray-400">No chart data</div>
       </div>
     );
   }
 
   return (
-    <div className="card p-6">
-      {title && <h3 className="text-lg font-semibold mb-4">{title}</h3>}
-      <ResponsiveContainer width="100%" height={height}>
+    <div className="card p-4 sm:p-6">
+      {title && <h3 className="text-base sm:text-lg font-semibold mb-4">{title}</h3>}
+      <ResponsiveContainer width="100%" height={chartHeight}>
         {type === 'pie' ? (
           <PieChart>
             <Pie data={data} dataKey={barDefs[0]?.dataKey ?? 'value'} nameKey={xKey} cx="50%" cy="50%"
@@ -63,7 +66,7 @@ export default function ReportChartPanel({ type, data, xKey = 'label', bars = []
           <BarChart data={data.slice(0, 15)} layout="vertical">
             <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
             <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v: number) => formatCompact(v)} />
-            <YAxis type="category" dataKey={xKey} tick={{ fontSize: 10 }} width={150} />
+            <YAxis type="category" dataKey={xKey} tick={{ fontSize: 10 }} width={typeof window !== 'undefined' && window.innerWidth < 640 ? 80 : 150} />
             <Tooltip formatter={(v: number) => formatCurrency(v)} />
             {barDefs.map((b, i) => (
               <Bar key={b.dataKey} dataKey={b.dataKey} name={b.name} fill={b.color || COLORS[i]}

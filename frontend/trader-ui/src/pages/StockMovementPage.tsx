@@ -68,14 +68,14 @@ export default function StockMovementPage() {
   const totalDelta = useMemo(() => rows.reduce((sum, row) => sum + Number(row.actual_qty || 0), 0), [rows]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <button onClick={() => navigate('/inventory')} className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
             <ArrowLeft className="w-4 h-4" />
             Back to Inventory
           </button>
-          <h1 className="text-2xl font-bold text-gray-900">Stock Movement</h1>
+          <h1 className="page-title">Stock Movement</h1>
           <p className="mt-1 text-gray-500">Transaction-level stock ledger view using the existing inventory API</p>
         </div>
       </div>
@@ -116,39 +116,68 @@ export default function StockMovementPage() {
           <h2 className="text-lg font-semibold text-gray-900">Ledger Entries</h2>
           <p className="text-sm text-gray-500">Stock movement history across vouchers, items, and warehouses</p>
         </div>
-        <div className="table-container">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Date / Time</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Item</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Warehouse</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Actual Qty</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Qty After</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Value</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Voucher</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {loading ? (
-                <tr><td colSpan={7} className="px-6 py-12 text-center text-gray-400"><div className="spinner mx-auto" /></td></tr>
-              ) : rows.length === 0 ? (
-                <tr><td colSpan={7} className="px-6 py-12 text-center text-gray-400">No ledger entries found.</td></tr>
-              ) : (
-                rows.map((row) => (
-                  <tr key={row.name} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-3 text-sm text-gray-700">{formatDate(row.posting_date)}<div className="text-xs text-gray-400">{formatDateTime(`${row.posting_date}T${row.posting_time || '00:00:00'}`)}</div></td>
-                    <td className="px-6 py-3 text-sm font-medium text-brand-700">{row.item_code}</td>
-                    <td className="px-6 py-3 text-sm text-gray-600">{row.warehouse}</td>
-                    <td className={`px-6 py-3 text-right text-sm font-medium ${Number(row.actual_qty || 0) >= 0 ? 'text-green-700' : 'text-red-700'}`}>{Number(row.actual_qty || 0).toLocaleString()}</td>
-                    <td className="px-6 py-3 text-right text-sm text-gray-900">{Number(row.qty_after_transaction || 0).toLocaleString()}</td>
-                    <td className="px-6 py-3 text-right text-sm text-gray-900">{formatCurrency(row.stock_value)}</td>
-                    <td className="px-6 py-3 text-sm text-gray-600">{row.voucher_type} / {row.voucher_no}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        {/* Desktop table */}
+        <div className="hidden md:block">
+          <div className="table-container">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Date / Time</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Item</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Warehouse</th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Actual Qty</th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Qty After</th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Value</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Voucher</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {loading ? (
+                  <tr><td colSpan={7} className="px-6 py-12 text-center text-gray-400"><div className="spinner mx-auto" /></td></tr>
+                ) : rows.length === 0 ? (
+                  <tr><td colSpan={7} className="px-6 py-12 text-center text-gray-400">No ledger entries found.</td></tr>
+                ) : (
+                  rows.map((row) => (
+                    <tr key={row.name} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-3 text-sm text-gray-700">{formatDate(row.posting_date)}<div className="text-xs text-gray-400">{formatDateTime(`${row.posting_date}T${row.posting_time || '00:00:00'}`)}</div></td>
+                      <td className="px-6 py-3 text-sm font-medium text-brand-700">{row.item_code}</td>
+                      <td className="px-6 py-3 text-sm text-gray-600">{row.warehouse}</td>
+                      <td className={`px-6 py-3 text-right text-sm font-medium ${Number(row.actual_qty || 0) >= 0 ? 'text-green-700' : 'text-red-700'}`}>{Number(row.actual_qty || 0).toLocaleString()}</td>
+                      <td className="px-6 py-3 text-right text-sm text-gray-900">{Number(row.qty_after_transaction || 0).toLocaleString()}</td>
+                      <td className="px-6 py-3 text-right text-sm text-gray-900">{formatCurrency(row.stock_value)}</td>
+                      <td className="px-6 py-3 text-sm text-gray-600">{row.voucher_type} / {row.voucher_no}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {/* Mobile cards */}
+        <div className="md:hidden divide-y divide-gray-100">
+          {loading ? (
+            <div className="px-4 py-12 text-center"><div className="spinner mx-auto" /></div>
+          ) : rows.length === 0 ? (
+            <p className="px-4 py-12 text-center text-sm text-gray-400">No ledger entries found.</p>
+          ) : (
+            rows.map((row) => (
+              <div key={`m-${row.name}`} className="px-4 py-3">
+                <div className="flex justify-between items-start gap-2">
+                  <p className="text-sm font-medium text-brand-700 truncate">{row.item_code}</p>
+                  <span className={`text-sm font-semibold whitespace-nowrap ${Number(row.actual_qty || 0) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                    {Number(row.actual_qty || 0) >= 0 ? '+' : ''}{Number(row.actual_qty || 0).toLocaleString()}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 truncate">{row.warehouse}</p>
+                <div className="flex flex-wrap gap-3 mt-1 text-xs text-gray-500">
+                  <span>{formatDate(row.posting_date)}</span>
+                  <span>After: {Number(row.qty_after_transaction || 0).toLocaleString()}</span>
+                  <span>{formatCurrency(row.stock_value)}</span>
+                </div>
+                <p className="text-[10px] text-gray-400 mt-0.5 truncate">{row.voucher_type} / {row.voucher_no}</p>
+              </div>
+            ))
+          )}
         </div>
       </div>
 

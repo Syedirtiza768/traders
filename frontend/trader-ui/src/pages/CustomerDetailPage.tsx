@@ -123,14 +123,14 @@ export default function CustomerDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <button onClick={() => navigate(backToPath)} className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
             <ArrowLeft className="w-4 h-4" />
             {backLabel}
           </button>
-          <h1 className="text-2xl font-bold text-gray-900">{customer.customer_name || customer.name}</h1>
+          <h1 className="page-title">{customer.customer_name || customer.name}</h1>
           <p className="mt-1 text-gray-500">Customer 360 view for `{customer.name}`</p>
         </div>
         <div className="rounded-full px-3 py-1 text-sm font-medium bg-blue-50 text-blue-700">
@@ -228,59 +228,99 @@ export default function CustomerDetailPage() {
           <h2 className="text-lg font-semibold text-gray-900">Recent Transactions</h2>
           <p className="text-sm text-gray-500">Latest posted sales invoices for this customer</p>
         </div>
-        <div className="table-container">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Invoice</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Date</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Amount</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Outstanding</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Status</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {transactions.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-gray-400">No recent transactions found.</td>
+        {/* Desktop table */}
+        <div className="hidden md:block">
+          <div className="table-container">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Invoice</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Date</th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Amount</th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Outstanding</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Status</th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Action</th>
                 </tr>
-              ) : (
-                transactions.map((tx) => (
-                  <tr key={tx.name} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-3 text-sm font-medium text-brand-700">
-                      <button
-                        onClick={() => navigate(buildInvoiceDetailPath(tx.name))}
-                        className="hover:text-brand-800 hover:underline"
-                      >
-                        {tx.name}
-                      </button>
-                    </td>
-                    <td className="px-6 py-3 text-sm text-gray-500">{formatDate(tx.posting_date)}</td>
-                    <td className="px-6 py-3 text-right text-sm font-medium text-gray-900">{formatCurrency(tx.grand_total)}</td>
-                    <td className="px-6 py-3 text-right text-sm font-medium text-red-600">{formatCurrency(tx.outstanding_amount)}</td>
-                    <td className="px-6 py-3">
-                      <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(tx.status)}`}>
-                        {tx.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-3 text-right">
-                      {(tx.outstanding_amount || 0) > 0 ? (
-                        <button
-                          onClick={() => navigate(`/finance/payments/new?paymentType=Receive&partyType=Customer&party=${encodeURIComponent(customer.name)}&amount=${encodeURIComponent(String(tx.outstanding_amount || 0))}&referenceName=${encodeURIComponent(tx.name)}${listSearch ? `&list=${encodeURIComponent(listSearch)}` : ''}`)}
-                          className="btn-secondary text-xs"
-                        >
-                          Collect
-                        </button>
-                      ) : (
-                        <span className="text-xs text-gray-400">Settled</span>
-                      )}
-                    </td>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {transactions.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-10 text-center text-gray-400">No recent transactions found.</td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  transactions.map((tx) => (
+                    <tr key={tx.name} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-3 text-sm font-medium text-brand-700">
+                        <button
+                          onClick={() => navigate(buildInvoiceDetailPath(tx.name))}
+                          className="hover:text-brand-800 hover:underline"
+                        >
+                          {tx.name}
+                        </button>
+                      </td>
+                      <td className="px-6 py-3 text-sm text-gray-500">{formatDate(tx.posting_date)}</td>
+                      <td className="px-6 py-3 text-right text-sm font-medium text-gray-900">{formatCurrency(tx.grand_total)}</td>
+                      <td className="px-6 py-3 text-right text-sm font-medium text-red-600">{formatCurrency(tx.outstanding_amount)}</td>
+                      <td className="px-6 py-3">
+                        <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(tx.status)}`}>
+                          {tx.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-3 text-right">
+                        {(tx.outstanding_amount || 0) > 0 ? (
+                          <button
+                            onClick={() => navigate(`/finance/payments/new?paymentType=Receive&partyType=Customer&party=${encodeURIComponent(customer.name)}&amount=${encodeURIComponent(String(tx.outstanding_amount || 0))}&referenceName=${encodeURIComponent(tx.name)}${listSearch ? `&list=${encodeURIComponent(listSearch)}` : ''}`)}
+                            className="btn-secondary text-xs"
+                          >
+                            Collect
+                          </button>
+                        ) : (
+                          <span className="text-xs text-gray-400">Settled</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {/* Mobile cards */}
+        <div className="md:hidden divide-y divide-gray-100">
+          {transactions.length === 0 ? (
+            <p className="px-4 py-8 text-center text-sm text-gray-400">No recent transactions found.</p>
+          ) : (
+            transactions.map((tx) => (
+              <div key={`m-${tx.name}`} className="px-4 py-3">
+                <div className="flex justify-between items-start gap-2">
+                  <button
+                    onClick={() => navigate(buildInvoiceDetailPath(tx.name))}
+                    className="text-sm font-medium text-brand-700 hover:underline truncate"
+                  >
+                    {tx.name}
+                  </button>
+                  <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-medium whitespace-nowrap ${getStatusColor(tx.status)}`}>
+                    {tx.status}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center mt-1">
+                  <span className="text-xs text-gray-500">{formatDate(tx.posting_date)}</span>
+                  <span className="text-sm font-semibold text-gray-900">{formatCurrency(tx.grand_total)}</span>
+                </div>
+                {(tx.outstanding_amount || 0) > 0 && (
+                  <div className="flex justify-between items-center mt-1">
+                    <span className="text-xs text-red-600">Outstanding: {formatCurrency(tx.outstanding_amount)}</span>
+                    <button
+                      onClick={() => navigate(`/finance/payments/new?paymentType=Receive&partyType=Customer&party=${encodeURIComponent(customer.name)}&amount=${encodeURIComponent(String(tx.outstanding_amount || 0))}&referenceName=${encodeURIComponent(tx.name)}${listSearch ? `&list=${encodeURIComponent(listSearch)}` : ''}`)}
+                      className="btn-secondary text-xs py-1 px-2"
+                    >
+                      Collect
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>

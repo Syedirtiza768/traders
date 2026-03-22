@@ -72,25 +72,25 @@ export default function PaymentEntriesPage() {
   const visibleReceived = entries.reduce((sum, row) => sum + (row.received_amount || 0), 0);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Payment Entries</h1>
-          <p className="mt-1 text-gray-500">Manage inbound and outbound payments across customers, suppliers, and accounts.</p>
+          <h1 className="page-title">Payment Entries</h1>
+          <p className="mt-1 text-gray-500 text-sm">Manage inbound and outbound payments across customers, suppliers, and accounts.</p>
         </div>
         <button onClick={() => navigate(appendPreservedListQuery('/finance/payments/new', listSearch))} className="btn-primary flex items-center gap-2">
           <Plus className="h-4 w-4" /> New Payment Entry
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
         <StatCard icon={CreditCard} label="Visible Entries" value={total.toLocaleString()} color="blue" />
         <StatCard icon={Wallet} label="Paid Amount" value={formatCompact(visiblePaid)} color="green" />
         <StatCard icon={Wallet} label="Received Amount" value={formatCompact(visibleReceived)} color="amber" />
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex gap-1 overflow-x-auto rounded-lg bg-gray-100 p-1">
+        <div className="flex gap-1 overflow-x-auto scrollbar-hide rounded-lg bg-gray-100 p-1 w-full sm:w-auto">
           {PAYMENT_TYPES.map((entry) => (
             <button
               key={entry}
@@ -112,7 +112,8 @@ export default function PaymentEntriesPage() {
         </div>
       </div>
 
-      <div className="table-container">
+      {/* Desktop Table */}
+      <div className="hidden md:block table-container">
         <table className="w-full">
           <thead>
             <tr className="bg-gray-50">
@@ -149,8 +150,34 @@ export default function PaymentEntriesPage() {
         </table>
       </div>
 
+      {/* Mobile Card List */}
+      <div className="md:hidden card divide-y divide-gray-100">
+        {loading ? (
+          <div className="px-4 py-12 text-center text-gray-400"><div className="spinner mx-auto" /></div>
+        ) : entries.length === 0 ? (
+          <div className="px-4 py-12 text-center text-gray-400 text-sm">No payment entries found.</div>
+        ) : (
+          entries.map((entry) => (
+            <div key={entry.name} className="px-4 py-3 space-y-1.5 active:bg-gray-50" onClick={() => navigate(buildDetailPath(entry.name))}>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-brand-700">{entry.name}</span>
+                <span className="text-[10px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{entry.payment_type || '—'}</span>
+              </div>
+              <div className="text-xs text-gray-500 truncate">{entry.party_name || entry.party || '—'}</div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-400">{formatDate(entry.posting_date)}</span>
+                <div className="flex gap-3">
+                  {entry.paid_amount > 0 && <span className="font-medium text-gray-900">{formatCurrency(entry.paid_amount)}</span>}
+                  {entry.received_amount > 0 && <span className="font-medium text-green-700">{formatCurrency(entry.received_amount)}</span>}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
       {totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-gray-500">
+        <div className="flex items-center justify-between text-xs sm:text-sm text-gray-500">
           <span>Showing {((page - 1) * pageSize) + 1}–{Math.min(page * pageSize, total)} of {total}</span>
           <div className="flex gap-1">
             <button onClick={() => updateSearchParams({ page: page > 2 ? String(page - 1) : null })} disabled={page === 1} className="btn-secondary px-2 py-1 text-xs">
@@ -174,12 +201,12 @@ function StatCard({ icon: Icon, label, value, color }: { icon: any; label: strin
   }[color];
 
   return (
-    <div className="card p-5">
-      <div className="flex items-center gap-3">
-        <div className={`rounded-lg p-2 ${tone.bg}`}><Icon className={`h-5 w-5 ${tone.fg}`} /></div>
-        <div>
-          <p className="text-xs text-gray-500">{label}</p>
-          <p className="text-lg font-bold text-gray-900">{value}</p>
+    <div className="card p-4 sm:p-5">
+      <div className="flex items-center gap-2 sm:gap-3">
+        <div className={`rounded-lg p-1.5 sm:p-2 ${tone.bg}`}><Icon className={`h-4 w-4 sm:h-5 sm:w-5 ${tone.fg}`} /></div>
+        <div className="min-w-0">
+          <p className="text-[10px] sm:text-xs text-gray-500 truncate">{label}</p>
+          <p className="text-sm sm:text-lg font-bold text-gray-900">{value}</p>
         </div>
       </div>
     </div>

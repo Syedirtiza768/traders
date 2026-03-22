@@ -185,13 +185,13 @@ export default function CreateSalesDispatchPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex items-center justify-between gap-4">
         <div>
           <button onClick={() => navigate(backToOrderPath)} className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
             <ArrowLeft size={16} /> Back to Sales Order
           </button>
-          <h1 className="text-2xl font-bold text-gray-900">New Sales Dispatch</h1>
+          <h1 className="page-title">New Sales Dispatch</h1>
           <p className="mt-1 text-gray-500">Create a draft dispatch/stock issue from the selected sales order lines.</p>
         </div>
         <button onClick={handleCreateDispatch} disabled={saving} className="btn-primary flex items-center gap-2 disabled:opacity-60">

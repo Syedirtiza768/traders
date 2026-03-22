@@ -1,59 +1,70 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
 import LoginPage from './pages/LoginPage';
 import DashboardLayout from './layouts/DashboardLayout';
 import DashboardPage from './pages/DashboardPage';
-import SalesPage from './pages/SalesPage';
-import SalesInvoiceDetailPage from './pages/SalesInvoiceDetailPage';
-import SalesOrdersPage from './pages/SalesOrdersPage';
-import SalesOrderDetailPage from './pages/SalesOrderDetailPage';
-import QuotationsPage from './pages/QuotationsPage';
-import QuotationDetailPage from './pages/QuotationDetailPage';
-import CreateSalesInvoicePage from './pages/CreateSalesInvoicePage';
-import CreateSalesOrderPage from './pages/CreateSalesOrderPage';
-import CreateQuotationPage from './pages/CreateQuotationPage';
-import CreateSalesReturnPage from './pages/CreateSalesReturnPage';
-import CreateSalesDispatchPage from './pages/CreateSalesDispatchPage';
-import PurchasesPage from './pages/PurchasesPage';
-import PurchaseInvoiceDetailPage from './pages/PurchaseInvoiceDetailPage';
-import PurchaseOrdersPage from './pages/PurchaseOrdersPage';
-import PurchaseOrderDetailPage from './pages/PurchaseOrderDetailPage';
-import PurchaseRequisitionsPage from './pages/PurchaseRequisitionsPage';
-import PurchaseRequisitionDetailPage from './pages/PurchaseRequisitionDetailPage';
-import SupplierQuotationsPage from './pages/SupplierQuotationsPage';
-import SupplierQuotationDetailPage from './pages/SupplierQuotationDetailPage';
-import CreatePurchaseInvoicePage from './pages/CreatePurchaseInvoicePage';
-import CreatePurchaseOrderPage from './pages/CreatePurchaseOrderPage';
-import CreatePurchaseRequisitionPage from './pages/CreatePurchaseRequisitionPage';
-import CreateSupplierQuotationPage from './pages/CreateSupplierQuotationPage';
-import CreatePurchaseReturnPage from './pages/CreatePurchaseReturnPage';
-import CreatePurchaseReceiptPage from './pages/CreatePurchaseReceiptPage';
-import InventoryPage from './pages/InventoryPage';
-import InventoryItemDetailPage from './pages/InventoryItemDetailPage';
-import CreateItemPage from './pages/CreateItemPage';
-import ItemBundlesPage from './pages/ItemBundlesPage';
-import WarehouseStockPage from './pages/WarehouseStockPage';
-import StockMovementPage from './pages/StockMovementPage';
-import CustomersPage from './pages/CustomersPage';
-import CustomerDetailPage from './pages/CustomerDetailPage';
-import EditCustomerPage from './pages/EditCustomerPage';
-import CreateCustomerPage from './pages/CreateCustomerPage';
-import SuppliersPage from './pages/SuppliersPage';
-import SupplierDetailPage from './pages/SupplierDetailPage';
-import EditSupplierPage from './pages/EditSupplierPage';
-import CreateSupplierPage from './pages/CreateSupplierPage';
-import FinancePage from './pages/FinancePage';
-import JournalEntriesPage from './pages/JournalEntriesPage';
-import JournalEntryDetailPage from './pages/JournalEntryDetailPage';
-import CreateJournalEntryPage from './pages/CreateJournalEntryPage';
-import PaymentEntriesPage from './pages/PaymentEntriesPage';
-import PaymentEntryDetailPage from './pages/PaymentEntryDetailPage';
-import CreatePaymentEntryPage from './pages/CreatePaymentEntryPage';
-import OperationsPage from './pages/OperationsPage';
-import DocumentPrintPage from './pages/DocumentPrintPage';
-import GstSettingsPage from './pages/GstSettingsPage';
-import ReportsPage from './pages/ReportsPageNew';
-import SettingsPage from './pages/SettingsPage';
+
+/* ---------- lazy-loaded pages ---------- */
+const SalesPage = lazy(() => import('./pages/SalesPage'));
+const SalesInvoiceDetailPage = lazy(() => import('./pages/SalesInvoiceDetailPage'));
+const SalesOrdersPage = lazy(() => import('./pages/SalesOrdersPage'));
+const SalesOrderDetailPage = lazy(() => import('./pages/SalesOrderDetailPage'));
+const QuotationsPage = lazy(() => import('./pages/QuotationsPage'));
+const QuotationDetailPage = lazy(() => import('./pages/QuotationDetailPage'));
+const CreateSalesInvoicePage = lazy(() => import('./pages/CreateSalesInvoicePage'));
+const CreateSalesOrderPage = lazy(() => import('./pages/CreateSalesOrderPage'));
+const CreateQuotationPage = lazy(() => import('./pages/CreateQuotationPage'));
+const CreateSalesReturnPage = lazy(() => import('./pages/CreateSalesReturnPage'));
+const CreateSalesDispatchPage = lazy(() => import('./pages/CreateSalesDispatchPage'));
+const PurchasesPage = lazy(() => import('./pages/PurchasesPage'));
+const PurchaseInvoiceDetailPage = lazy(() => import('./pages/PurchaseInvoiceDetailPage'));
+const PurchaseOrdersPage = lazy(() => import('./pages/PurchaseOrdersPage'));
+const PurchaseOrderDetailPage = lazy(() => import('./pages/PurchaseOrderDetailPage'));
+const PurchaseRequisitionsPage = lazy(() => import('./pages/PurchaseRequisitionsPage'));
+const PurchaseRequisitionDetailPage = lazy(() => import('./pages/PurchaseRequisitionDetailPage'));
+const SupplierQuotationsPage = lazy(() => import('./pages/SupplierQuotationsPage'));
+const SupplierQuotationDetailPage = lazy(() => import('./pages/SupplierQuotationDetailPage'));
+const CreatePurchaseInvoicePage = lazy(() => import('./pages/CreatePurchaseInvoicePage'));
+const CreatePurchaseOrderPage = lazy(() => import('./pages/CreatePurchaseOrderPage'));
+const CreatePurchaseRequisitionPage = lazy(() => import('./pages/CreatePurchaseRequisitionPage'));
+const CreateSupplierQuotationPage = lazy(() => import('./pages/CreateSupplierQuotationPage'));
+const CreatePurchaseReturnPage = lazy(() => import('./pages/CreatePurchaseReturnPage'));
+const CreatePurchaseReceiptPage = lazy(() => import('./pages/CreatePurchaseReceiptPage'));
+const InventoryPage = lazy(() => import('./pages/InventoryPage'));
+const InventoryItemDetailPage = lazy(() => import('./pages/InventoryItemDetailPage'));
+const CreateItemPage = lazy(() => import('./pages/CreateItemPage'));
+const ItemBundlesPage = lazy(() => import('./pages/ItemBundlesPage'));
+const WarehouseStockPage = lazy(() => import('./pages/WarehouseStockPage'));
+const StockMovementPage = lazy(() => import('./pages/StockMovementPage'));
+const CustomersPage = lazy(() => import('./pages/CustomersPage'));
+const CustomerDetailPage = lazy(() => import('./pages/CustomerDetailPage'));
+const EditCustomerPage = lazy(() => import('./pages/EditCustomerPage'));
+const CreateCustomerPage = lazy(() => import('./pages/CreateCustomerPage'));
+const SuppliersPage = lazy(() => import('./pages/SuppliersPage'));
+const SupplierDetailPage = lazy(() => import('./pages/SupplierDetailPage'));
+const EditSupplierPage = lazy(() => import('./pages/EditSupplierPage'));
+const CreateSupplierPage = lazy(() => import('./pages/CreateSupplierPage'));
+const FinancePage = lazy(() => import('./pages/FinancePage'));
+const JournalEntriesPage = lazy(() => import('./pages/JournalEntriesPage'));
+const JournalEntryDetailPage = lazy(() => import('./pages/JournalEntryDetailPage'));
+const CreateJournalEntryPage = lazy(() => import('./pages/CreateJournalEntryPage'));
+const PaymentEntriesPage = lazy(() => import('./pages/PaymentEntriesPage'));
+const PaymentEntryDetailPage = lazy(() => import('./pages/PaymentEntryDetailPage'));
+const CreatePaymentEntryPage = lazy(() => import('./pages/CreatePaymentEntryPage'));
+const OperationsPage = lazy(() => import('./pages/OperationsPage'));
+const DocumentPrintPage = lazy(() => import('./pages/DocumentPrintPage'));
+const GstSettingsPage = lazy(() => import('./pages/GstSettingsPage'));
+const ReportsPage = lazy(() => import('./pages/ReportsPageNew'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center h-64">
+      <div className="spinner" />
+    </div>
+  );
+}
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);

@@ -135,13 +135,13 @@ export default function ItemBundlesPage() {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <button onClick={() => navigate('/settings')} className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
             <ArrowLeft size={16} /> Back to Settings
           </button>
-          <h1 className="text-2xl font-bold text-gray-900">Item Bundles</h1>
+          <h1 className="page-title">Item Bundles</h1>
           <p className="mt-1 text-gray-500">Group multiple items into a single line item for Quotations, Orders, and Invoices.</p>
         </div>
         <button onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary flex items-center gap-2">

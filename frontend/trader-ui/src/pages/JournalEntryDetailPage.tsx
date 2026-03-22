@@ -115,13 +115,13 @@ export default function JournalEntryDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <button onClick={() => navigate(backToPath)} className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
             <ArrowLeft className="h-4 w-4" /> Back to Journal Entries
           </button>
-          <h1 className="text-2xl font-bold text-gray-900">{entry.name}</h1>
+          <h1 className="page-title">{entry.name}</h1>
           <p className="mt-1 text-gray-500">Journal entry detail and ledger line review</p>
         </div>
         <div className="flex flex-col items-start gap-3 sm:items-end">
@@ -186,35 +186,58 @@ export default function JournalEntryDetailPage() {
           <h2 className="text-lg font-semibold text-gray-900">Account Lines</h2>
           <p className="text-sm text-gray-500">Accounts impacted by this journal entry</p>
         </div>
-        <div className="table-container">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Account</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Party</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Debit</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Credit</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Remark</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {accountRows.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-10 text-center text-gray-400">No account lines found.</td>
+        {/* Desktop table */}
+        <div className="hidden md:block">
+          <div className="table-container">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Account</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Party</th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Debit</th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Credit</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Remark</th>
                 </tr>
-              ) : (
-                accountRows.map((line, index) => (
-                  <tr key={`${line.account || 'account'}-${index}`} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-3 text-sm font-medium text-gray-900">{line.account || '—'}</td>
-                    <td className="px-6 py-3 text-sm text-gray-600">{line.party || '—'}</td>
-                    <td className="px-6 py-3 text-right text-sm text-gray-900">{formatCurrency(line.debit_in_account_currency || line.debit)}</td>
-                    <td className="px-6 py-3 text-right text-sm text-gray-900">{formatCurrency(line.credit_in_account_currency || line.credit)}</td>
-                    <td className="px-6 py-3 text-sm text-gray-500">{line.user_remark || line.reference_name || '—'}</td>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {accountRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-10 text-center text-gray-400">No account lines found.</td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  accountRows.map((line, index) => (
+                    <tr key={`${line.account || 'account'}-${index}`} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-3 text-sm font-medium text-gray-900">{line.account || '—'}</td>
+                      <td className="px-6 py-3 text-sm text-gray-600">{line.party || '—'}</td>
+                      <td className="px-6 py-3 text-right text-sm text-gray-900">{formatCurrency(line.debit_in_account_currency || line.debit)}</td>
+                      <td className="px-6 py-3 text-right text-sm text-gray-900">{formatCurrency(line.credit_in_account_currency || line.credit)}</td>
+                      <td className="px-6 py-3 text-sm text-gray-500">{line.user_remark || line.reference_name || '—'}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {/* Mobile cards */}
+        <div className="md:hidden divide-y divide-gray-100">
+          {accountRows.length === 0 ? (
+            <p className="px-4 py-8 text-center text-sm text-gray-400">No account lines found.</p>
+          ) : (
+            accountRows.map((line, index) => (
+              <div key={`m-${line.account || index}`} className="px-4 py-3">
+                <p className="text-sm font-medium text-gray-900 truncate">{line.account || '—'}</p>
+                {line.party && <p className="text-xs text-gray-500 truncate">{line.party}</p>}
+                <div className="flex gap-4 mt-1 text-xs">
+                  <span className="text-green-700">Dr: {formatCurrency(line.debit_in_account_currency || line.debit)}</span>
+                  <span className="text-red-600">Cr: {formatCurrency(line.credit_in_account_currency || line.credit)}</span>
+                </div>
+                {(line.user_remark || line.reference_name) && (
+                  <p className="text-[10px] text-gray-400 mt-0.5 truncate">{line.user_remark || line.reference_name}</p>
+                )}
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>

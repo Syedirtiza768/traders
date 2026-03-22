@@ -49,10 +49,10 @@ export default function ReportsPage() {
   const categoryReports = getReportsByCategory(activeCategory);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Page Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Reports</h1>
+        <h1 className="page-title">Reports</h1>
         <p className="text-gray-500 mt-1">Business intelligence and analytics</p>
       </div>
 

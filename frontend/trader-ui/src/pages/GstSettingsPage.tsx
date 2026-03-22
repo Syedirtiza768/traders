@@ -104,21 +104,21 @@ export default function GstSettingsPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div><h1 className="text-2xl font-bold text-gray-900">GST Settings</h1></div>
+      <div className="space-y-4 sm:space-y-6">
+        <div><h1 className="page-title">GST Settings</h1></div>
         <div className="flex items-center justify-center h-64"><div className="spinner" /></div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <button onClick={() => navigate('/settings')} className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
             <ArrowLeft size={16} /> Back to Settings
           </button>
-          <h1 className="text-2xl font-bold text-gray-900">GST Settings</h1>
+          <h1 className="page-title">GST Settings</h1>
           <p className="mt-1 text-gray-500">Configure General Sales Tax (GST) rules for Pakistan. Default: Punjab province.</p>
         </div>
         <button onClick={handleSave} disabled={saving} className="btn-primary flex items-center gap-2 disabled:opacity-60">
@@ -232,35 +232,55 @@ export default function GstSettingsPage() {
             <h2 className="text-lg font-semibold text-gray-900">Sales Tax Templates</h2>
             <p className="text-sm text-gray-500">Tax templates available for Quotations, Sales Orders, and Invoices</p>
           </div>
-          <div className="table-container">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gray-50">
-                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Template</th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Rate</th>
-                  <th className="px-6 py-3 text-center text-xs font-semibold uppercase text-gray-500">Default</th>
-                  <th className="px-6 py-3 text-center text-xs font-semibold uppercase text-gray-500">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {salesTemplates.map((tmpl) => (
-                  <tr key={tmpl.name} className="hover:bg-gray-50">
-                    <td className="px-6 py-3 text-sm font-medium text-gray-900">{tmpl.title || tmpl.name}</td>
-                    <td className="px-6 py-3 text-right text-sm text-gray-700">
-                      {tmpl.taxes && tmpl.taxes.length > 0 ? `${tmpl.taxes[0].rate}%` : '—'}
-                    </td>
-                    <td className="px-6 py-3 text-center">
-                      {tmpl.is_default ? <Check size={16} className="inline text-green-600" /> : <span className="text-gray-300">—</span>}
-                    </td>
-                    <td className="px-6 py-3 text-center">
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${tmpl.disabled ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-                        {tmpl.disabled ? 'Disabled' : 'Active'}
-                      </span>
-                    </td>
+          {/* Desktop table */}
+          <div className="hidden md:block">
+            <div className="table-container">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Template</th>
+                    <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Rate</th>
+                    <th className="px-6 py-3 text-center text-xs font-semibold uppercase text-gray-500">Default</th>
+                    <th className="px-6 py-3 text-center text-xs font-semibold uppercase text-gray-500">Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {salesTemplates.map((tmpl) => (
+                    <tr key={tmpl.name} className="hover:bg-gray-50">
+                      <td className="px-6 py-3 text-sm font-medium text-gray-900">{tmpl.title || tmpl.name}</td>
+                      <td className="px-6 py-3 text-right text-sm text-gray-700">
+                        {tmpl.taxes && tmpl.taxes.length > 0 ? `${tmpl.taxes[0].rate}%` : '—'}
+                      </td>
+                      <td className="px-6 py-3 text-center">
+                        {tmpl.is_default ? <Check size={16} className="inline text-green-600" /> : <span className="text-gray-300">—</span>}
+                      </td>
+                      <td className="px-6 py-3 text-center">
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${tmpl.disabled ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                          {tmpl.disabled ? 'Disabled' : 'Active'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          {/* Mobile cards */}
+          <div className="md:hidden divide-y divide-gray-100">
+            {salesTemplates.map((tmpl) => (
+              <div key={`m-${tmpl.name}`} className="px-4 py-3">
+                <div className="flex justify-between items-start gap-2">
+                  <p className="text-sm font-medium text-gray-900 truncate">{tmpl.title || tmpl.name}</p>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium whitespace-nowrap ${tmpl.disabled ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                    {tmpl.disabled ? 'Disabled' : 'Active'}
+                  </span>
+                </div>
+                <div className="flex gap-3 mt-1 text-xs text-gray-500">
+                  <span>Rate: {tmpl.taxes && tmpl.taxes.length > 0 ? `${tmpl.taxes[0].rate}%` : '—'}</span>
+                  {tmpl.is_default && <span className="text-green-600 font-medium">Default</span>}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

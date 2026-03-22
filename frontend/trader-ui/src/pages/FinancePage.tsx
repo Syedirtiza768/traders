@@ -60,10 +60,10 @@ export default function FinancePage() {
   const cashFlowData = cashFlow?.monthly || [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Finance</h1>
+          <h1 className="page-title">Finance</h1>
           <p className="text-gray-500 mt-1">Financial overview and key metrics</p>
         </div>
         <div className="flex gap-2">
@@ -77,7 +77,7 @@ export default function FinancePage() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         <div className="card p-5">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-green-50 rounded-lg"><DollarSign className="w-5 h-5 text-green-600" /></div>

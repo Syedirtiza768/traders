@@ -53,14 +53,14 @@ export default function WarehouseStockPage() {
   }), [rows]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <button onClick={() => navigate('/inventory')} className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
             <ArrowLeft className="w-4 h-4" />
             Back to Inventory
           </button>
-          <h1 className="text-2xl font-bold text-gray-900">{warehouse?.warehouse_name || decodedWarehouseId}</h1>
+          <h1 className="page-title">{warehouse?.warehouse_name || decodedWarehouseId}</h1>
           <p className="mt-1 text-gray-500">Warehouse stock view using the filtered stock balance endpoint</p>
         </div>
         <span className="rounded-full bg-purple-50 px-3 py-1 text-sm font-medium text-purple-700">
@@ -81,7 +81,9 @@ export default function WarehouseStockPage() {
           <h2 className="text-lg font-semibold text-gray-900">Warehouse Stock</h2>
           <p className="text-sm text-gray-500">Item-level stock currently held in this warehouse</p>
         </div>
-        <div className="table-container">
+
+        {/* Desktop table */}
+        <div className="hidden md:block table-container">
           <table className="w-full">
             <thead>
               <tr className="bg-gray-50">
@@ -110,6 +112,29 @@ export default function WarehouseStockPage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile card list */}
+        <div className="md:hidden divide-y divide-gray-100">
+          {loading ? (
+            <div className="flex items-center justify-center py-12"><div className="spinner" /></div>
+          ) : rows.length === 0 ? (
+            <p className="px-4 py-12 text-center text-sm text-gray-400">No stock rows found for this warehouse.</p>
+          ) : (
+            rows.map((row) => (
+              <div key={row.item_code} className="p-4 space-y-1">
+                <p className="text-sm font-medium text-brand-700">{row.item_code}</p>
+                <p className="text-sm text-gray-700 truncate">{row.item_name}</p>
+                <div className="flex items-center justify-between text-xs text-gray-500 pt-1">
+                  <span>{row.item_group}</span>
+                  <span className="font-medium text-gray-900">Qty: {Number(row.actual_qty || 0).toLocaleString()}</span>
+                </div>
+                <div className="flex items-center justify-end">
+                  <span className="text-sm font-semibold text-gray-900">{formatCurrency(row.stock_value)}</span>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 

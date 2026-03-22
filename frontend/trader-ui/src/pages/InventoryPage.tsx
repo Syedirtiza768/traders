@@ -68,13 +68,13 @@ export default function InventoryPage() {
   const totalPages = Math.ceil(total / pageSize);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Inventory</h1>
-          <p className="text-gray-500 mt-1">Stock levels, items, and warehouse management</p>
+          <h1 className="page-title">Inventory</h1>
+          <p className="text-gray-500 mt-1 text-sm">Stock levels, items, and warehouse management</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <button onClick={() => navigate('/inventory/warehouse')} className="btn-secondary flex items-center gap-1.5 text-sm">
             <Warehouse className="w-4 h-4" /> Warehouse
           </button>
@@ -88,40 +88,40 @@ export default function InventoryPage() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="card p-5">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-50 rounded-lg"><Package className="w-5 h-5 text-blue-600" /></div>
-            <div>
-              <p className="text-xs text-gray-500">Total Items</p>
-              <p className="text-lg font-bold text-gray-900">{summary?.total_items?.toLocaleString() ?? '—'}</p>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="card p-4 sm:p-5">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="p-1.5 sm:p-2 bg-blue-50 rounded-lg"><Package className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" /></div>
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-xs text-gray-500">Total Items</p>
+              <p className="text-sm sm:text-lg font-bold text-gray-900">{summary?.total_items?.toLocaleString() ?? '—'}</p>
             </div>
           </div>
         </div>
-        <div className="card p-5">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-green-50 rounded-lg"><DollarSign className="w-5 h-5 text-green-600" /></div>
-            <div>
-              <p className="text-xs text-gray-500">Stock Value</p>
-              <p className="text-lg font-bold text-gray-900">{formatCompact(summary?.total_value)}</p>
+        <div className="card p-4 sm:p-5">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="p-1.5 sm:p-2 bg-green-50 rounded-lg"><DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" /></div>
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-xs text-gray-500">Stock Value</p>
+              <p className="text-sm sm:text-lg font-bold text-gray-900">{formatCompact(summary?.total_value)}</p>
             </div>
           </div>
         </div>
-        <div className="card p-5">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-purple-50 rounded-lg"><Warehouse className="w-5 h-5 text-purple-600" /></div>
-            <div>
-              <p className="text-xs text-gray-500">Item Groups</p>
-              <p className="text-lg font-bold text-gray-900">{summary?.by_group?.length ?? '—'}</p>
+        <div className="card p-4 sm:p-5">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="p-1.5 sm:p-2 bg-purple-50 rounded-lg"><Warehouse className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" /></div>
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-xs text-gray-500">Item Groups</p>
+              <p className="text-sm sm:text-lg font-bold text-gray-900">{summary?.by_group?.length ?? '—'}</p>
             </div>
           </div>
         </div>
-        <div className="card p-5">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-red-50 rounded-lg"><AlertTriangle className="w-5 h-5 text-red-600" /></div>
-            <div>
-              <p className="text-xs text-gray-500">Low Stock</p>
-              <p className="text-lg font-bold text-red-700">{summary?.low_stock_count ?? '—'}</p>
+        <div className="card p-4 sm:p-5">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="p-1.5 sm:p-2 bg-red-50 rounded-lg"><AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" /></div>
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-xs text-gray-500">Low Stock</p>
+              <p className="text-sm sm:text-lg font-bold text-red-700">{summary?.low_stock_count ?? '—'}</p>
             </div>
           </div>
         </div>
@@ -129,13 +129,13 @@ export default function InventoryPage() {
 
       {/* Stock by group chart */}
       {summary?.by_group && summary.by_group.length > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="card p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Stock Value by Group</h3>
-            <ResponsiveContainer width="100%" height={250}>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+          <div className="card p-4 sm:p-6">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">Stock Value by Group</h3>
+            <ResponsiveContainer width="100%" height={220}>
               <PieChart>
-                <Pie data={summary.by_group} dataKey="stock_value" nameKey="item_group" cx="50%" cy="50%" outerRadius={90}
-                     label={({ name, percent }: any) => `${(name || '').slice(0, 12)} (${(percent * 100).toFixed(0)}%)`}>
+                <Pie data={summary.by_group} dataKey="stock_value" nameKey="item_group" cx="50%" cy="50%" outerRadius={75}
+                     label={({ name, percent }: any) => `${(name || '').slice(0, 10)} (${(percent * 100).toFixed(0)}%)`}>
                   {summary.by_group.map((_: any, i: number) => (
                     <Cell key={i} fill={COLORS[i % COLORS.length]} />
                   ))}
@@ -144,9 +144,9 @@ export default function InventoryPage() {
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <div className="card p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Items per Group</h3>
-            <ResponsiveContainer width="100%" height={250}>
+          <div className="card p-4 sm:p-6">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">Items per Group</h3>
+            <ResponsiveContainer width="100%" height={220}>
               <BarChart data={summary.by_group}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="item_group" tick={{ fontSize: 11 }} />
@@ -161,12 +161,12 @@ export default function InventoryPage() {
 
       {/* Tabs + Search */}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-        <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
+        <div className="flex gap-1 bg-gray-100 p-1 rounded-lg overflow-x-auto scrollbar-hide w-full sm:w-auto">
           {TABS.map((t) => (
             <button
               key={t}
               onClick={() => { setActiveTab(t); setPage(1); setSearch(''); }}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
                 activeTab === t ? 'bg-white shadow text-brand-700' : 'text-gray-600 hover:text-gray-900'
               }`}
             >
@@ -183,8 +183,8 @@ export default function InventoryPage() {
         )}
       </div>
 
-      {/* Table */}
-      <div className="table-container">
+      {/* Desktop Table */}
+      <div className="hidden md:block table-container">
         <table className="w-full">
           <thead>
             <tr className="bg-gray-50">
@@ -279,15 +279,84 @@ export default function InventoryPage() {
         </table>
       </div>
 
+      {/* Mobile Card List */}
+      <div className="md:hidden card divide-y divide-gray-100">
+        {loading ? (
+          <div className="px-4 py-12 text-center text-gray-400"><div className="spinner mx-auto" /></div>
+        ) : data.length === 0 ? (
+          <div className="px-4 py-12 text-center text-gray-400 text-sm">No data found.</div>
+        ) : (
+          data.map((row, idx) => (
+            <div key={idx} className={`px-4 py-3 space-y-1 ${(activeTab === 'Items' || activeTab === 'Stock Balance') ? 'active:bg-gray-50' : ''}`}
+                 onClick={() => { if ((activeTab === 'Items' || activeTab === 'Stock Balance') && row.item_code) navigate(`/inventory/items/${encodeURIComponent(row.item_code)}`); }}>
+              {activeTab === 'Stock Balance' && (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-brand-700 truncate">{row.item_code}</span>
+                    <span className="text-xs font-medium text-gray-900 shrink-0 ml-2">{formatCurrency(row.stock_value)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-500 truncate">{row.item_name}</span>
+                    <span className="text-gray-500 shrink-0">Qty: {row.actual_qty?.toLocaleString()}</span>
+                  </div>
+                  <div className="text-[10px] text-gray-400">{row.item_group}</div>
+                </>
+              )}
+              {activeTab === 'Items' && (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-brand-700 truncate">{row.item_code}</span>
+                    <span className="text-[10px] text-gray-400 shrink-0 ml-2">{row.stock_uom}</span>
+                  </div>
+                  <div className="text-xs text-gray-500 truncate">{row.item_name}</div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-400">{row.item_group}</span>
+                    <div className="flex gap-3">
+                      <span className="text-green-700">{formatCurrency(row.selling_price)}</span>
+                      <span className="text-gray-500">{formatCurrency(row.buying_price)}</span>
+                    </div>
+                  </div>
+                </>
+              )}
+              {activeTab === 'Warehouses' && (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-brand-700 truncate">{row.warehouse_name || row.warehouse}</span>
+                    <span className="text-xs font-medium text-gray-900 shrink-0 ml-2">{formatCurrency(row.stock_value)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-500">{row.warehouse_type || '—'}</span>
+                    <span className="text-gray-500">{row.item_count} items · Qty: {row.total_qty?.toLocaleString()}</span>
+                  </div>
+                </>
+              )}
+              {activeTab === 'Low Stock' && (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-brand-700 truncate">{row.item_code}</span>
+                    <span className="text-xs font-medium text-red-600 shrink-0 ml-2">Qty: {row.actual_qty}</span>
+                  </div>
+                  <div className="text-xs text-gray-500 truncate">{row.item_name}</div>
+                  <div className="flex items-center justify-between text-[10px] text-gray-400">
+                    <span>{row.item_group}</span>
+                    <span>{row.warehouse}</span>
+                  </div>
+                </>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-gray-500">
+        <div className="flex items-center justify-between text-xs sm:text-sm text-gray-500">
           <span>Showing {((page - 1) * pageSize) + 1}–{Math.min(page * pageSize, total)} of {total}</span>
           <div className="flex gap-1">
-            <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1} className="btn-secondary px-2 py-1 text-xs">
+            <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1} className="btn-secondary px-2 py-1 text-xs" aria-label="Previous page">
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <button onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page === totalPages} className="btn-secondary px-2 py-1 text-xs">
+            <button onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page === totalPages} className="btn-secondary px-2 py-1 text-xs" aria-label="Next page">
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>

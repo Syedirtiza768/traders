@@ -81,13 +81,13 @@ export default function EditSupplierPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex items-center justify-between gap-4">
         <div>
           <button onClick={() => navigate(`/suppliers/${encodeURIComponent(supplierId || '')}`)} className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
             <ArrowLeft size={16} /> Back to Supplier
           </button>
-          <h1 className="text-2xl font-bold text-gray-900">Edit Supplier</h1>
+          <h1 className="page-title">Edit Supplier</h1>
           <p className="mt-1 text-gray-500">Update supplier record for <strong>{form.supplier_name || supplierId}</strong></p>
         </div>
         <button onClick={handleSave} disabled={saving} className="btn-primary flex items-center gap-2 disabled:opacity-60">

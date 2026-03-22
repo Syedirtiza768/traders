@@ -67,14 +67,14 @@ export default function InventoryItemDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <button onClick={() => navigate('/inventory')} className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
             <ArrowLeft className="w-4 h-4" />
             Back to Inventory
           </button>
-          <h1 className="text-2xl font-bold text-gray-900">{heading || 'Item Detail'}</h1>
+          <h1 className="page-title">{heading || 'Item Detail'}</h1>
           <p className="mt-1 text-gray-500">Inventory item overview from the {state?.sourceTab || 'inventory'} view</p>
         </div>
         <span className="rounded-full bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700">

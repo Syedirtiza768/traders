@@ -90,13 +90,13 @@ export default function QuotationsPage() {
   const openValue = quotations.reduce((sum, row) => sum + (row.grand_total || 0), 0);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Quotations</h1>
-          <p className="mt-1 text-gray-500">Track customer quotations before they convert into sales orders and invoices.</p>
+          <h1 className="page-title">Quotations</h1>
+          <p className="mt-1 text-gray-500 text-sm">Track customer quotations before they convert into sales orders and invoices.</p>
         </div>
-        <button onClick={() => navigate('/sales/quotations/new')} className="btn-primary inline-flex items-center gap-2">
+        <button onClick={() => navigate('/sales/quotations/new')} className="btn-primary inline-flex items-center gap-2 self-start">
           <Plus className="w-4 h-4" />
           New Quotation
         </button>
@@ -110,14 +110,14 @@ export default function QuotationsPage() {
         />
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
         <StatCard icon={FileText} label="Total Quotations" value={total.toLocaleString()} color="blue" />
         <StatCard icon={TrendingUp} label="Visible Pipeline" value={formatCompact(openValue)} color="green" />
         <StatCard icon={FileText} label="Draft Quotations" value={draftCount.toLocaleString()} color="amber" />
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex gap-1 rounded-lg bg-gray-100 p-1">
+        <div className="flex gap-1 rounded-lg bg-gray-100 p-1 overflow-x-auto scrollbar-hide w-full sm:w-auto">
           {STATUS_TABS.map((entry) => (
             <button
               key={entry}
@@ -145,7 +145,8 @@ export default function QuotationsPage() {
         </div>
       </div>
 
-      <div className="table-container">
+      {/* Desktop Table */}
+      <div className="hidden md:block table-container">
         <table className="w-full">
           <thead>
             <tr className="bg-gray-50">
@@ -231,8 +232,33 @@ export default function QuotationsPage() {
         </table>
       </div>
 
+      {/* Mobile Card List */}
+      <div className="md:hidden card divide-y divide-gray-100">
+        {loading ? (
+          <div className="px-4 py-12 text-center text-gray-400"><div className="spinner mx-auto" /></div>
+        ) : filteredQuotations.length === 0 ? (
+          <div className="px-4 py-12 text-center text-gray-400 text-sm">No quotations found.</div>
+        ) : (
+          filteredQuotations.map((quote) => (
+            <div key={quote.name} className="px-4 py-3 space-y-1.5 active:bg-gray-50" onClick={() => navigate(buildDetailPath(quote.name))}>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-brand-700">{quote.name}</span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${getStatusColor(quote.status)}`}>
+                  {quote.status || (quote.docstatus === 0 ? 'Draft' : 'Open')}
+                </span>
+              </div>
+              <div className="text-xs text-gray-500 truncate">{quote.customer_name || quote.customer || '—'}</div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-400">{formatDate(quote.transaction_date)}</span>
+                <span className="font-medium text-gray-900">{formatCurrency(quote.grand_total)}</span>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
       {totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-gray-500">
+        <div className="flex items-center justify-between text-xs sm:text-sm text-gray-500">
           <span>Showing {((page - 1) * PAGE_SIZE) + 1}–{Math.min(page * PAGE_SIZE, total)} of {total}</span>
           <div className="flex gap-1">
             <button onClick={() => updateSearchParams({ page: page > 2 ? String(page - 1) : null })} disabled={page === 1} className="btn-secondary px-2 py-1 text-xs">
@@ -256,12 +282,12 @@ function StatCard({ icon: Icon, label, value, color }: { icon: any; label: strin
   }[color];
 
   return (
-    <div className="card p-5">
-      <div className="flex items-center gap-3">
-        <div className={`rounded-lg p-2 ${tone.bg}`}><Icon className={`h-5 w-5 ${tone.fg}`} /></div>
-        <div>
-          <p className="text-xs text-gray-500">{label}</p>
-          <p className="text-lg font-bold text-gray-900">{value}</p>
+    <div className="card p-4 sm:p-5">
+      <div className="flex items-center gap-2 sm:gap-3">
+        <div className={`rounded-lg p-1.5 sm:p-2 ${tone.bg}`}><Icon className={`h-4 w-4 sm:h-5 sm:w-5 ${tone.fg}`} /></div>
+        <div className="min-w-0">
+          <p className="text-[10px] sm:text-xs text-gray-500 truncate">{label}</p>
+          <p className="text-sm sm:text-lg font-bold text-gray-900">{value}</p>
         </div>
       </div>
     </div>

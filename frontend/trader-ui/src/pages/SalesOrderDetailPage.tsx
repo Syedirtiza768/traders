@@ -139,13 +139,13 @@ export default function SalesOrderDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <button onClick={() => navigate(backToListPath)} className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
             <ArrowLeft className="h-4 w-4" /> {backLabel}
           </button>
-          <h1 className="text-2xl font-bold text-gray-900">{order.name}</h1>
+          <h1 className="page-title">{order.name}</h1>
           <p className="mt-1 text-gray-500">Sales order detail and fulfillment context</p>
         </div>
         <div className="flex flex-col items-start gap-3 sm:items-end">
@@ -288,35 +288,60 @@ export default function SalesOrderDetailPage() {
           <h2 className="text-lg font-semibold text-gray-900">Order Items</h2>
           <p className="text-sm text-gray-500">Line items captured on this sales order</p>
         </div>
-        <div className="table-container">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Item</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Description</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Qty</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Rate</th>
-                <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Amount</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {itemRows.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-10 text-center text-gray-400">No sales order items found.</td>
+        {/* Desktop table */}
+        <div className="hidden md:block">
+          <div className="table-container">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Item</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Description</th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Qty</th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Rate</th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Amount</th>
                 </tr>
-              ) : (
-                itemRows.map((item, index) => (
-                  <tr key={`${item.item_code || item.item_name || 'item'}-${index}`} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-3 text-sm font-medium text-gray-900">{item.item_code || '—'}</td>
-                    <td className="px-6 py-3 text-sm text-gray-600">{item.description || item.item_name || '—'}</td>
-                    <td className="px-6 py-3 text-right text-sm text-gray-900">{item.qty ?? 0}</td>
-                    <td className="px-6 py-3 text-right text-sm text-gray-900">{formatCurrency(item.rate, order.currency)}</td>
-                    <td className="px-6 py-3 text-right text-sm font-medium text-gray-900">{formatCurrency(item.amount, order.currency)}</td>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {itemRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-10 text-center text-gray-400">No sales order items found.</td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  itemRows.map((item, index) => (
+                    <tr key={`${item.item_code || item.item_name || 'item'}-${index}`} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-3 text-sm font-medium text-gray-900">{item.item_code || '—'}</td>
+                      <td className="px-6 py-3 text-sm text-gray-600">{item.description || item.item_name || '—'}</td>
+                      <td className="px-6 py-3 text-right text-sm text-gray-900">{item.qty ?? 0}</td>
+                      <td className="px-6 py-3 text-right text-sm text-gray-900">{formatCurrency(item.rate, order.currency)}</td>
+                      <td className="px-6 py-3 text-right text-sm font-medium text-gray-900">{formatCurrency(item.amount, order.currency)}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {/* Mobile cards */}
+        <div className="md:hidden divide-y divide-gray-100">
+          {itemRows.length === 0 ? (
+            <p className="px-4 py-8 text-center text-sm text-gray-400">No sales order items found.</p>
+          ) : (
+            itemRows.map((item, index) => (
+              <div key={`m-${item.item_code || index}`} className="px-4 py-3">
+                <div className="flex justify-between items-start gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{item.item_code || '—'}</p>
+                    <p className="text-xs text-gray-500 truncate">{item.description || item.item_name || '—'}</p>
+                  </div>
+                  <p className="text-sm font-semibold text-gray-900 whitespace-nowrap">{formatCurrency(item.amount, order.currency)}</p>
+                </div>
+                <div className="flex gap-4 mt-1 text-xs text-gray-500">
+                  <span>Qty: {item.qty ?? 0}</span>
+                  <span>Rate: {formatCurrency(item.rate, order.currency)}</span>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 

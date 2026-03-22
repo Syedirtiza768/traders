@@ -52,34 +52,34 @@ export default function SuppliersPage() {
   const totalPayable = suppliers.reduce((s, c) => s + (c.outstanding_amount || 0), 0);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Suppliers</h1>
-          <p className="text-gray-500 mt-1">Manage your supplier base</p>
+          <h1 className="page-title">Suppliers</h1>
+          <p className="text-gray-500 mt-1 text-sm">Manage your supplier base</p>
         </div>
-        <button onClick={() => navigate('/suppliers/new')} className="btn-primary flex items-center gap-2">
+        <button onClick={() => navigate('/suppliers/new')} className="btn-primary flex items-center gap-2 self-start">
           <Plus className="w-4 h-4" /> New Supplier
         </button>
       </div>
 
       {/* KPI */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="card p-5 flex items-center gap-3">
-          <div className="p-2 bg-blue-50 rounded-lg"><Truck className="w-5 h-5 text-blue-600" /></div>
-          <div><p className="text-xs text-gray-500">Total Suppliers</p><p className="text-lg font-bold">{total}</p></div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="card p-4 sm:p-5 flex items-center gap-2 sm:gap-3">
+          <div className="p-1.5 sm:p-2 bg-blue-50 rounded-lg"><Truck className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" /></div>
+          <div className="min-w-0"><p className="text-[10px] sm:text-xs text-gray-500">Total Suppliers</p><p className="text-sm sm:text-lg font-bold">{total}</p></div>
         </div>
-        <div className="card p-5 flex items-center gap-3">
-          <div className="p-2 bg-green-50 rounded-lg"><DollarSign className="w-5 h-5 text-green-600" /></div>
-          <div><p className="text-xs text-gray-500">Total Purchases</p><p className="text-lg font-bold">{formatCompact(totalPurchases)}</p></div>
+        <div className="card p-4 sm:p-5 flex items-center gap-2 sm:gap-3">
+          <div className="p-1.5 sm:p-2 bg-green-50 rounded-lg"><DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" /></div>
+          <div className="min-w-0"><p className="text-[10px] sm:text-xs text-gray-500">Total Purchases</p><p className="text-sm sm:text-lg font-bold">{formatCompact(totalPurchases)}</p></div>
         </div>
-        <div className="card p-5 flex items-center gap-3">
-          <div className="p-2 bg-red-50 rounded-lg"><CreditCard className="w-5 h-5 text-red-600" /></div>
-          <div><p className="text-xs text-gray-500">Total Payable</p><p className="text-lg font-bold text-red-700">{formatCompact(totalPayable)}</p></div>
+        <div className="card p-4 sm:p-5 flex items-center gap-2 sm:gap-3">
+          <div className="p-1.5 sm:p-2 bg-red-50 rounded-lg"><CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" /></div>
+          <div className="min-w-0"><p className="text-[10px] sm:text-xs text-gray-500">Total Payable</p><p className="text-sm sm:text-lg font-bold text-red-700">{formatCompact(totalPayable)}</p></div>
         </div>
-        <div className="card p-5 flex items-center gap-3">
-          <div className="p-2 bg-purple-50 rounded-lg"><Package className="w-5 h-5 text-purple-600" /></div>
-          <div><p className="text-xs text-gray-500">Supplier Groups</p><p className="text-lg font-bold">{groups.length}</p></div>
+        <div className="card p-4 sm:p-5 flex items-center gap-2 sm:gap-3">
+          <div className="p-1.5 sm:p-2 bg-purple-50 rounded-lg"><Package className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" /></div>
+          <div className="min-w-0"><p className="text-[10px] sm:text-xs text-gray-500">Supplier Groups</p><p className="text-sm sm:text-lg font-bold">{groups.length}</p></div>
         </div>
       </div>
 
@@ -100,8 +100,8 @@ export default function SuppliersPage() {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="table-container">
+      {/* Desktop Table */}
+      <div className="hidden md:block table-container">
         <table className="w-full">
           <thead>
             <tr className="bg-gray-50">
@@ -139,8 +139,33 @@ export default function SuppliersPage() {
         </table>
       </div>
 
+      {/* Mobile Card List */}
+      <div className="md:hidden card divide-y divide-gray-100">
+        {loading ? (
+          <div className="px-4 py-12 text-center text-gray-400"><div className="spinner mx-auto" /></div>
+        ) : suppliers.length === 0 ? (
+          <div className="px-4 py-12 text-center text-gray-400 text-sm">No suppliers found.</div>
+        ) : (
+          suppliers.map((s) => (
+            <div key={s.name} className="px-4 py-3 space-y-1 active:bg-gray-50" onClick={() => navigate(`/suppliers/${encodeURIComponent(s.name)}`)}>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-brand-700 truncate">{s.supplier_name || s.name}</span>
+                <span className="text-[10px] text-gray-400 shrink-0 ml-2">{s.supplier_group || ''}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-500 truncate">{s.mobile_no || s.email_id || '—'}</span>
+                <div className="flex gap-3 shrink-0">
+                  <span className="font-medium text-green-700">{formatCurrency(s.total_purchases)}</span>
+                  {s.outstanding_amount > 0 && <span className="font-medium text-red-600">{formatCurrency(s.outstanding_amount)}</span>}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
       {totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-gray-500">
+        <div className="flex items-center justify-between text-xs sm:text-sm text-gray-500">
           <span>Showing {((page - 1) * pageSize) + 1}–{Math.min(page * pageSize, total)} of {total}</span>
           <div className="flex gap-1">
             <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1} className="btn-secondary px-2 py-1 text-xs">

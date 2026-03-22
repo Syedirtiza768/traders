@@ -116,11 +116,11 @@ export default function CreateSupplierQuotationPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex items-center justify-between gap-4">
         <div>
           <button onClick={() => navigate(backToPath)} className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800"><ArrowLeft size={16} /> {backLabel}</button>
-          <h1 className="text-2xl font-bold text-gray-900">New Supplier Quotation</h1>
+          <h1 className="page-title">New Supplier Quotation</h1>
           <p className="mt-1 text-gray-500">Create an RFQ draft from a requisition or directly for a supplier.</p>
         </div>
         <button onClick={handleSubmit} disabled={saving || loading} className="btn-primary flex items-center gap-2 disabled:opacity-60"><Save size={14} /> {saving ? 'Creating…' : 'Create Draft'}</button>

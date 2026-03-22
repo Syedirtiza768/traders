@@ -91,10 +91,10 @@ export default function PurchaseOrdersPage() {
   const visibleValue = orders.reduce((sum, row) => sum + (row.grand_total || 0), 0);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Purchase Orders</h1>
-        <p className="mt-1 text-gray-500">Manage supplier commitments before receipt, billing, and payment.</p>
+        <h1 className="page-title">Purchase Orders</h1>
+        <p className="mt-1 text-gray-500 text-sm">Manage supplier commitments before receipt, billing, and payment.</p>
       </div>
 
       {workflow === 'unpaid-invoices' && (
@@ -119,14 +119,14 @@ export default function PurchaseOrdersPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
         <StatCard icon={ShoppingCart} label="Total Orders" value={total.toLocaleString()} color="blue" />
         <StatCard icon={TrendingDown} label="Visible Order Value" value={formatCompact(visibleValue)} color="green" />
         <StatCard icon={FileText} label="Draft Orders" value={draftOrders.toLocaleString()} color="amber" />
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex gap-1 overflow-x-auto rounded-lg bg-gray-100 p-1">
+        <div className="flex gap-1 overflow-x-auto scrollbar-hide rounded-lg bg-gray-100 p-1 w-full sm:w-auto">
           {STATUS_TABS.map((entry) => (
             <button
               key={entry}
@@ -148,7 +148,8 @@ export default function PurchaseOrdersPage() {
         </div>
       </div>
 
-      <div className="table-container">
+      {/* Desktop Table */}
+      <div className="hidden md:block table-container">
         <table className="w-full">
           <thead>
             <tr className="bg-gray-50">
@@ -228,8 +229,33 @@ export default function PurchaseOrdersPage() {
         </table>
       </div>
 
+      {/* Mobile Card List */}
+      <div className="md:hidden card divide-y divide-gray-100">
+        {loading ? (
+          <div className="px-4 py-12 text-center text-gray-400"><div className="spinner mx-auto" /></div>
+        ) : filteredOrders.length === 0 ? (
+          <div className="px-4 py-12 text-center text-gray-400 text-sm">No purchase orders found.</div>
+        ) : (
+          filteredOrders.map((order) => (
+            <div key={order.name} className="px-4 py-3 space-y-1.5 active:bg-gray-50" onClick={() => navigate(buildDetailPath(order.name))}>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-brand-700">{order.name}</span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${getStatusColor(order.status)}`}>
+                  {order.status || (order.docstatus === 0 ? 'Draft' : 'Submitted')}
+                </span>
+              </div>
+              <div className="text-xs text-gray-500 truncate">{order.supplier_name || order.supplier || '—'}</div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-400">{formatDate(order.transaction_date)}</span>
+                <span className="font-medium text-gray-900">{formatCurrency(order.grand_total, order.currency)}</span>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
       {totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-gray-500">
+        <div className="flex items-center justify-between text-xs sm:text-sm text-gray-500">
           <span>Showing {((page - 1) * PAGE_SIZE) + 1}–{Math.min(page * PAGE_SIZE, total)} of {total}</span>
           <div className="flex gap-1">
             <button onClick={() => updateSearchParams({ page: page > 2 ? String(page - 1) : null })} disabled={page === 1} className="btn-secondary px-2 py-1 text-xs">
@@ -253,12 +279,12 @@ function StatCard({ icon: Icon, label, value, color }: { icon: any; label: strin
   }[color];
 
   return (
-    <div className="card p-5">
-      <div className="flex items-center gap-3">
-        <div className={`rounded-lg p-2 ${tone.bg}`}><Icon className={`h-5 w-5 ${tone.fg}`} /></div>
-        <div>
-          <p className="text-xs text-gray-500">{label}</p>
-          <p className="text-lg font-bold text-gray-900">{value}</p>
+    <div className="card p-4 sm:p-5">
+      <div className="flex items-center gap-2 sm:gap-3">
+        <div className={`rounded-lg p-1.5 sm:p-2 ${tone.bg}`}><Icon className={`h-4 w-4 sm:h-5 sm:w-5 ${tone.fg}`} /></div>
+        <div className="min-w-0">
+          <p className="text-[10px] sm:text-xs text-gray-500 truncate">{label}</p>
+          <p className="text-sm sm:text-lg font-bold text-gray-900">{value}</p>
         </div>
       </div>
     </div>

@@ -49,9 +49,9 @@ export default function SupplierQuotationsPage() {
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Supplier Quotations</h1>
+        <h1 className="page-title">Supplier Quotations</h1>
         <p className="mt-1 text-gray-500">Review RFQs and quoted supplier responses before issuing purchase orders.</p>
       </div>
 
@@ -74,35 +74,60 @@ export default function SupplierQuotationsPage() {
         <div className="relative w-full sm:w-72"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" /><input type="text" placeholder="Search RFQs..." defaultValue={search} onChange={(e) => debouncedSearch(e.target.value)} className="input-field pl-9" /></div>
       </div>
 
-      <div className="table-container">
-        <table className="w-full">
-          <thead>
-            <tr className="bg-gray-50">
-              <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">RFQ</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Supplier</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Date</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Valid Till</th>
-              <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Amount</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {loading ? (
-              <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-400"><div className="spinner mx-auto" /></td></tr>
-            ) : rows.length === 0 ? (
-              <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-400">No supplier quotations found.</td></tr>
-            ) : rows.map((row) => (
-              <tr key={row.name} className="cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => navigate(appendPreservedListQuery(`/purchases/rfqs/${encodeURIComponent(row.name)}`, listSearch))}>
-                <td className="px-6 py-3 text-sm font-medium text-brand-700">{row.name}</td>
-                <td className="px-6 py-3 text-sm text-gray-700">{row.supplier_name || row.supplier || '—'}</td>
-                <td className="px-6 py-3 text-sm text-gray-500">{formatDate(row.transaction_date)}</td>
-                <td className="px-6 py-3 text-sm text-gray-500">{formatDate(row.valid_till)}</td>
-                <td className="px-6 py-3 text-right text-sm font-medium text-gray-900">{formatCurrency(row.grand_total, row.currency)}</td>
-                <td className="px-6 py-3"><span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(row.status || (row.docstatus === 0 ? 'Draft' : 'Open'))}`}>{row.status || (row.docstatus === 0 ? 'Draft' : 'Open')}</span></td>
+      {/* Desktop table */}
+      <div className="hidden md:block">
+        <div className="table-container">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-gray-50">
+                <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">RFQ</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Supplier</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Date</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Valid Till</th>
+                <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Amount</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Status</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {loading ? (
+                <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-400"><div className="spinner mx-auto" /></td></tr>
+              ) : rows.length === 0 ? (
+                <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-400">No supplier quotations found.</td></tr>
+              ) : rows.map((row) => (
+                <tr key={row.name} className="cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => navigate(appendPreservedListQuery(`/purchases/rfqs/${encodeURIComponent(row.name)}`, listSearch))}>
+                  <td className="px-6 py-3 text-sm font-medium text-brand-700">{row.name}</td>
+                  <td className="px-6 py-3 text-sm text-gray-700">{row.supplier_name || row.supplier || '—'}</td>
+                  <td className="px-6 py-3 text-sm text-gray-500">{formatDate(row.transaction_date)}</td>
+                  <td className="px-6 py-3 text-sm text-gray-500">{formatDate(row.valid_till)}</td>
+                  <td className="px-6 py-3 text-right text-sm font-medium text-gray-900">{formatCurrency(row.grand_total, row.currency)}</td>
+                  <td className="px-6 py-3"><span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(row.status || (row.docstatus === 0 ? 'Draft' : 'Open'))}`}>{row.status || (row.docstatus === 0 ? 'Draft' : 'Open')}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {/* Mobile cards */}
+      <div className="md:hidden divide-y divide-gray-100 rounded-xl border border-gray-200 bg-white">
+        {loading ? (
+          <div className="px-4 py-12 text-center"><div className="spinner mx-auto" /></div>
+        ) : rows.length === 0 ? (
+          <p className="px-4 py-12 text-center text-sm text-gray-400">No supplier quotations found.</p>
+        ) : rows.map((row) => (
+          <div key={`m-${row.name}`} className="px-4 py-3 active:bg-gray-50" onClick={() => navigate(appendPreservedListQuery(`/purchases/rfqs/${encodeURIComponent(row.name)}`, listSearch))}>
+            <div className="flex justify-between items-start gap-2">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-brand-700 truncate">{row.name}</p>
+                <p className="text-xs text-gray-500 truncate">{row.supplier_name || row.supplier || '—'}</p>
+              </div>
+              <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-medium whitespace-nowrap ${getStatusColor(row.status || (row.docstatus === 0 ? 'Draft' : 'Open'))}`}>{row.status || (row.docstatus === 0 ? 'Draft' : 'Open')}</span>
+            </div>
+            <div className="flex justify-between items-center mt-1">
+              <span className="text-xs text-gray-500">{formatDate(row.transaction_date)}</span>
+              <span className="text-sm font-semibold text-gray-900">{formatCurrency(row.grand_total, row.currency)}</span>
+            </div>
+          </div>
+        ))}
       </div>
 
       {totalPages > 1 && (

@@ -241,10 +241,10 @@ export default function OperationsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Operations Queues</h1>
+          <h1 className="page-title">Operations Queues</h1>
           <p className="mt-1 text-gray-500">Shared controller view for the workflow hotspots already supported by current sales and purchasing data.</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
@@ -256,7 +256,7 @@ export default function OperationsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
         <SummaryCard label="Open Queue Items" value={formatCompact(totalOpenQueues)} tone="blue" />
         <SummaryCard label="Active Queue Buckets" value={hotQueues.toLocaleString()} tone="amber" />
         <SummaryCard label="Visible Queues" value={filteredCards.length.toLocaleString()} tone="green" />
@@ -299,7 +299,7 @@ export default function OperationsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <button onClick={() => navigate(buildQueuePath('/sales/orders?workflow=awaiting-invoice'))} className="btn-secondary flex items-center justify-center gap-2">
           <ShoppingCart className="h-4 w-4" /> Review Sales Orders
         </button>
@@ -325,7 +325,7 @@ export default function OperationsPage() {
           <div className="spinner" />
         </div>
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-6 sm:space-y-8">
           {filteredCards.length === 0 && (
             <div className="rounded-lg border border-dashed border-gray-300 bg-white px-6 py-12 text-center text-sm text-gray-500">
               No queues match the current filters.
@@ -397,7 +397,7 @@ function QueueWorkflowCard({ card, onNavigate }: { card: QueueCard; onNavigate: 
         </div>
         <div className="text-right">
           <p className="text-xs uppercase tracking-wide text-gray-400">Open items</p>
-          <p className="text-2xl font-bold text-gray-900">{card.value.toLocaleString()}</p>
+          <p className="text-xl sm:text-2xl font-bold text-gray-900">{card.value.toLocaleString()}</p>
         </div>
       </div>
 

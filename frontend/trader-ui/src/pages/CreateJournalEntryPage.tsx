@@ -172,13 +172,13 @@ export default function CreateJournalEntryPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex items-center justify-between gap-4">
         <div>
           <button onClick={() => navigate(backToPath)} className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
             <ArrowLeft size={16} /> Back to Journal Entries
           </button>
-          <h1 className="text-2xl font-bold text-gray-900">New Journal Entry</h1>
+          <h1 className="page-title">New Journal Entry</h1>
           <p className="mt-1 text-gray-500">Create a balanced draft journal entry for adjustments, accruals, and manual ledger postings.</p>
         </div>
         <button onClick={handleSubmit} disabled={saving || loadingAccounts} className="btn-primary flex items-center gap-2 disabled:opacity-60">

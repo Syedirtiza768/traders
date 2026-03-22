@@ -72,14 +72,14 @@ export default function QuickAddModal({ open, onClose, title, children }: Props)
       {/* Panel */}
       <div
         ref={panelRef}
-        className="relative z-10 w-full max-w-lg mx-4 rounded-xl bg-white shadow-2xl border border-gray-200 animate-in fade-in slide-in-from-bottom-4 duration-200"
+        className="relative z-10 w-full max-w-lg mx-0 sm:mx-4 h-full sm:h-auto rounded-none sm:rounded-xl bg-white shadow-2xl border-0 sm:border sm:border-gray-200 animate-in fade-in slide-in-from-bottom-4 duration-200 flex flex-col"
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+        <div className="flex items-center justify-between border-b border-gray-100 px-4 sm:px-6 py-4">
           <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+            className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
             aria-label="Close"
           >
             <X size={18} />
@@ -87,7 +87,7 @@ export default function QuickAddModal({ open, onClose, title, children }: Props)
         </div>
 
         {/* Body */}
-        <div className="px-6 py-5">{children}</div>
+        <div className="px-4 sm:px-6 py-5 overflow-y-auto flex-1">{children}</div>
       </div>
     </div>,
     document.body,

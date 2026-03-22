@@ -82,7 +82,7 @@ export default function PurchaseRequisitionDetailPage() {
   const items: any[] = req.items || [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Back */}
       <button onClick={() => navigate(backToList)} className="inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
         <ArrowLeft size={16} /> Back to Requisitions
@@ -154,38 +154,64 @@ export default function PurchaseRequisitionDetailPage() {
         <div className="px-6 py-4 border-b border-gray-100">
           <h2 className="font-semibold text-gray-900">Requested Items</h2>
         </div>
-        <table className="w-full">
-          <thead>
-            <tr className="bg-gray-50">
-              <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">#</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Item</th>
-              <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Qty</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">UOM</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Warehouse</th>
-              <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Est. Rate</th>
-              <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Est. Amount</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {items.length === 0 ? (
-              <tr><td colSpan={7} className="px-6 py-8 text-center text-gray-400">No items.</td></tr>
-            ) : items.map((item: any, idx: number) => (
-              <tr key={item.name || idx}>
-                <td className="px-6 py-3 text-sm text-gray-400">{idx + 1}</td>
-                <td className="px-6 py-3">
-                  <p className="text-sm font-medium text-gray-900">{item.item_name || item.item_code}</p>
-                  {item.item_name && item.item_code !== item.item_name && <p className="text-xs text-gray-400">{item.item_code}</p>}
-                  {item.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{item.description}</p>}
-                </td>
-                <td className="px-6 py-3 text-sm text-right">{item.qty}</td>
-                <td className="px-6 py-3 text-sm text-gray-500">{item.uom}</td>
-                <td className="px-6 py-3 text-sm text-gray-500">{item.warehouse || '—'}</td>
-                <td className="px-6 py-3 text-sm text-right text-gray-600">{item.rate ? formatCurrency(item.rate) : '—'}</td>
-                <td className="px-6 py-3 text-sm text-right font-medium">{item.amount ? formatCurrency(item.amount) : '—'}</td>
+        {/* Desktop table */}
+        <div className="hidden md:block overflow-x-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <table className="w-full">
+            <thead>
+              <tr className="bg-gray-50">
+                <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">#</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Item</th>
+                <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Qty</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">UOM</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Warehouse</th>
+                <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Est. Rate</th>
+                <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Est. Amount</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {items.length === 0 ? (
+                <tr><td colSpan={7} className="px-6 py-8 text-center text-gray-400">No items.</td></tr>
+              ) : items.map((item: any, idx: number) => (
+                <tr key={item.name || idx}>
+                  <td className="px-6 py-3 text-sm text-gray-400">{idx + 1}</td>
+                  <td className="px-6 py-3">
+                    <p className="text-sm font-medium text-gray-900">{item.item_name || item.item_code}</p>
+                    {item.item_name && item.item_code !== item.item_name && <p className="text-xs text-gray-400">{item.item_code}</p>}
+                    {item.description && <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{item.description}</p>}
+                  </td>
+                  <td className="px-6 py-3 text-sm text-right">{item.qty}</td>
+                  <td className="px-6 py-3 text-sm text-gray-500">{item.uom}</td>
+                  <td className="px-6 py-3 text-sm text-gray-500">{item.warehouse || '—'}</td>
+                  <td className="px-6 py-3 text-sm text-right text-gray-600">{item.rate ? formatCurrency(item.rate) : '—'}</td>
+                  <td className="px-6 py-3 text-sm text-right font-medium">{item.amount ? formatCurrency(item.amount) : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {/* Mobile cards */}
+        <div className="md:hidden divide-y divide-gray-100">
+          {items.length === 0 ? (
+            <p className="px-4 py-8 text-center text-sm text-gray-400">No items.</p>
+          ) : (
+            items.map((item: any, idx: number) => (
+              <div key={`m-${item.name || idx}`} className="px-4 py-3">
+                <div className="flex justify-between items-start gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{item.item_name || item.item_code}</p>
+                    {item.item_name && item.item_code !== item.item_name && <p className="text-xs text-gray-400">{item.item_code}</p>}
+                  </div>
+                  <p className="text-sm font-semibold text-gray-900 whitespace-nowrap">{item.amount ? formatCurrency(item.amount) : '—'}</p>
+                </div>
+                <div className="flex flex-wrap gap-3 mt-1 text-xs text-gray-500">
+                  <span>Qty: {item.qty} {item.uom || ''}</span>
+                  {item.rate && <span>Rate: {formatCurrency(item.rate)}</span>}
+                  {item.warehouse && <span>{item.warehouse}</span>}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
     </div>
   );
