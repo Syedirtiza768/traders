@@ -140,11 +140,12 @@ def get_purchase_orders(company=None, supplier=None, status=None,
     invoice_counts = {}
     unpaid_counts = {}
     if order_names:
-        linked_invoices = frappe.get_all(
-            "Purchase Invoice",
-            filters={"purchase_order": ["in", order_names], "docstatus": ["<", 2]},
-            fields=["purchase_order", "outstanding_amount"],
-        )
+        linked_invoices = frappe.db.sql("""
+            SELECT DISTINCT pii.purchase_order, pi.outstanding_amount
+            FROM `tabPurchase Invoice Item` pii
+            JOIN `tabPurchase Invoice` pi ON pi.name = pii.parent
+            WHERE pii.purchase_order IN %(order_names)s AND pi.docstatus < 2
+        """, {"order_names": order_names}, as_dict=True)
         for invoice in linked_invoices:
             purchase_order = invoice.get("purchase_order")
             invoice_counts[purchase_order] = invoice_counts.get(purchase_order, 0) + 1
@@ -314,12 +315,14 @@ def get_purchase_order_detail(name):
     doc = frappe.get_doc("Purchase Order", name)
     doc.check_permission("read")
     data = doc.as_dict()
-    data["linked_purchase_invoices"] = frappe.get_all(
-        "Purchase Invoice",
-        filters={"purchase_order": doc.name, "docstatus": ["<", 2]},
-        fields=["name", "posting_date", "grand_total", "currency", "status", "outstanding_amount"],
-        order_by="posting_date desc, creation desc",
-    )
+    data["linked_purchase_invoices"] = frappe.db.sql("""
+        SELECT DISTINCT pi.name, pi.posting_date, pi.grand_total,
+               pi.currency, pi.status, pi.outstanding_amount
+        FROM `tabPurchase Invoice Item` pii
+        JOIN `tabPurchase Invoice` pi ON pi.name = pii.parent
+        WHERE pii.purchase_order = %(po_name)s AND pi.docstatus < 2
+        ORDER BY pi.posting_date DESC, pi.creation DESC
+    """, {"po_name": doc.name}, as_dict=True)
     return data
 
 

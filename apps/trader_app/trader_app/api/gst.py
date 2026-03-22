@@ -205,9 +205,6 @@ def seed_punjab_gst_templates(company=None):
         for r in ('System Manager', 'Trader Admin', 'Trader Accountant', 'Trader Finance Manager')
     ):
         frappe.throw(_('Not permitted'), frappe.PermissionError)
-
-    Creates both Sales and Purchase tax template variants.
-    """
     company = company or _default_company()
     if not company:
         frappe.throw(_("No company found — create a company first"))
