@@ -136,7 +136,21 @@ def save_settings(data=None):
     }
 
 
-@frappe.whitelist(allow_guest=False)
+@frappe.whitelist()
+def get_trader_roles():
+    """Return all Trader-prefixed roles with their disabled status.
+    Used by the SettingsPage to display role configuration.
+    """
+    roles = frappe.db.sql("""
+        SELECT name, IFNULL(disabled, 0) AS disabled
+        FROM `tabRole`
+        WHERE name LIKE 'Trader %%'
+        ORDER BY name
+    """, as_dict=True)
+    return roles
+
+
+@frappe.whitelist()
 def get_current_user_roles():
     """Return the Trader-App roles assigned to the currently logged-in user.
 

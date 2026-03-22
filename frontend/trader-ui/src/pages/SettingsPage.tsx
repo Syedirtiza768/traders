@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Building2, Users, Shield, Globe, RefreshCw } from 'lucide-react';
+import { settingsApi } from '../lib/api';
 
 export default function SettingsPage() {
   const [companyInfo, setCompanyInfo] = useState<any>(null);
@@ -13,36 +14,18 @@ export default function SettingsPage() {
   const loadSettings = async () => {
     setLoading(true);
     try {
-      const [companyRes, rolesRes] = await Promise.all([
-        fetch('/api/method/frappe.client.get_list', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': getCsrfToken() },
-          body: JSON.stringify({ doctype: 'Company', fields: ['*'], limit_page_length: 1 }),
-        }).then((r) => r.json()),
-        fetch('/api/method/frappe.client.get_list', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': getCsrfToken() },
-          body: JSON.stringify({
-            doctype: 'Role',
-            fields: ['name', 'disabled'],
-            filters: [['name', 'like', '%Trader%']],
-            limit_page_length: 20,
-          }),
-        }).then((r) => r.json()),
+      const [settingsRes, rolesRes] = await Promise.all([
+        settingsApi.get(),
+        settingsApi.getTraderRoles(),
       ]);
-      setCompanyInfo(companyRes.message?.[0] || null);
-      setRoles(rolesRes.message || []);
+      const settings = settingsRes.data.message;
+      setCompanyInfo(settings?.company || null);
+      setRoles(rolesRes.data.message || []);
     } catch {
       // silently fail
     }
     setLoading(false);
   };
-
-  const getCsrfToken = () =>
-    document.cookie
-      .split('; ')
-      .find((c) => c.startsWith('csrf_token='))
-      ?.split('=')[1] || '';
 
   if (loading) {
     return (

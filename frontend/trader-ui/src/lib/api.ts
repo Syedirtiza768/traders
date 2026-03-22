@@ -73,7 +73,7 @@ export const authApi = {
     http.get('/api/method/frappe.auth.get_logged_user'),
 
   getRoles: () =>
-    call('trader_app.api.settings.get_current_user_roles'),
+    get('trader_app.api.settings.get_current_user_roles'),
 };
 
 // ─── Dashboard API ───────────────────────────────────────────────
@@ -469,7 +469,10 @@ export const settingsApi = {
     call('trader_app.api.settings.save_settings', { data }),
 
   getRoles: () =>
-    call('trader_app.api.settings.get_current_user_roles'),
+    get('trader_app.api.settings.get_current_user_roles'),
+
+  getTraderRoles: () =>
+    get('trader_app.api.settings.get_trader_roles'),
 };
 
 // ─── GST / Tax API ───────────────────────────────────────────────
