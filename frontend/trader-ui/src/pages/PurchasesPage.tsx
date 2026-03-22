@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
-import { FileText, DollarSign, Truck, AlertCircle, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { FileText, DollarSign, Truck, AlertCircle, Search, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { purchasesApi } from '../lib/api';
 import { formatCurrency, formatDate, getStatusColor, formatCompact, debounce } from '../lib/utils';
 
 const STATUS_TABS = ['All', 'Unpaid', 'Paid', 'Overdue', 'Draft'];
 
 export default function PurchasesPage() {
+  const navigate = useNavigate();
   const [invoices, setInvoices] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>(null);
   const [total, setTotal] = useState(0);
@@ -50,9 +52,19 @@ export default function PurchasesPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div>
-        <h1 className="page-title">Purchases</h1>
-        <p className="text-gray-500 mt-1 text-sm">Manage purchase invoices and orders</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="page-title">Purchases</h1>
+          <p className="text-gray-500 mt-1 text-sm">Manage purchase invoices and orders</p>
+        </div>
+        <div className="flex items-center gap-2 self-start">
+          <button onClick={() => navigate('/purchases/returns/new')} className="btn-secondary flex items-center gap-2 text-sm">
+            New Return
+          </button>
+          <button onClick={() => navigate('/purchases/new')} className="btn-primary flex items-center gap-2">
+            <Plus className="w-4 h-4" /> New Purchase Invoice
+          </button>
+        </div>
       </div>
 
       {/* KPI Cards */}
