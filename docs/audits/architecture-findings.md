@@ -10,7 +10,7 @@ Central register of all architectural issues, gaps, risks, and their resolution 
 Full architecture audit reconciliation of all layers.
 
 ## Last Audit Basis
-Complete audit — 2026-03-22
+Complete audit — 2026-05-09
 
 ---
 
