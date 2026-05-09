@@ -157,7 +157,7 @@ health_check() {
 
     # HTTP health check
     local http_status
-    http_status=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:${PROXY_PORT:-8080}/api/method/ping" 2>/dev/null || echo "000")
+    http_status=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:${HTTP_PORT:-8080}/api/method/ping" 2>/dev/null || echo "000")
 
     if [ "$http_status" = "200" ]; then
         success "  API endpoint: healthy (HTTP $http_status)"
@@ -198,9 +198,9 @@ main() {
     echo "  Deployment complete in ${elapsed}s"
     echo "=========================================="
     echo ""
-    echo "  🌐 Frontend:  http://localhost:${FRONTEND_PORT:-3000}"
+    echo "  🌐 Trader UI: http://localhost:${HTTP_PORT:-8080}"
     echo "  🔧 Backend:   http://localhost:${BACKEND_PORT:-8000}"
-    echo "  📊 Proxy:     http://localhost:${PROXY_PORT:-8080}"
+    echo "  📊 Desk:      http://localhost:${HTTP_PORT:-8080}/app"
     echo ""
 }
 

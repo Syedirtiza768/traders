@@ -3,8 +3,6 @@
 # Complete trader business system on ERPNext
 # ============================================
 
-version: "3.8"
-
 x-backend-defaults: &backend-defaults
   image: traders-backend:latest
   build:
