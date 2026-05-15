@@ -12,7 +12,7 @@ All backend API routes, their handlers, parameters, accessed entities, and front
 - `apps/trader_app/trader_app/api/reports.py`
 
 ## Last Audit Basis
-All `@frappe.whitelist()` decorated functions — 2026-05-09
+All `@frappe.whitelist()` decorated functions — 2026-05-15
 
 ---
 
@@ -33,7 +33,7 @@ All `@frappe.whitelist()` decorated functions — 2026-05-09
 | 11 | `create_customer` | customers | `/api/method/trader_app.api.customers.create_customer` | customer_name, customer_group=None, territory=None, mobile_no=None, email_id=None | — | 🔍 Unknown |
 | 12 | `disable_customer` | customers | `/api/method/trader_app.api.customers.disable_customer` | name | — | 🔍 Unknown |
 | 13 | `enable_customer` | customers | `/api/method/trader_app.api.customers.enable_customer` | name | — | 🔍 Unknown |
-| 14 | `get_kpis` | dashboard | `/api/method/trader_app.api.dashboard.get_kpis` | company=None | Sales Invoice, Purchase Invoice, Bin, Warehouse, Quotation, Sales Order Item, Sales Order, Sales Invoice Item, Purchase Order, Purchase Invoice Item | 🔍 Unknown |
+| 14 | `get_kpis` | dashboard | `/api/method/trader_app.api.dashboard.get_kpis` | company=None | — | 🔍 Unknown |
 | 15 | `get_sales_trend` | dashboard | `/api/method/trader_app.api.dashboard.get_sales_trend` | company=None, months=12 | Sales Invoice | DashboardPage → dashboardApi.getSalesTrend() |
 | 16 | `get_top_customers` | dashboard | `/api/method/trader_app.api.dashboard.get_top_customers` | company=None, limit=8 | Sales Invoice | DashboardPage → dashboardApi.getTopCustomers() |
 | 17 | `get_recent_orders` | dashboard | `/api/method/trader_app.api.dashboard.get_recent_orders` | company=None, limit=10 | Sales Invoice | DashboardPage → dashboardApi.getRecentOrders() |
