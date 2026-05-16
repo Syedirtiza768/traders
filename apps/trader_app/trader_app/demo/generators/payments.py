@@ -159,7 +159,6 @@ class PaymentGenerator(BaseGenerator):
     def _create_payment_entry(self, company, payment_type, party_type, party,
                                amount, reference_doctype, reference_name, posting_date):
         """Create a Payment Entry."""
-        # Don't create future-dated payments
         invoice_posting_date = frappe.db.get_value(reference_doctype, reference_name, "posting_date")
         if invoice_posting_date and getdate(posting_date) < getdate(invoice_posting_date):
             posting_date = invoice_posting_date
@@ -167,29 +166,23 @@ class PaymentGenerator(BaseGenerator):
             posting_date = nowdate()
 
         abbr = self.config["company_abbr"]
+        use_bank = random.random() < self.config.get("bank_payment_share", 0.55)
+        settlement_account = self._pick_settlement_account(company, prefer_bank=use_bank)
+        mode_of_payment = self._pick_mode_of_payment(use_bank)
 
-        # Determine accounts
         if payment_type == "Receive":
-            paid_to = frappe.db.get_value(
-                "Account",
-                filters={"account_type": "Cash", "company": company, "is_group": 0},
-                fieldname="name"
-            ) or f"Cash - {abbr}"
+            paid_to = settlement_account or f"Cash - {abbr}"
             paid_from = frappe.db.get_value(
                 "Account",
                 filters={"account_type": "Receivable", "company": company, "is_group": 0},
-                fieldname="name"
+                fieldname="name",
             ) or f"Debtors - {abbr}"
         else:
-            paid_from = frappe.db.get_value(
-                "Account",
-                filters={"account_type": "Cash", "company": company, "is_group": 0},
-                fieldname="name"
-            ) or f"Cash - {abbr}"
+            paid_from = settlement_account or f"Cash - {abbr}"
             paid_to = frappe.db.get_value(
                 "Account",
                 filters={"account_type": "Payable", "company": company, "is_group": 0},
-                fieldname="name"
+                fieldname="name",
             ) or f"Creditors - {abbr}"
 
         pe = frappe.get_doc({
@@ -201,9 +194,10 @@ class PaymentGenerator(BaseGenerator):
             "posting_date": posting_date,
             "paid_amount": amount,
             "received_amount": amount,
+            "mode_of_payment": mode_of_payment,
             "target_exchange_rate": 1,
-            "paid_to": paid_to if payment_type == "Receive" else paid_to,
-            "paid_from": paid_from if payment_type == "Receive" else paid_from,
+            "paid_to": paid_to,
+            "paid_from": paid_from,
             "paid_to_account_currency": self.config["currency"],
             "paid_from_account_currency": self.config["currency"],
             "references": [{
@@ -219,6 +213,35 @@ class PaymentGenerator(BaseGenerator):
             self.created_records.append(("Payment Entry", pe.name))
         except Exception as e:
             self.errors.append(f"Payment Entry: {str(e)}")
+
+    def _pick_settlement_account(self, company, prefer_bank=False):
+        account_type = "Bank" if prefer_bank else "Cash"
+        accounts = frappe.get_all(
+            "Account",
+            filters={
+                "company": company,
+                "account_type": account_type,
+                "is_group": 0,
+                "disabled": 0,
+            },
+            pluck="name",
+        )
+        if prefer_bank and not accounts:
+            accounts = frappe.get_all(
+                "Account",
+                filters={"company": company, "account_type": "Cash", "is_group": 0, "disabled": 0},
+                pluck="name",
+            )
+        return random.choice(accounts) if accounts else None
+
+    def _pick_mode_of_payment(self, use_bank):
+        if use_bank:
+            for mode in ("Bank Transfer", "Cheque", "Wire Transfer"):
+                if frappe.db.exists("Mode of Payment", mode):
+                    return mode
+        if frappe.db.exists("Mode of Payment", "Cash"):
+            return "Cash"
+        return frappe.db.get_value("Mode of Payment", {"enabled": 1}, "name")
 
     def validate(self):
         # Check that some receivables exist

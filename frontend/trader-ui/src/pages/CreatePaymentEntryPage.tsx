@@ -20,6 +20,13 @@ type PaymentMode = {
   type?: string;
 };
 
+type SettlementAccount = {
+  name: string;
+  account_name?: string;
+  account_type?: string;
+  account_number?: string;
+};
+
 export default function CreatePaymentEntryPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -50,6 +57,9 @@ export default function CreatePaymentEntryPage() {
   const [parties, setParties] = useState<any[]>([]);
   const [references, setReferences] = useState<PartyTransaction[]>([]);
   const [paymentModes, setPaymentModes] = useState<PaymentMode[]>([]);
+  const [settlementAccounts, setSettlementAccounts] = useState<SettlementAccount[]>([]);
+  const [modeAccounts, setModeAccounts] = useState<Record<string, string>>({});
+  const [settlementAccount, setSettlementAccount] = useState('');
   const [accountDefaults, setAccountDefaults] = useState<Record<string, string>>({});
   const [loadingReferences, setLoadingReferences] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -167,10 +177,13 @@ export default function CreatePaymentEntryPage() {
             : suppliersApi.getList({ page: 1, page_size: 100 }),
           financeApi.getPaymentEntrySetup(),
         ]);
-        const modes: PaymentMode[] = setupResponse.data.message?.modes || [];
+        const setup = setupResponse.data.message || {};
+        const modes: PaymentMode[] = setup.modes || [];
         setParties(partyResponse.data.message?.data || []);
         setPaymentModes(modes);
-        setAccountDefaults(setupResponse.data.message?.defaults || {});
+        setSettlementAccounts(setup.settlement_accounts || []);
+        setModeAccounts(setup.mode_accounts || {});
+        setAccountDefaults(setup.defaults || {});
         // Set a sensible default mode after loading — prefer "Cash", else first available
         setModeOfPayment((prev) => {
           if (prev) return prev; // already set (e.g. from URL param in future)
@@ -259,6 +272,26 @@ export default function CreatePaymentEntryPage() {
 
   const selectedReference = references.find((entry) => entry.name === referenceName);
 
+  const filteredSettlementAccounts = useMemo(() => {
+    const mode = paymentModes.find((m) => m.name === modeOfPayment);
+    const wantsBank = mode?.type === 'Bank' || modeOfPayment.toLowerCase().includes('bank');
+    const typed = settlementAccounts.filter((a) => (wantsBank ? a.account_type === 'Bank' : a.account_type === 'Cash'));
+    return typed.length > 0 ? typed : settlementAccounts;
+  }, [modeOfPayment, paymentModes, settlementAccounts]);
+
+  useEffect(() => {
+    if (filteredSettlementAccounts.length === 0) return;
+    const mapped = modeOfPayment ? modeAccounts[modeOfPayment] : '';
+    if (mapped && filteredSettlementAccounts.some((a) => a.name === mapped)) {
+      setSettlementAccount(mapped);
+      return;
+    }
+    setSettlementAccount((prev) => {
+      if (prev && filteredSettlementAccounts.some((a) => a.name === prev)) return prev;
+      return filteredSettlementAccounts[0].name;
+    });
+  }, [filteredSettlementAccounts, modeAccounts, modeOfPayment]);
+
   // When user manually picks a reference, auto-fill amount from outstanding_amount
   useEffect(() => {
     if (selectedReference && (!amount || amount <= 0)) {
@@ -266,9 +299,15 @@ export default function CreatePaymentEntryPage() {
     }
   }, [selectedReference]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const effectiveAccount = paymentType === 'Receive'
-    ? (modeOfPayment.toLowerCase().includes('bank') ? accountDefaults.bank_account : accountDefaults.receive_account)
-    : (modeOfPayment.toLowerCase().includes('bank') ? accountDefaults.bank_account : accountDefaults.pay_account);
+  const effectiveAccount = settlementAccount
+    || (paymentType === 'Receive'
+      ? (modeOfPayment.toLowerCase().includes('bank') ? accountDefaults.bank_account : accountDefaults.receive_account)
+      : (modeOfPayment.toLowerCase().includes('bank') ? accountDefaults.bank_account : accountDefaults.pay_account));
+
+  const settlementLabel = (account: SettlementAccount) => {
+    const typeLabel = account.account_type === 'Bank' ? 'Bank' : 'Cash';
+    return `${typeLabel}: ${account.account_name || account.name}`;
+  };
 
   const handleSubmit = async () => {
     if (!party) {
@@ -293,6 +332,9 @@ export default function CreatePaymentEntryPage() {
         mode_of_payment: modeOfPayment,
         reference_doctype: referenceDoctype || undefined,
         reference_name: referenceName || undefined,
+        ...(paymentType === 'Receive'
+          ? { paid_to: settlementAccount || undefined }
+          : { paid_from: settlementAccount || undefined }),
       });
       const created = response.data.message;
       navigate(appendPreservedListQuery(`/finance/payments/${encodeURIComponent(created.name)}`, listSearch));
@@ -367,6 +409,18 @@ export default function CreatePaymentEntryPage() {
                     : 'Default account will be derived from company payment settings.'}
                 </p>
               </div>
+            </Field>
+            <Field label={paymentType === 'Receive' ? 'Deposit To' : 'Pay From'}>
+              <SearchableSelect
+                value={settlementAccount}
+                onChange={setSettlementAccount}
+                options={filteredSettlementAccounts.map((a) => ({
+                  label: settlementLabel(a),
+                  value: a.name,
+                }))}
+                placeholder={loading ? 'Loading…' : 'Select bank or cash account'}
+                disabled={loading || filteredSettlementAccounts.length === 0}
+              />
             </Field>
             <Field label="Reference Doctype">
               <input value={referenceDoctype} onChange={(e) => setReferenceDoctype(e.target.value)} className="input-field bg-gray-50" placeholder="Optional" disabled />

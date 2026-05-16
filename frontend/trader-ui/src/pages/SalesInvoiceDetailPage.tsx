@@ -13,6 +13,7 @@ import {
   User,
 } from 'lucide-react';
 import { salesApi } from '../lib/api';
+import RecordInvoicePaymentPanel from '../components/RecordInvoicePaymentPanel';
 import { appendPreservedListQuery, classNames, extractFrappeError, formatCurrency, formatDate, getStatusColor, isFilterListContext, isOperationsContext, isReportContext } from '../lib/utils';
 
 type SalesInvoiceDetail = Record<string, any>;
@@ -258,6 +259,17 @@ export default function SalesInvoiceDetailPage() {
         <DetailKPI icon={Package} label="Items" value={String(itemRows.length)} tone="blue" />
         <DetailKPI icon={ReceiptText} label="Currency" value={invoice.currency || 'PKR'} tone="purple" />
       </div>
+
+      {invoice.docstatus === 1 && (invoice.outstanding_amount ?? 0) > 0 && (
+        <RecordInvoicePaymentPanel
+          referenceDoctype="Sales Invoice"
+          referenceName={invoice.name}
+          partyLabel={invoice.customer_name || invoice.customer}
+          outstandingAmount={Number(invoice.outstanding_amount) || 0}
+          currency={invoice.currency}
+          onRecorded={reloadInvoice}
+        />
+      )}
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <div className="card xl:col-span-2">

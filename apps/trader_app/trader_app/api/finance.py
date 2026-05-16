@@ -81,11 +81,10 @@ def get_payment_entry_detail(name):
 
 @frappe.whitelist()
 def get_payment_entry_setup(company=None):
-    """Lookup payment modes and default source/destination accounts for the form."""
+    """Lookup payment modes, settlement accounts, and defaults for the form."""
     company = company or _default_company()
 
-    # Ensure standard modes exist so the payment form is always usable
-    _ensure_payment_modes()
+    _ensure_payment_modes(company)
 
     modes = frappe.get_all(
         "Mode of Payment",
@@ -94,11 +93,20 @@ def get_payment_entry_setup(company=None):
         order_by="name asc",
     )
 
+    settlement_accounts = _get_settlement_accounts(company)
     cash_account = _get_default_account(company, "Cash")
     bank_account = _get_default_account(company, "Bank") or cash_account
 
+    mode_accounts = {}
+    for mode in modes:
+        mapped = _get_mode_of_payment_account(company, mode.name)
+        if mapped:
+            mode_accounts[mode.name] = mapped
+
     return {
         "modes": modes,
+        "settlement_accounts": settlement_accounts,
+        "mode_accounts": mode_accounts,
         "defaults": {
             "receive_account": cash_account or bank_account,
             "pay_account": cash_account or bank_account,
@@ -116,16 +124,14 @@ def get_payment_entry_setup(company=None):
 def create_payment_entry(payment_type, party_type, party, amount,
                          company=None, posting_date=None,
                          reference_doctype=None, reference_name=None,
-                         mode_of_payment=None):
+                         mode_of_payment=None, paid_to=None, paid_from=None):
     """Create a Payment Entry from the UI."""
     company = company or _default_company()
-
-    # Resolve mode_of_payment — ensure it exists in the DB; fall back to first available
     mode_of_payment = _resolve_payment_mode(mode_of_payment)
 
     pe = frappe.new_doc("Payment Entry")
     pe.company = company
-    pe.payment_type = payment_type  # "Receive" or "Pay"
+    pe.payment_type = payment_type
     pe.party_type = party_type
     pe.party = party
     pe.posting_date = posting_date or nowdate()
@@ -134,11 +140,9 @@ def create_payment_entry(payment_type, party_type, party, amount,
     if mode_of_payment:
         pe.mode_of_payment = mode_of_payment
 
-    # Set accounts
-    if payment_type == "Receive":
-        pe.paid_to = _get_default_account(company, "Cash")
-    else:
-        pe.paid_from = _get_default_account(company, "Cash")
+    settlement_account = _apply_settlement_account(
+        pe, company, payment_type, mode_of_payment, paid_to, paid_from
+    )
 
     if reference_doctype and reference_name:
         pe.append("references", {
@@ -147,8 +151,93 @@ def create_payment_entry(payment_type, party_type, party, amount,
             "allocated_amount": flt(amount),
         })
 
+    if hasattr(pe, "set_missing_values"):
+        pe.set_missing_values()
+
     pe.insert(ignore_permissions=False)
-    return {"name": pe.name, "status": "Draft"}
+    return {
+        "name": pe.name,
+        "status": "Draft",
+        "settlement_account": settlement_account,
+    }
+
+
+@frappe.whitelist()
+def record_invoice_payment(reference_doctype, reference_name, amount,
+                           mode_of_payment=None, settlement_account=None,
+                           posting_date=None, reference_no=None, submit=1):
+    """Record and optionally submit a payment against an invoice into a bank/cash account."""
+    if reference_doctype not in ("Sales Invoice", "Purchase Invoice"):
+        frappe.throw(_("Only Sales Invoice and Purchase Invoice are supported."))
+
+    invoice = frappe.get_doc(reference_doctype, reference_name)
+    invoice.check_permission("read")
+
+    if invoice.docstatus != 1:
+        frappe.throw(_("Invoice must be submitted before recording a payment."))
+
+    outstanding = flt(invoice.outstanding_amount)
+    pay_amount = flt(amount)
+    if pay_amount <= 0:
+        frappe.throw(_("Enter a valid payment amount."))
+    if pay_amount > outstanding + 0.005:
+        frappe.throw(
+            _("Payment amount {0} exceeds outstanding {1}.").format(pay_amount, outstanding)
+        )
+
+    company = invoice.company
+    if reference_doctype == "Sales Invoice":
+        payment_type = "Receive"
+        party_type = "Customer"
+        party = invoice.customer
+    else:
+        payment_type = "Pay"
+        party_type = "Supplier"
+        party = invoice.supplier
+
+    mode_of_payment = _resolve_payment_mode(mode_of_payment)
+    pe = frappe.new_doc("Payment Entry")
+    pe.company = company
+    pe.payment_type = payment_type
+    pe.party_type = party_type
+    pe.party = party
+    pe.posting_date = posting_date or nowdate()
+    pe.paid_amount = pay_amount
+    pe.received_amount = pay_amount
+    if mode_of_payment:
+        pe.mode_of_payment = mode_of_payment
+    if reference_no:
+        pe.reference_no = reference_no
+
+    applied_account = _apply_settlement_account(
+        pe, company, payment_type, mode_of_payment,
+        paid_to=settlement_account if payment_type == "Receive" else None,
+        paid_from=settlement_account if payment_type == "Pay" else None,
+    )
+
+    pe.append("references", {
+        "reference_doctype": reference_doctype,
+        "reference_name": reference_name,
+        "allocated_amount": pay_amount,
+    })
+
+    if hasattr(pe, "set_missing_values"):
+        pe.set_missing_values()
+
+    pe.insert(ignore_permissions=False)
+
+    if cint(submit):
+        pe.submit()
+        frappe.db.commit()
+
+    invoice.reload()
+    return {
+        "name": pe.name,
+        "status": "Submitted" if cint(submit) else "Draft",
+        "settlement_account": applied_account,
+        "outstanding_amount": flt(invoice.outstanding_amount),
+        "paid_amount": flt(invoice.paid_amount),
+    }
 
 
 @frappe.whitelist()
@@ -390,17 +479,85 @@ def _get_default_account(company, account_type):
     return account
 
 
-def _ensure_payment_modes():
-    """Create standard Modes of Payment if none exist (first-run bootstrap)."""
-    if frappe.db.count("Mode of Payment") > 0:
-        return  # already set up
+def _get_settlement_accounts(company):
+    """Selectable cash and bank GL accounts for payment settlement."""
+    return frappe.get_all(
+        "Account",
+        filters={
+            "company": company,
+            "account_type": ["in", ["Cash", "Bank"]],
+            "is_group": 0,
+            "disabled": 0,
+        },
+        fields=["name", "account_name", "account_type", "account_number"],
+        order_by="account_type asc, account_name asc, name asc",
+    )
 
+
+def _get_mode_of_payment_account(company, mode_of_payment):
+    return frappe.db.get_value(
+        "Mode of Payment Account",
+        {"parent": mode_of_payment, "company": company},
+        "default_account",
+    )
+
+
+def _resolve_settlement_account(company, payment_type, mode_of_payment=None,
+                                paid_to=None, paid_from=None):
+    """Resolve the cash/bank account for Receive (paid_to) or Pay (paid_from)."""
+    explicit = paid_to if payment_type == "Receive" else paid_from
+    if explicit:
+        if frappe.db.exists("Account", explicit):
+            meta = frappe.db.get_value(
+                "Account", explicit, ["company", "account_type", "is_group", "disabled"], as_dict=True
+            )
+            if (
+                meta
+                and meta.company == company
+                and meta.account_type in ("Cash", "Bank")
+                and not meta.is_group
+                and not meta.disabled
+            ):
+                return explicit
+
+    if mode_of_payment:
+        mapped = _get_mode_of_payment_account(company, mode_of_payment)
+        if mapped:
+            return mapped
+        mode_type = frappe.db.get_value("Mode of Payment", mode_of_payment, "type")
+        account_type = "Bank" if mode_type == "Bank" else "Cash"
+        account = _get_default_account(company, account_type)
+        if account:
+            return account
+
+    return _get_default_account(company, "Cash") or _get_default_account(company, "Bank")
+
+
+def _apply_settlement_account(pe, company, payment_type, mode_of_payment=None,
+                              paid_to=None, paid_from=None):
+    account = _resolve_settlement_account(
+        company, payment_type, mode_of_payment, paid_to, paid_from
+    )
+    if not account:
+        frappe.throw(_("No cash or bank account found for company {0}.").format(company))
+
+    if payment_type == "Receive":
+        pe.paid_to = account
+    else:
+        pe.paid_from = account
+    return account
+
+
+def _ensure_payment_modes(company=None):
+    """Create standard modes and map them to company settlement accounts when possible."""
     standard_modes = [
         ("Cash", "Cash"),
         ("Bank Transfer", "Bank"),
         ("Cheque", "Bank"),
         ("Wire Transfer", "Bank"),
     ]
+
+    created = False
     for mode_name, mode_type in standard_modes:
         if not frappe.db.exists("Mode of Payment", mode_name):
             doc = frappe.new_doc("Mode of Payment")
@@ -408,6 +565,47 @@ def _ensure_payment_modes():
             doc.type = mode_type
             doc.enabled = 1
             doc.insert(ignore_permissions=True)
+            created = True
+
+    if created:
+        frappe.db.commit()
+
+    if not company:
+        return
+
+    cash_account = _get_default_account(company, "Cash")
+    bank_account = _get_default_account(company, "Bank")
+    bank_accounts = [
+        row.name for row in _get_settlement_accounts(company) if row.account_type == "Bank"
+    ]
+
+    mode_account_map = {
+        "Cash": cash_account,
+        "Bank Transfer": bank_accounts[0] if bank_accounts else bank_account,
+        "Cheque": bank_accounts[1] if len(bank_accounts) > 1 else (bank_account or cash_account),
+        "Wire Transfer": bank_accounts[-1] if bank_accounts else (bank_account or cash_account),
+    }
+
+    for mode_name, default_account in mode_account_map.items():
+        if not default_account or not frappe.db.exists("Mode of Payment", mode_name):
+            continue
+        existing = frappe.db.get_value(
+            "Mode of Payment Account",
+            {"parent": mode_name, "company": company},
+            "name",
+        )
+        if existing:
+            frappe.db.set_value(
+                "Mode of Payment Account", existing, "default_account", default_account
+            )
+        else:
+            mop = frappe.get_doc("Mode of Payment", mode_name)
+            mop.append("accounts", {
+                "company": company,
+                "default_account": default_account,
+            })
+            mop.save(ignore_permissions=True)
+
     frappe.db.commit()
 
 

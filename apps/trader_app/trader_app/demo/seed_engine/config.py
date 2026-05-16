@@ -59,6 +59,14 @@ DEMO_CONFIG = {
     "payment_completion_rate": 0.70,   # 70% of invoices fully paid
     "partial_payment_rate": 0.15,      # 15% partially paid
     # Remaining 15% unpaid — creates outstanding receivables/payables
+    "bank_payment_share": 0.55,        # Share of seeded payments into bank (not cash)
+
+    # Named bank GL accounts created under the company chart (for payment settlement)
+    "bank_accounts": [
+        {"account_name": "HBL Current Account"},
+        {"account_name": "Meezan Business Account"},
+        {"account_name": "UBL Collection Account"},
+    ],
 
     # Warehouses
     "warehouses": [

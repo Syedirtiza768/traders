@@ -33,6 +33,7 @@ class CompanyGenerator(BaseGenerator):
             self._create_warehouses()
             self._ensure_address_template()
             self._create_tax_templates()
+            self._ensure_settlement_accounts()
             self._set_defaults()
             frappe.db.commit()
         finally:
@@ -285,6 +286,70 @@ class CompanyGenerator(BaseGenerator):
                         pass
 
         print(f"  ✅ Created tax templates")
+
+    def _ensure_settlement_accounts(self):
+        """Create additional bank GL accounts for realistic payment settlement."""
+        cfg = self.config
+        company = cfg["company_name"]
+        abbr = cfg["company_abbr"]
+        currency = cfg["currency"]
+        bank_defs = cfg.get("bank_accounts") or []
+
+        if not bank_defs:
+            return
+
+        parent_bank = frappe.db.get_value(
+            "Account",
+            filters={"company": company, "account_type": "Bank", "is_group": 1},
+            fieldname="name",
+        )
+        if not parent_bank:
+            parent_bank = frappe.db.get_value(
+                "Account",
+                filters={"company": company, "root_type": "Asset", "is_group": 1, "account_name": ["like", "%Bank%"]},
+                fieldname="name",
+            )
+
+        if not parent_bank:
+            print("  ⚠️  No parent bank account group found; skipping extra bank accounts.")
+            return
+
+        created = 0
+        for bank in bank_defs:
+            account_name = bank.get("account_name")
+            if not account_name:
+                continue
+
+            full_name = f"{account_name} - {abbr}"
+            if frappe.db.exists("Account", full_name):
+                continue
+
+            try:
+                acc = frappe.get_doc({
+                    "doctype": "Account",
+                    "account_name": account_name,
+                    "parent_account": parent_bank,
+                    "company": company,
+                    "account_type": "Bank",
+                    "account_currency": currency,
+                    "is_group": 0,
+                })
+                acc.insert(ignore_permissions=True)
+                self.created_records.append(("Account", acc.name))
+                created += 1
+            except frappe.DuplicateEntryError:
+                pass
+            except Exception as exc:
+                self.errors.append(f"Bank account {account_name}: {str(exc)}")
+
+        if created:
+            print(f"  ✅ Created {created} bank settlement accounts")
+
+        try:
+            from trader_app.api.finance import _ensure_payment_modes
+            _ensure_payment_modes(company)
+        except Exception as exc:
+            self.errors.append(f"Mode of Payment mapping: {str(exc)}")
 
     def _set_defaults(self):
         """Set company as default."""

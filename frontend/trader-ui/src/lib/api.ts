@@ -353,6 +353,9 @@ export const financeApi = {
   createPaymentEntry: (data: Record<string, any>) =>
     call('trader_app.api.finance.create_payment_entry', data),
 
+  recordInvoicePayment: (data: Record<string, any>) =>
+    call('trader_app.api.finance.record_invoice_payment', data),
+
   submitPaymentEntry: (name: string) =>
     call('trader_app.api.finance.submit_payment_entry', { name }),
 
