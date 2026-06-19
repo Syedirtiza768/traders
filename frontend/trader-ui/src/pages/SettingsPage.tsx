@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Building2, Users, Shield, Globe, RefreshCw, SlidersHorizontal, Save, ScrollText, Layers } from 'lucide-react';
 import CurrencySettingsPanel from '../components/CurrencySettingsPanel';
+import SkuConfigEditor from '../components/SkuConfigEditor';
 import { settingsApi, catalogApi } from '../lib/api';
 import { applyTraderUiTheme, normaliseUiPrefs, type TraderUiPrefs } from '../lib/traderUiTheme';
 import { useCompanyStore } from '../stores/companyStore';
@@ -48,6 +49,20 @@ export default function SettingsPage() {
   const roles_ = useAuthStore((s) => s.roles);
   const isAdmin = roles_.includes('Trader Admin') || roles_.includes('System Manager');
   const [togglingComponents, setTogglingComponents] = useState(false);
+  const [skuCategoryCount, setSkuCategoryCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!componentsEnabled) {
+      setSkuCategoryCount(null);
+      return;
+    }
+    catalogApi.getTaxonomy()
+      .then((res) => {
+        const msg = res.data.message as { categories?: string[] };
+        setSkuCategoryCount(msg.categories?.length ?? 0);
+      })
+      .catch(() => setSkuCategoryCount(null));
+  }, [componentsEnabled]);
 
   const handleToggleComponents = async (enabled: boolean) => {
     setTogglingComponents(true);
@@ -429,6 +444,10 @@ export default function SettingsPage() {
               <p className="text-xs text-gray-500 dark:text-slate-400 leading-relaxed">
                 Enables attribute-driven component catalog (Category → Form Factor → Capacity → Grade),
                 day-book entry, stock valuation report, AR/AP (In-Coming/Out-Going) lists, stock-take, and day-close summary.
+                All structured SKUs are stored as normal inventory items — one ledger, search-first entry with optional attribute builder.
+                {skuCategoryCount != null && componentsEnabled && (
+                  <> {' '}<span className="font-medium text-gray-600 dark:text-slate-300">{skuCategoryCount} SKU categories</span> (seed + company + items).</>
+                )}
                 <br />
                 <span className="text-violet-600 dark:text-violet-400 font-medium">
                   Disabling hides all new UI but preserves all data — re-enable anytime.
@@ -464,6 +483,18 @@ export default function SettingsPage() {
               )}
             </div>
           </div>
+
+          {componentsEnabled && (
+            <div className="rounded-xl border border-violet-200 dark:border-violet-800/50 bg-violet-50/30 dark:bg-violet-900/10 p-4 space-y-3">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">SKU taxonomy &amp; templates</h3>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+                  Configure attribute dimensions, map item groups to SKU templates, and add custom templates beyond built-in generic/components.
+                </p>
+              </div>
+              <SkuConfigEditor isAdmin={isAdmin} />
+            </div>
+          )}
         </div>
       </div>
 

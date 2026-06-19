@@ -719,6 +719,42 @@ export const catalogApi = {
     company?: string;
   }) => call('trader_app.api.catalog.find_or_create_sku', data),
 
+  resolveItem: (data: {
+    item_code?: string;
+    barcode?: string;
+    template?: string;
+    category?: string;
+    form_factor?: string;
+    capacity?: string;
+    grade?: string;
+    item_name?: string;
+    item_group?: string;
+    stock_uom?: string;
+    standard_rate?: number;
+    has_serial_no?: number;
+    company?: string;
+  }) => call('trader_app.api.catalog.resolve_item', data),
+
+  ensureTaxonomyValues: (data: {
+    category: string;
+    form_factor?: string;
+    capacity?: string;
+    grade?: string;
+    company?: string;
+  }) => call('trader_app.api.catalog.ensure_taxonomy_values', data),
+
+  saveSkuTaxonomy: (taxonomy: Record<string, unknown>, company?: string) =>
+    call('trader_app.api.catalog.save_sku_taxonomy', { taxonomy, company }),
+
+  getItemLineConfig: (params?: { company?: string; item_group?: string }) =>
+    get('trader_app.api.catalog.get_item_line_config', params),
+
+  saveItemGroupTemplates: (mapping: Record<string, unknown>, company?: string) =>
+    call('trader_app.api.catalog.save_item_group_templates', { mapping, company }),
+
+  saveCustomSkuTemplates: (templates: Record<string, unknown>, company?: string) =>
+    call('trader_app.api.catalog.save_custom_sku_templates', { templates, company }),
+
   parseQuickEntry: (text: string, company?: string) =>
     call('trader_app.api.catalog.parse_quick_entry', { text, company }),
 

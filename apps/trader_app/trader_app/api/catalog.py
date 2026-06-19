@@ -110,8 +110,53 @@ def _merge_list(base, extra):
     return merged
 
 
-def _merged_taxonomy():
-    """Seed taxonomy plus distinct attribute values already used on items."""
+def _load_company_taxonomy(company):
+    """Parse company-specific taxonomy JSON."""
+    if not company or not frappe.db.has_column("Company", "trader_sku_taxonomy"):
+        return {}
+    raw = frappe.db.get_value("Company", company, "trader_sku_taxonomy") or ""
+    raw = (raw or "").strip()
+    if not raw:
+        return {}
+    try:
+        data = json.loads(raw)
+    except Exception:
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    normalised = {}
+    for category, spec in data.items():
+        cat = (category or "").strip()
+        if not cat or not isinstance(spec, dict):
+            continue
+        normalised[cat] = {
+            "form_factors": list(spec.get("form_factors") or []),
+            "capacities": list(spec.get("capacities") or []),
+            "grades": list(spec.get("grades") or []),
+        }
+    return normalised
+
+
+def _merge_taxonomy_specs(base_spec, overlay_spec):
+    """Merge two category specs."""
+    return {
+        "form_factors": _merge_list(
+            base_spec.get("form_factors") or [],
+            overlay_spec.get("form_factors") or [],
+        ),
+        "capacities": _merge_list(
+            base_spec.get("capacities") or [],
+            overlay_spec.get("capacities") or [],
+        ),
+        "grades": _merge_list(
+            base_spec.get("grades") or [],
+            overlay_spec.get("grades") or [],
+        ),
+    }
+
+
+def _merged_taxonomy(company=None):
+    """Seed + company JSON + distinct attribute values from items."""
     merged = {}
     for category, spec in TAXONOMY.items():
         merged[category] = {
@@ -119,6 +164,13 @@ def _merged_taxonomy():
             "capacities": list(spec.get("capacities") or []),
             "grades": list(spec.get("grades") or []),
         }
+
+    if company:
+        company_tax = _load_company_taxonomy(company)
+        for category, spec in company_tax.items():
+            if category not in merged:
+                merged[category] = {"form_factors": [], "capacities": [], "grades": []}
+            merged[category] = _merge_taxonomy_specs(merged[category], spec)
 
     if not frappe.db.has_column("Item", "trader_component_item"):
         return merged
@@ -158,16 +210,294 @@ def _merged_taxonomy():
 
 @frappe.whitelist()
 def get_taxonomy(company=None):
-    """Return the full attribute taxonomy (categories / form-factors / capacities / grades).
-    Does NOT require the flag — used to display the catalog even before first enable.
-    Merges seed data with values already present on component items.
-    """
+    """Return merged SKU attribute taxonomy for the company."""
     company = resolve_active_company(company)
-    taxonomy = _merged_taxonomy()
+    taxonomy = _merged_taxonomy(company)
     return {
         "taxonomy": taxonomy,
         "categories": sorted(taxonomy.keys()),
+        "template": "components",
+        "dimensions": [
+            {"key": "category", "label": "Category"},
+            {"key": "form_factor", "label": "Form Factor"},
+            {"key": "capacity", "label": "Capacity"},
+            {"key": "grade", "label": "Grade / Variant"},
+        ],
     }
+
+
+@frappe.whitelist()
+def save_sku_taxonomy(taxonomy, company=None):
+    """Persist company-specific taxonomy overlay (Trader Admin). Merges into Company JSON field."""
+    company = resolve_active_company(company)
+    frappe.only_for(("Trader Admin", "System Manager", "Administrator"))
+
+    if isinstance(taxonomy, str):
+        taxonomy = json.loads(taxonomy)
+    if not isinstance(taxonomy, dict):
+        frappe.throw(_("taxonomy must be a JSON object keyed by category name."))
+
+    if not frappe.db.has_column("Company", "trader_sku_taxonomy"):
+        frappe.throw(_("SKU taxonomy field is not installed. Run custom field setup."))
+
+    frappe.db.set_value(
+        "Company", company, "trader_sku_taxonomy",
+        json.dumps(taxonomy, indent=0),
+    )
+    frappe.db.commit()
+    return {"ok": True, "company": company, "categories": sorted(_merged_taxonomy(company).keys())}
+
+
+@frappe.whitelist()
+def resolve_item(item_code=None, barcode=None, template=None,
+                 category=None, form_factor=None, capacity=None, grade=None,
+                 item_name=None, item_group=None, stock_uom=None,
+                 standard_rate=0, has_serial_no=0, company=None):
+    """Universal item resolver — pick existing or create on the go.
+
+    Resolution order:
+    1. ``barcode`` — lookup via inventory barcode API
+    2. ``template='components'`` or all four component attrs — find_or_create_sku
+    3. ``item_code`` existing — return as-is
+    4. ``item_code`` + ``item_name`` — create generic item
+    """
+    company = resolve_active_company(company)
+    template = (template or "").strip().lower()
+
+    barcode = (barcode or "").strip()
+    if barcode:
+        from trader_app.api.inventory import lookup_item_by_barcode
+        result = lookup_item_by_barcode(barcode, company=company)
+        if result.get("found") and result.get("item"):
+            item = result["item"]
+            return {
+                "item_code": item.get("item_code"),
+                "item_name": item.get("item_name"),
+                "created": False,
+                "template": "barcode",
+                "item": item,
+            }
+        frappe.throw(result.get("message") or _("No item found for barcode {0}.").format(barcode))
+
+    if template == "components" or all([
+        (category or "").strip(),
+        (form_factor or "").strip(),
+        (capacity or "").strip(),
+        (grade or "").strip(),
+    ]):
+        _assert_enabled(company)
+        sku = find_or_create_sku(
+            category, form_factor, capacity, grade,
+            standard_rate=standard_rate, company=company,
+        )
+        item_name_val = _make_item_name(category, form_factor, capacity, grade)
+        return {
+            "item_code": sku["item_code"],
+            "item_name": item_name_val,
+            "created": sku.get("created", False),
+            "template": "components",
+        }
+
+    item_code = (item_code or "").strip()
+    if item_code and frappe.db.exists("Item", item_code):
+        name = frappe.db.get_value("Item", item_code, "item_name") or item_code
+        return {
+            "item_code": item_code,
+            "item_name": name,
+            "created": False,
+            "template": "existing",
+        }
+
+    if item_code:
+        from trader_app.api.inventory import create_item
+        created = create_item(
+            item_code=item_code,
+            item_name=item_name or item_code,
+            item_group=item_group,
+            stock_uom=stock_uom,
+            has_serial_no=has_serial_no,
+        )
+        return {
+            "item_code": created["item_code"],
+            "item_name": created.get("item_name") or item_code,
+            "created": True,
+            "template": "generic",
+        }
+
+    frappe.throw(_("Provide item_code, barcode, or component attributes to resolve an item."))
+
+
+@frappe.whitelist()
+def ensure_taxonomy_values(category, form_factor=None, capacity=None, grade=None, company=None):
+    """Persist newly typed attribute values into the company taxonomy overlay."""
+    company = resolve_active_company(company)
+    category = (category or "").strip()
+    if not category:
+        frappe.throw(_("Category is required."))
+
+    if not frappe.db.has_column("Company", "trader_sku_taxonomy"):
+        return {"ok": True, "skipped": True}
+
+    overlay = _load_company_taxonomy(company)
+    if category not in overlay:
+        overlay[category] = {"form_factors": [], "capacities": [], "grades": []}
+    spec = overlay[category]
+
+    if (form_factor or "").strip():
+        spec["form_factors"] = _merge_list(spec["form_factors"], [form_factor.strip()])
+    if (capacity or "").strip():
+        spec["capacities"] = _merge_list(spec["capacities"], [capacity.strip()])
+    if (grade or "").strip():
+        spec["grades"] = _merge_list(spec["grades"], [grade.strip()])
+
+    frappe.db.set_value(
+        "Company", company, "trader_sku_taxonomy",
+        json.dumps(overlay, indent=0),
+    )
+    frappe.db.commit()
+    return {"ok": True, "category": category}
+
+
+BUILTIN_SKU_TEMPLATES = {
+    "generic": {
+        "id": "generic",
+        "label": "Generic inventory item",
+        "resolver": "generic",
+        "dimensions": [],
+    },
+    "components": {
+        "id": "components",
+        "label": "Structured components (4-axis SKU)",
+        "resolver": "components",
+        "dimensions": [
+            {"key": "category", "label": "Category", "taxonomy_field": "categories"},
+            {"key": "form_factor", "label": "Form Factor", "taxonomy_field": "form_factors"},
+            {"key": "capacity", "label": "Capacity", "taxonomy_field": "capacities"},
+            {"key": "grade", "label": "Grade / Variant", "taxonomy_field": "grades"},
+        ],
+    },
+}
+
+
+def _load_item_group_templates(company):
+    if not company or not frappe.db.has_column("Company", "trader_item_group_templates"):
+        return {}
+    raw = (frappe.db.get_value("Company", company, "trader_item_group_templates") or "").strip()
+    if not raw:
+        return {}
+    try:
+        data = json.loads(raw)
+    except Exception:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _load_custom_sku_templates(company):
+    if not company or not frappe.db.has_column("Company", "trader_custom_sku_templates"):
+        return {}
+    raw = (frappe.db.get_value("Company", company, "trader_custom_sku_templates") or "").strip()
+    if not raw:
+        return {}
+    try:
+        data = json.loads(raw)
+    except Exception:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _effective_templates(company):
+    templates = dict(BUILTIN_SKU_TEMPLATES)
+    custom = _load_custom_sku_templates(company)
+    for tid, spec in custom.items():
+        if not isinstance(spec, dict):
+            continue
+        templates[tid] = {
+            "id": tid,
+            "label": spec.get("label") or tid,
+            "resolver": spec.get("resolver") or "generic",
+            "dimensions": list(spec.get("dimensions") or []),
+        }
+    return templates
+
+
+def _effective_item_group_map(company, taxonomy):
+    """Item group name → template id."""
+    explicit = _load_item_group_templates(company)
+    merged = {}
+    for cat in taxonomy.keys():
+        merged[cat] = explicit.get(cat) or explicit.get(cat.strip()) or "components"
+    merged.update(explicit)
+    if "*" not in merged:
+        merged["*"] = explicit.get("*", "generic")
+    return merged
+
+
+def _template_for_item_group(item_group, company, taxonomy=None):
+    taxonomy = taxonomy if taxonomy is not None else _merged_taxonomy(company)
+    group_map = _effective_item_group_map(company, taxonomy)
+    if item_group and item_group in group_map:
+        return group_map[item_group]
+    if item_group:
+        for key, tid in group_map.items():
+            if key != "*" and key.lower() == item_group.lower():
+                return tid
+    return group_map.get("*", "generic")
+
+
+@frappe.whitelist()
+def get_item_line_config(company=None, item_group=None):
+    """Unified config for ItemLineEntry: templates, group map, taxonomy."""
+    company = resolve_active_company(company)
+    taxonomy = _merged_taxonomy(company)
+    templates = _effective_templates(company)
+    item_group_templates = _effective_item_group_map(company, taxonomy)
+    active_template = _template_for_item_group(item_group, company, taxonomy) if item_group else None
+    return {
+        "templates": templates,
+        "item_group_templates": item_group_templates,
+        "taxonomy": taxonomy,
+        "categories": sorted(taxonomy.keys()),
+        "active_template": active_template,
+        "default_template": item_group_templates.get("*", "generic"),
+    }
+
+
+@frappe.whitelist()
+def save_item_group_templates(mapping, company=None):
+    """Persist item group → template id map (Trader Admin)."""
+    company = resolve_active_company(company)
+    frappe.only_for(("Trader Admin", "System Manager", "Administrator"))
+    if isinstance(mapping, str):
+        mapping = json.loads(mapping)
+    if not isinstance(mapping, dict):
+        frappe.throw(_("mapping must be a JSON object."))
+    if not frappe.db.has_column("Company", "trader_item_group_templates"):
+        frappe.throw(_("Item group template field is not installed."))
+    frappe.db.set_value(
+        "Company", company, "trader_item_group_templates",
+        json.dumps(mapping, indent=0),
+    )
+    frappe.db.commit()
+    return {"ok": True, "company": company}
+
+
+@frappe.whitelist()
+def save_custom_sku_templates(templates, company=None):
+    """Persist custom SKU template definitions (Trader Admin)."""
+    company = resolve_active_company(company)
+    frappe.only_for(("Trader Admin", "System Manager", "Administrator"))
+    if isinstance(templates, str):
+        templates = json.loads(templates)
+    if not isinstance(templates, dict):
+        frappe.throw(_("templates must be a JSON object."))
+    if not frappe.db.has_column("Company", "trader_custom_sku_templates"):
+        frappe.throw(_("Custom SKU templates field is not installed."))
+    frappe.db.set_value(
+        "Company", company, "trader_custom_sku_templates",
+        json.dumps(templates, indent=0),
+    )
+    frappe.db.commit()
+    return {"ok": True, "company": company}
 
 
 # ────────────────────────────────────────────────────────────────

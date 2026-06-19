@@ -100,6 +100,39 @@ CUSTOM_FIELDS = [
             "Disabling hides the UI but preserves all data."
         ),
     },
+    {
+        "dt": "Company",
+        "fieldname": "trader_sku_taxonomy",
+        "label": "SKU Attribute Taxonomy (JSON)",
+        "fieldtype": "Long Text",
+        "insert_after": "trader_components_enabled",
+        "description": (
+            "Company-specific SKU attribute templates (category → form factors, capacities, grades). "
+            "Merged with system seed and values from existing items."
+        ),
+    },
+    {
+        "dt": "Company",
+        "fieldname": "trader_item_group_templates",
+        "label": "Item Group → SKU Template Map (JSON)",
+        "fieldtype": "Long Text",
+        "insert_after": "trader_sku_taxonomy",
+        "description": (
+            'Maps Item Group names to template ids, e.g. {"SSD": "components", "*": "generic"}. '
+            "Used by unified item line entry across vouchers."
+        ),
+    },
+    {
+        "dt": "Company",
+        "fieldname": "trader_custom_sku_templates",
+        "label": "Custom SKU Templates (JSON)",
+        "fieldtype": "Long Text",
+        "insert_after": "trader_item_group_templates",
+        "description": (
+            "Optional extra template definitions keyed by template id. "
+            "Currently only resolver id 'components' creates stock items automatically."
+        ),
+    },
 
     # ── Component metadata on Item (all optional, default 0/blank) ──
     {

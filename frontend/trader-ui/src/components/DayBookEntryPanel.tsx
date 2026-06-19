@@ -3,7 +3,7 @@ import { Loader2, X } from 'lucide-react';
 import SearchableSelect from './SearchableSelect';
 import QuickAddProvider from './QuickAddProvider';
 import useQuickAdd from './useQuickAdd';
-import DayBookItemLineEntry, { type DayBookLine } from './DayBookItemLineEntry';
+import ItemLineEntry, { type ItemLineEntryLine } from './ItemLineEntry';
 import PaymentAllocationPanel, {
   type InvoiceAllocation,
   buildFifoAllocations,
@@ -46,7 +46,7 @@ export default function DayBookEntryPanel({
   const [customers, setCustomers] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [party, setParty] = useState('');
-  const [lines, setLines] = useState<DayBookLine[]>([]);
+  const [lines, setLines] = useState<ItemLineEntryLine[]>([]);
   const [cashNow, setCashNow] = useState(true);
   const [amount, setAmount] = useState('');
   const [modeOfPayment, setModeOfPayment] = useState('Cash');
@@ -301,10 +301,10 @@ export default function DayBookEntryPanel({
 
               {isInvoice && (
                 <>
-                  <DayBookItemLineEntry
+                  <ItemLineEntry
                     lines={lines}
                     onChange={setLines}
-                    entryType={entryType}
+                    priceContext={entryType}
                   />
                   <div className="space-y-2 rounded-lg border border-gray-200 dark:border-slate-700 p-3">
                     <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-slate-200">

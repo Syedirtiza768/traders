@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Plus, Save, Trash2 } from 'lucide-react';
-import BarcodeScanInput from '../components/BarcodeScanInput';
+import { ArrowLeft, Save } from 'lucide-react';
 import { currencyApi, customersApi, financeApi, gstApi, inventoryApi, salesApi } from '../lib/api';
 import CustomerItemHistoryPanel from '../components/CustomerItemHistoryPanel';
+import ItemLineEntry, { type ItemLineEntryLine } from '../components/ItemLineEntry';
+import { createEmptyEntryLine, entryLinesToSalesPayload, salesPrefillToEntryLines } from '../lib/itemLineUtils';
 import { getSalesInvoiceTypeConfig, pickExemptTaxTemplate } from '../lib/invoiceTypes';
 import { appendPreservedListQuery, formatCurrency, isOperationsContext } from '../lib/utils';
 import SearchableSelect from '../components/SearchableSelect';
@@ -11,44 +12,14 @@ import useQuickAdd from '../components/useQuickAdd';
 import QuickAddProvider from '../components/QuickAddProvider';
 import { useCompanyStore } from '../stores/companyStore';
 
-type InvoiceLine = {
-  item_code: string;
-  description: string;
-  qty: number;
-  rate: number;
-  warehouse: string;
-  serial_no: string;
-  has_serial_no?: boolean;
-  stock_qty?: number | null;
-  serial_error?: string | null;
-};
-
-const EMPTY_LINE: InvoiceLine = {
-  item_code: '',
-  description: '',
-  qty: 1,
-  rate: 0,
-  warehouse: '',
-  serial_no: '',
-};
-
-function getLineIssues(line: { item_code: string; qty: number; rate: number }) {
-  const issues: string[] = [];
-  if (!line.item_code) issues.push('Select an item');
-  if (!(Number(line.qty) > 0)) issues.push('Enter a quantity greater than 0');
-  if (!(Number(line.rate) > 0)) issues.push('Review the rate');
-  return issues;
-}
-
 export default function CreateSalesInvoicePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [customers, setCustomers] = useState<any[]>([]);
-  const [items, setItems] = useState<any[]>([]);
   const [customer, setCustomer] = useState('');
   const [postingDate, setPostingDate] = useState(today());
   const [dueDate, setDueDate] = useState(today());
-  const [lines, setLines] = useState<InvoiceLine[]>([{ ...EMPTY_LINE }]);
+  const [lines, setLines] = useState<ItemLineEntryLine[]>(() => [createEmptyEntryLine()]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,7 +27,6 @@ export default function CreateSalesInvoicePage() {
   const [taxTemplate, setTaxTemplate] = useState('');
   const [taxRate, setTaxRate] = useState(0);
   const [taxInclusive, setTaxInclusive] = useState(false);
-  const [warehouses, setWarehouses] = useState<any[]>([]);
   const [defaultWarehouse, setDefaultWarehouse] = useState('');
   const [bankAccounts, setBankAccounts] = useState<any[]>([]);
   const [preferredBankAccount, setPreferredBankAccount] = useState('');
@@ -74,8 +44,6 @@ export default function CreateSalesInvoicePage() {
     : '/sales';
   const backLabel = listSearch && isOperationsContext(listSearch) ? 'Back to Operations' : 'Back to Sales';
   const quickAdd = useQuickAdd();
-  const quickAddItemLine = useRef<number>(-1);
-  const [scanValue, setScanValue] = useState('');
   const companyRevision = useCompanyStore((s) => s.revision);
   const companyInitialized = useCompanyStore((s) => s.initialized);
   const baseCurrency = useCompanyStore((s) => s.currency) || 'PKR';
@@ -97,37 +65,27 @@ export default function CreateSalesInvoicePage() {
       try {
         const parsed = JSON.parse(decodeURIComponent(linesParam));
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setLines(parsed.map((line) => ({
-            item_code: line.item_code || '',
-            description: line.description || '',
-            qty: Number(line.qty) || 1,
-            rate: Number(line.rate) || 0,
-            warehouse: line.warehouse || '',
-            serial_no: line.serial_no || '',
-          })));
+          setLines(salesPrefillToEntryLines(parsed, defaultWarehouse));
         }
       } catch (err) {
         console.error('Failed to parse sales invoice line prefills:', err);
       }
     }
-  }, [searchParams]);
+  }, [searchParams, defaultWarehouse]);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       try {
-        const [customersRes, itemsRes, taxRes, warehousesRes, paymentSetupRes, currencyRes] = await Promise.all([
+        const [customersRes, taxRes, warehousesRes, paymentSetupRes, currencyRes] = await Promise.all([
           customersApi.getList({ page: 1, page_size: 100 }),
-          inventoryApi.getItems({ page: 1, page_size: 100 }),
           gstApi.getTaxTemplates('Sales'),
           inventoryApi.getWarehouses(),
           financeApi.getPaymentEntrySetup(),
           currencyApi.getOptions(),
         ]);
         setCustomers(customersRes.data.message?.data || []);
-        setItems(itemsRes.data.message?.data || []);
         const warehouseRows = warehousesRes.data.message || [];
-        setWarehouses(warehouseRows);
         const mainWh = warehouseRows.find((w: any) => /main warehouse/i.test(w.warehouse_name || w.warehouse || ''))
           || warehouseRows[0];
         const mainWarehouseName = mainWh?.warehouse || '';
@@ -223,107 +181,6 @@ export default function CreateSalesInvoicePage() {
   const readinessIssues = readinessChecks.filter((check) => !check.passed).map((check) => check.label);
   const isReadyToSave = readinessIssues.length === 0;
 
-  const updateLine = (index: number, patch: Partial<InvoiceLine>) => {
-    setLines((current) => current.map((line, i) => (i === index ? { ...line, ...patch } : line)));
-  };
-
-  const addLine = () => setLines((current) => [...current, { ...EMPTY_LINE, warehouse: defaultWarehouse }]);
-
-  const removeLine = (index: number) => {
-    setLines((current) => (current.length > 1 ? current.filter((_, i) => i !== index) : current));
-  };
-
-  const refreshLineStock = async (index: number, itemCode: string, warehouse: string) => {
-    if (!itemCode || !warehouse) {
-      updateLine(index, { stock_qty: null });
-      return;
-    }
-    try {
-      const res = await inventoryApi.getWarehouseItemQty(itemCode, warehouse);
-      updateLine(index, { stock_qty: res.data.message?.qty ?? 0 });
-    } catch {
-      updateLine(index, { stock_qty: null });
-    }
-  };
-
-  const handleItemChange = (index: number, itemCode: string) => {
-    const selected = items.find((item) => item.item_code === itemCode || item.name === itemCode);
-    const warehouse = lines[index]?.warehouse || defaultWarehouse;
-    setHistoryLineIndex(index);
-    updateLine(index, {
-      item_code: itemCode,
-      description: selected?.description || selected?.item_name || '',
-      rate: selected?.selling_price ?? selected?.standard_rate ?? 0,
-      has_serial_no: Boolean(selected?.has_serial_no),
-      serial_no: '',
-      serial_error: null,
-      warehouse: warehouse || defaultWarehouse,
-    });
-    if (itemCode && warehouse) void refreshLineStock(index, itemCode, warehouse);
-  };
-
-  const handleWarehouseChange = (index: number, warehouse: string) => {
-    updateLine(index, { warehouse, serial_error: null });
-    const itemCode = lines[index]?.item_code;
-    if (itemCode) void refreshLineStock(index, itemCode, warehouse);
-  };
-
-  const handleBarcodeScan = async (barcode: string) => {
-    try {
-      const res = await inventoryApi.lookupByBarcode(barcode);
-      const msg = res.data.message;
-      if (!msg?.found || !msg.item) {
-        setError(msg?.message || `No item for barcode ${barcode}`);
-        return;
-      }
-      const item = msg.item;
-      const wh = item.default_warehouse || defaultWarehouse;
-      setLines((prev) => [
-        ...prev,
-        {
-          item_code: item.item_code,
-          description: item.item_name || item.item_code,
-          qty: 1,
-          rate: Number(item.selling_price) || 0,
-          warehouse: wh,
-          serial_no: '',
-          has_serial_no: Boolean(item.has_serial_no),
-          stock_qty: item.stock_qty != null ? Number(item.stock_qty) : null,
-          serial_error: null,
-        },
-      ]);
-      setError(null);
-    } catch (err: any) {
-      setError(err?.response?.data?.exception || 'Barcode lookup failed.');
-    }
-  };
-
-  const validateSerial = async (index: number) => {
-    const line = lines[index];
-    if (!line?.item_code || !line.serial_no?.trim()) {
-      updateLine(index, { serial_error: null });
-      return true;
-    }
-    try {
-      const res = await inventoryApi.validateSerialForItem({
-        item_code: line.item_code,
-        serial_no: line.serial_no.trim(),
-        warehouse: line.warehouse || defaultWarehouse,
-      });
-      const result = res.data.message;
-      if (!result?.valid) {
-        updateLine(index, { serial_error: result?.message || 'Invalid serial number.' });
-        return false;
-      }
-      updateLine(index, { serial_error: null });
-      return true;
-    } catch (err: any) {
-      const message = err?.response?.data?.message || 'Could not validate serial number.';
-      updateLine(index, { serial_error: message });
-      return false;
-    }
-  };
-
   const handleTaxTemplateChange = (templateName: string) => {
     setTaxTemplate(templateName);
     const tpl = taxTemplates.find((t: any) => t.name === templateName);
@@ -336,7 +193,7 @@ export default function CreateSalesInvoicePage() {
       return;
     }
 
-    const validLines = lines.filter((line) => line.item_code && Number(line.qty) > 0);
+    const validLines = entryLinesToSalesPayload(lines, defaultWarehouse);
     if (validLines.length === 0) {
       setError('Add at least one valid item line.');
       return;
@@ -344,12 +201,25 @@ export default function CreateSalesInvoicePage() {
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      if (line.item_code && line.serial_no?.trim()) {
-        const ok = await validateSerial(i);
-        if (!ok) {
-          setError(line.serial_error || `Invalid serial on line ${i + 1}.`);
+      if (!line.item_code || !line.serial_no?.trim()) continue;
+      try {
+        const res = await inventoryApi.validateSerialForItem({
+          item_code: line.item_code,
+          serial_no: line.serial_no.trim(),
+          warehouse: line.warehouse || defaultWarehouse,
+        });
+        const result = res.data.message;
+        if (!result?.valid) {
+          const msg = result?.message || 'Invalid serial number.';
+          setLines((prev) => prev.map((l) => (l.id === line.id ? { ...l, serial_error: msg } : l)));
+          setError(`${msg} (line ${i + 1})`);
           return;
         }
+      } catch (err: any) {
+        const msg = err?.response?.data?.message || 'Could not validate serial number.';
+        setLines((prev) => prev.map((l) => (l.id === line.id ? { ...l, serial_error: msg } : l)));
+        setError(`${msg} (line ${i + 1})`);
+        return;
       }
     }
 
@@ -379,14 +249,7 @@ export default function CreateSalesInvoicePage() {
         customer,
         posting_date: postingDate,
         due_date: dueDate,
-        items: validLines.map((l) => ({
-          item_code: l.item_code,
-          description: l.description || undefined,
-          qty: l.qty,
-          rate: l.rate,
-          warehouse: l.warehouse || defaultWarehouse,
-          serial_no: l.serial_no?.trim() || undefined,
-        })),
+        items: validLines,
         taxes_and_charges: taxTemplate || undefined,
         tax_inclusive: taxInclusive ? 1 : 0,
         invoice_type: invoiceTypeKey,
@@ -531,108 +394,26 @@ export default function CreateSalesInvoicePage() {
           )}
 
           <div className="space-y-4">
-            <BarcodeScanInput
-              value={scanValue}
-              onChange={setScanValue}
-              onScan={handleBarcodeScan}
+            <h2 className="text-lg font-semibold text-gray-900">Invoice Items</h2>
+            <ItemLineEntry
+              lines={lines}
+              onChange={setLines}
+              priceContext="sale"
+              invoiceLayout
               disabled={loading || saving}
+              defaultWarehouse={defaultWarehouse}
+              minLines={1}
+              showDescription
+              serialMode="sale"
+              showLineIssues
+              hideLineTotal
+              onLineActivate={setHistoryLineIndex}
+              renderLineExtra={(line, index) =>
+                customer && line.item_code && historyLineIndex === index ? (
+                  <CustomerItemHistoryPanel customer={customer} itemCode={line.item_code} limit={5} />
+                ) : null
+              }
             />
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">Invoice Items</h2>
-              <button onClick={addLine} className="btn-secondary flex items-center gap-2">
-                <Plus size={14} /> Add Line
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              {lines.map((line, index) => (
-                <div key={index} className={`rounded-lg border p-4 space-y-3 hover:border-gray-300 transition-colors ${getLineIssues(line).length > 0 ? 'border-amber-200 bg-amber-50/50' : 'border-gray-200'}`}>
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-[2fr_1fr_1fr_1fr_auto]">
-                    <Field label="Item">
-                      <SearchableSelect
-                        value={line.item_code}
-                        onChange={(v) => handleItemChange(index, v)}
-                        options={items.map((e) => ({ label: e.item_name || e.item_code || e.name, value: e.item_code || e.name }))}
-                        placeholder="Select item"
-                        disabled={loading}
-                        error={!line.item_code}
-                        creatable
-                        onCreateNew={(query) => { quickAddItemLine.current = index; quickAdd.open('item', query); }}
-                      />
-                    </Field>
-                    <Field label="Qty">
-                      <input type="number" min={1} step="0.01" value={line.qty} onChange={(e) => updateLine(index, { qty: Number(e.target.value) })} className={`input-field text-right text-sm ${!(Number(line.qty) > 0) ? 'border-amber-300 focus:border-amber-500 focus:ring-amber-500' : ''}`} />
-                    </Field>
-                    <Field label="Rate">
-                      <input type="number" min={0} step="0.01" value={line.rate} onChange={(e) => updateLine(index, { rate: Number(e.target.value) })} className={`input-field text-right text-sm ${!(Number(line.rate) > 0) ? 'border-amber-300 focus:border-amber-500 focus:ring-amber-500' : ''}`} />
-                    </Field>
-                    <Field label="Amount">
-                      <div className="input-field bg-gray-50 text-right text-sm font-medium text-gray-900">
-                        {formatCurrency((Number(line.qty) || 0) * (Number(line.rate) || 0))}
-                      </div>
-                    </Field>
-                    <div className="flex items-end">
-                      <button onClick={() => removeLine(index)} disabled={lines.length === 1} className="rounded-lg border border-gray-200 p-2.5 text-gray-400 hover:text-red-600 disabled:opacity-30">
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    <Field label="Warehouse">
-                      <SearchableSelect
-                        value={line.warehouse || defaultWarehouse}
-                        onChange={(v) => handleWarehouseChange(index, v)}
-                        options={warehouses.map((w: any) => ({
-                          label: w.warehouse_name || w.warehouse,
-                          value: w.warehouse,
-                        }))}
-                        placeholder="Select warehouse"
-                        disabled={loading || warehouses.length === 0}
-                      />
-                    </Field>
-                    {line.stock_qty != null && line.item_code && (
-                      <Field label="Available in warehouse">
-                        <div className="input-field bg-gray-50 text-sm text-gray-700">
-                          {line.stock_qty} units
-                        </div>
-                      </Field>
-                    )}
-                  </div>
-                  {line.has_serial_no && (
-                    <Field label="Serial number">
-                      <input
-                        type="text"
-                        value={line.serial_no}
-                        onChange={(e) => updateLine(index, { serial_no: e.target.value, serial_error: null })}
-                        onBlur={() => void validateSerial(index)}
-                        placeholder="Scan or enter serial"
-                        className={`input-field text-sm font-mono ${line.serial_error ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
-                      />
-                      {line.serial_error && (
-                        <p className="mt-1 text-xs text-red-600">{line.serial_error}</p>
-                      )}
-                    </Field>
-                  )}
-                  <Field label="Description (shown on external/client-facing documents)">
-                    <textarea
-                      value={line.description}
-                      onChange={(e) => updateLine(index, { description: e.target.value })}
-                      placeholder="Enter line description for client-facing view..."
-                      rows={2}
-                      className="input-field text-sm resize-none"
-                    />
-                  </Field>
-                  {customer && line.item_code && historyLineIndex === index && (
-                    <CustomerItemHistoryPanel customer={customer} itemCode={line.item_code} limit={5} />
-                  )}
-                  {getLineIssues(line).length > 0 && (
-                    <div className="rounded-md border border-amber-200 bg-white px-3 py-2 text-xs text-amber-800">
-                      Line {index + 1}: {getLineIssues(line).join(' • ')}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
           </div>
         </div>
 
@@ -677,8 +458,6 @@ export default function CreateSalesInvoicePage() {
         quickAdd={quickAdd}
         customersSetter={setCustomers}
         customerValueSetter={setCustomer}
-        itemsSetter={setItems}
-        itemValueSetter={(v) => { if (quickAddItemLine.current >= 0) handleItemChange(quickAddItemLine.current, v); }}
       />
     </div>
   );
