@@ -700,3 +700,99 @@ export const printApi = {
   getPrintData: (doctype: string, name: string, viewMode?: string, format?: string) =>
     get('trader_app.api.printing.get_print_data', { doctype, name, view_mode: viewMode, format }),
 };
+
+// ─── Catalog API (Components feature) ────────────────────────────
+
+export const catalogApi = {
+  getTaxonomy: (company?: string) =>
+    get('trader_app.api.catalog.get_taxonomy', { company }),
+
+  getItems: (params?: Record<string, any>) =>
+    get('trader_app.api.catalog.get_catalog_items', params),
+
+  findOrCreateSku: (data: {
+    category: string;
+    form_factor: string;
+    capacity: string;
+    grade: string;
+    standard_rate?: number;
+    company?: string;
+  }) => call('trader_app.api.catalog.find_or_create_sku', data),
+
+  parseQuickEntry: (text: string, company?: string) =>
+    call('trader_app.api.catalog.parse_quick_entry', { text, company }),
+
+  importOpeningStock: (data: {
+    items: { item_code: string; qty: number; rate: number; warehouse: string }[];
+    warehouse: string;
+    company?: string;
+  }) => call('trader_app.api.catalog.import_opening_stock', data),
+
+  getStockTakeItems: (params?: Record<string, any>) =>
+    get('trader_app.api.catalog.get_stock_take_items', params),
+
+  createStockTake: (data: {
+    items: { item_code: string; counted_qty: number; warehouse: string }[];
+    warehouse: string;
+    company?: string;
+  }) => call('trader_app.api.catalog.create_stock_take', data),
+
+  toggleFeature: (enabled: boolean, company?: string) =>
+    call('trader_app.api.settings.toggle_components_feature', { enabled: enabled ? 1 : 0, company }),
+};
+
+// ─── Day-Book API (Components feature) ───────────────────────────
+
+export const daybookApi = {
+  getDayBook: (params?: Record<string, any>) =>
+    get('trader_app.api.daybook.get_day_book', params),
+
+  getDayCloseSummary: (params?: Record<string, any>) =>
+    get('trader_app.api.daybook.get_day_close_summary', params),
+
+  getStockValuation: (params?: Record<string, any>) =>
+    get('trader_app.api.daybook.get_component_stock_valuation', params),
+
+  getIncoming: (params?: Record<string, any>) =>
+    get('trader_app.api.daybook.get_incoming', params),
+
+  getOutgoing: (params?: Record<string, any>) =>
+    get('trader_app.api.daybook.get_outgoing', params),
+
+  settleParty: (data: {
+    party_type: 'Customer' | 'Supplier';
+    party: string;
+    amount: number;
+    mode_of_payment?: string;
+    company?: string;
+    posting_date?: string;
+    settlement_account?: string;
+  }) => call('trader_app.api.daybook.settle_party', data),
+
+  getPartyOpenInvoices: (params: {
+    party_type: 'Customer' | 'Supplier';
+    party: string;
+    company?: string;
+  }) => get('trader_app.api.daybook.get_party_open_invoices', params),
+
+  findOrCreateParty: (data: {
+    party_type: 'Customer' | 'Supplier';
+    party_name: string;
+    short_code?: string;
+    company?: string;
+  }) => call('trader_app.api.daybook.find_or_create_party', data),
+
+  postDayTransaction: (data: {
+    tx_type: 'sale' | 'purchase' | 'payment_in' | 'payment_out';
+    party: string;
+    lines?: { item_code: string; qty: number; rate: number; warehouse?: string }[];
+    amount?: number;
+    mode_of_payment?: string;
+    posting_date?: string;
+    company?: string;
+    record_payment?: number;
+    payment_amount?: number;
+    settlement_account?: string;
+    invoice_type?: string;
+  }) => call('trader_app.api.daybook.post_day_transaction', data),
+};

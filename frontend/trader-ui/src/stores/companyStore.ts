@@ -7,6 +7,7 @@ export type CompanyOption = {
   default_currency?: string;
   country?: string;
   multi_currency_enabled?: boolean;
+  components_enabled?: boolean;
 };
 
 interface CompanyState {
@@ -14,6 +15,7 @@ interface CompanyState {
   abbr: string | null;
   currency: string | null;
   multiCurrencyEnabled: boolean;
+  componentsEnabled: boolean;
   companies: CompanyOption[];
   initialized: boolean;
   loading: boolean;
@@ -21,6 +23,7 @@ interface CompanyState {
 
   load: () => Promise<void>;
   setCompany: (company: string) => Promise<void>;
+  setComponentsEnabled: (enabled: boolean) => void;
 }
 
 registerActiveCompanyGetter(() => useCompanyStore.getState().company || undefined);
@@ -30,6 +33,7 @@ export const useCompanyStore = create<CompanyState>((set, get) => ({
   abbr: null,
   currency: null,
   multiCurrencyEnabled: false,
+  componentsEnabled: false,
   companies: [],
   initialized: false,
   loading: false,
@@ -52,6 +56,7 @@ export const useCompanyStore = create<CompanyState>((set, get) => ({
         abbr: active.abbr || companies.find((c) => c.name === company)?.abbr || null,
         currency: active.default_currency || companies.find((c) => c.name === company)?.default_currency || null,
         multiCurrencyEnabled: Boolean(active.multi_currency_enabled),
+        componentsEnabled: Boolean(active.components_enabled),
         initialized: true,
         loading: false,
       });
@@ -72,6 +77,7 @@ export const useCompanyStore = create<CompanyState>((set, get) => ({
         abbr: active.abbr || state.companies.find((c) => c.name === company)?.abbr || null,
         currency: active.default_currency || state.companies.find((c) => c.name === company)?.default_currency || null,
         multiCurrencyEnabled: Boolean(active.multi_currency_enabled),
+        componentsEnabled: Boolean(active.components_enabled),
         loading: false,
         revision: state.revision + 1,
       }));
@@ -81,5 +87,9 @@ export const useCompanyStore = create<CompanyState>((set, get) => ({
       set({ loading: false });
       throw err;
     }
+  },
+
+  setComponentsEnabled: (enabled: boolean) => {
+    set({ componentsEnabled: enabled });
   },
 }));

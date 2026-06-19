@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Building2, Users, Shield, Globe, RefreshCw, SlidersHorizontal, Save, ScrollText } from 'lucide-react';
+import { Building2, Users, Shield, Globe, RefreshCw, SlidersHorizontal, Save, ScrollText, Layers } from 'lucide-react';
 import CurrencySettingsPanel from '../components/CurrencySettingsPanel';
-import { settingsApi } from '../lib/api';
+import { settingsApi, catalogApi } from '../lib/api';
 import { applyTraderUiTheme, normaliseUiPrefs, type TraderUiPrefs } from '../lib/traderUiTheme';
+import { useCompanyStore } from '../stores/companyStore';
+import { useAuthStore } from '../stores/authStore';
 
 const TIME_ZONES = [
   'Asia/Karachi',
@@ -41,6 +43,29 @@ export default function SettingsPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  const { componentsEnabled, setComponentsEnabled } = useCompanyStore();
+  const roles_ = useAuthStore((s) => s.roles);
+  const isAdmin = roles_.includes('Trader Admin') || roles_.includes('System Manager');
+  const [togglingComponents, setTogglingComponents] = useState(false);
+
+  const handleToggleComponents = async (enabled: boolean) => {
+    setTogglingComponents(true);
+    try {
+      await catalogApi.toggleFeature(enabled);
+      setComponentsEnabled(enabled);
+      setFeedback({
+        type: 'success',
+        message: enabled
+          ? 'Components Trading enabled. Reload the page to see the new menu items.'
+          : 'Components Trading disabled. Data is preserved and can be re-enabled anytime.',
+      });
+    } catch (err: any) {
+      setFeedback({ type: 'error', message: err?.response?.data?.exception || 'Failed to toggle feature.' });
+    } finally {
+      setTogglingComponents(false);
+    }
+  };
 
   const loadSettings = async () => {
     setLoading(true);
@@ -380,6 +405,66 @@ export default function SettingsPage() {
         ) : (
           <p className="text-gray-500 dark:text-slate-400 text-sm">No custom Trader roles found. Roles are created during app installation.</p>
         )}
+      </div>
+
+      {/* Feature Flags */}
+      <div className="card p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-lg bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center">
+            <Layers size={20} className="text-violet-700 dark:text-violet-300" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Feature Flags</h2>
+            <p className="text-sm text-gray-500 dark:text-slate-400">Enable or disable optional trading modules (admin only)</p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="flex items-start justify-between gap-4 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/40 p-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <Layers size={16} className="text-violet-600 dark:text-violet-400" />
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Components Trading — Day Book &amp; Variant Catalog</h3>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-slate-400 leading-relaxed">
+                Enables attribute-driven component catalog (Category → Form Factor → Capacity → Grade),
+                day-book entry, stock valuation report, AR/AP (In-Coming/Out-Going) lists, stock-take, and day-close summary.
+                <br />
+                <span className="text-violet-600 dark:text-violet-400 font-medium">
+                  Disabling hides all new UI but preserves all data — re-enable anytime.
+                </span>
+              </p>
+            </div>
+            <div className="flex-shrink-0">
+              {isAdmin ? (
+                <button
+                  onClick={() => handleToggleComponents(!componentsEnabled)}
+                  disabled={togglingComponents}
+                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 disabled:opacity-60 ${
+                    componentsEnabled ? 'bg-violet-600' : 'bg-gray-200 dark:bg-slate-700'
+                  }`}
+                  role="switch"
+                  aria-checked={componentsEnabled}
+                  title={componentsEnabled ? 'Disable Components Trading' : 'Enable Components Trading'}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      componentsEnabled ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              ) : (
+                <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${
+                  componentsEnabled
+                    ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400'
+                    : 'bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-slate-300'
+                }`}>
+                  {componentsEnabled ? 'Enabled' : 'Disabled'}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* System Info */}

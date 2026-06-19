@@ -66,6 +66,16 @@ const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const AuditLogPage = lazy(() => import('./pages/AuditLogPage'));
 const PosCheckoutPage = lazy(() => import('./pages/PosCheckoutPage'));
 
+/* ---------- components-trading feature pages (flag-gated) ---------- */
+const DayBookPage = lazy(() => import('./pages/DayBookPage'));
+const ReceivablesPage = lazy(() => import('./pages/ReceivablesPage'));
+const PayablesPage = lazy(() => import('./pages/PayablesPage'));
+const DayClosePage = lazy(() => import('./pages/DayClosePage'));
+const ComponentCatalogPage = lazy(() => import('./pages/ComponentCatalogPage'));
+const OpeningStockPage = lazy(() => import('./pages/OpeningStockPage'));
+const StockValuationPage = lazy(() => import('./pages/StockValuationPage'));
+const StockTakePage = lazy(() => import('./pages/StockTakePage'));
+
 function PageLoader() {
   return (
     <div className="flex items-center justify-center h-64">
@@ -178,6 +188,16 @@ export default function App() {
         <Route path="settings/audit" element={<AuditLogPage />} />
         <Route path="settings/gst" element={<GstSettingsPage />} />
         <Route path="print" element={<DocumentPrintPage />} />
+
+        {/* Components Trading — all routes behind feature flag (pages self-guard) */}
+        <Route path="finance/day-book" element={<DayBookPage />} />
+        <Route path="finance/receivables" element={<ReceivablesPage />} />
+        <Route path="finance/payables" element={<PayablesPage />} />
+        <Route path="finance/day-close" element={<DayClosePage />} />
+        <Route path="components/catalog" element={<ComponentCatalogPage />} />
+        <Route path="components/opening-stock" element={<OpeningStockPage />} />
+        <Route path="components/stock-valuation" element={<StockValuationPage />} />
+        <Route path="components/stock-take" element={<StockTakePage />} />
       </Route>
       <Route path="*" element={<NotFoundPage />} />
     </Routes>

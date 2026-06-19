@@ -73,12 +73,14 @@ def _company_payload(company_name):
         return None
     doc = frappe.get_cached_doc("Company", company_name)
     multi = getattr(doc, "trader_multi_currency_enabled", None)
+    components = getattr(doc, "trader_components_enabled", None)
     return {
         "company": doc.name,
         "abbr": doc.abbr,
         "default_currency": doc.default_currency,
         "country": doc.country,
         "multi_currency_enabled": bool(multi),
+        "components_enabled": bool(components),
     }
 
 
@@ -102,6 +104,7 @@ def get_active_company():
         "default_currency": None,
         "country": None,
         "multi_currency_enabled": False,
+        "components_enabled": False,
     }
 
 

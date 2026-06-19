@@ -144,6 +144,26 @@ def get_trader_roles():
 
 
 @frappe.whitelist()
+def toggle_components_feature(enabled=0, company=None):
+    """Enable or disable the Components Trading feature for a company.
+    Restricted to Trader Admin / System Manager / Administrator.
+    """
+    from trader_app.api.company import resolve_active_company
+
+    roles = set(frappe.get_roles())
+    if frappe.session.user != "Administrator":
+        allowed = {"System Manager", "Trader Admin"}
+        if not roles.intersection(allowed):
+            frappe.throw(_("Only Trader Admin may change feature flags."))
+
+    company = resolve_active_company(company)
+    frappe.db.set_value("Company", company, "trader_components_enabled", cint(enabled))
+    frappe.db.commit()
+
+    return {"ok": True, "components_enabled": bool(cint(enabled)), "company": company}
+
+
+@frappe.whitelist()
 def get_current_user_roles():
     """Return the Trader-App roles assigned to the currently logged-in user.
 

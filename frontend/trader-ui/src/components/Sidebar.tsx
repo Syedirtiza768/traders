@@ -28,11 +28,13 @@ import {
   ScanLine,
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
+import { useCompanyStore } from '../stores/companyStore';
 import { hasCapability, type AppCapability } from '../lib/permissions';
 
 interface NavChild {
   to: string;
   label: string;
+  requiresComponents?: boolean;
 }
 
 interface NavItem {
@@ -41,6 +43,7 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   exact?: boolean;
   capability?: AppCapability;
+  requiresComponents?: boolean;
   children?: NavChild[];
 }
 
@@ -82,10 +85,27 @@ const navItems: NavItem[] = [
       { to: '/finance', label: 'Overview' },
       { to: '/finance/payments', label: 'Payments' },
       { to: '/finance/journals', label: 'Journal Entries' },
+      { to: '/finance/day-book', label: 'Day Book', requiresComponents: true },
+      { to: '/finance/receivables', label: 'In-Coming (AR)', requiresComponents: true },
+      { to: '/finance/payables', label: 'Out-Going (AP)', requiresComponents: true },
+      { to: '/finance/day-close', label: 'Day Close', requiresComponents: true },
     ],
   },
   { to: '/operations', label: 'Operations', icon: Activity, capability: 'operations:view' },
   { to: '/reports', label: 'Reports', icon: BarChart2, capability: 'reports:view' },
+  {
+    to: '/components',
+    label: 'Components',
+    icon: Layers,
+    capability: 'components:view',
+    requiresComponents: true,
+    children: [
+      { to: '/components/catalog', label: 'Catalog' },
+      { to: '/components/opening-stock', label: 'Opening Stock' },
+      { to: '/components/stock-valuation', label: 'Stock Valuation' },
+      { to: '/components/stock-take', label: 'Stock Take' },
+    ],
+  },
 ];
 
 const bottomItems: NavItem[] = [
@@ -100,6 +120,7 @@ interface SidebarProps {
 export default function Sidebar({ mobile = false, onClose }: SidebarProps) {
   const location = useLocation();
   const roles = useAuthStore((s) => s.roles);
+  const componentsEnabled = useCompanyStore((s) => s.componentsEnabled);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   const toggleExpand = (key: string) => {
@@ -126,10 +147,20 @@ export default function Sidebar({ mobile = false, onClose }: SidebarProps) {
     if (item.capability && roles.length > 0 && !hasCapability(roles, item.capability)) {
       return null;
     }
+    // Components feature: hide when flag is OFF
+    if (item.requiresComponents && !componentsEnabled) {
+      return null;
+    }
+    // For Finance children that are components-only, hide them when feature is OFF
+    // (children are rendered inline below — handled via component-gated child filter)
+
 
     const active = isParentActive(item);
 
     if (item.children) {
+      const visibleChildren = item.children.filter(
+        (c) => !c.requiresComponents || componentsEnabled
+      );
       const open = isOpen(item);
       return (
         <div key={item.to}>
@@ -145,7 +176,7 @@ export default function Sidebar({ mobile = false, onClose }: SidebarProps) {
           </button>
           {open && (
             <div className="ml-8 mt-0.5 space-y-0.5 border-l-2 border-gray-100 dark:border-slate-700 pl-3">
-              {item.children.map((child) => (
+              {visibleChildren.map((child) => (
                 <NavLink
                   key={child.to}
                   to={child.to}

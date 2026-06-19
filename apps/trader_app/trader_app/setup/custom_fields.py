@@ -85,6 +85,102 @@ CUSTOM_FIELDS = [
         "insert_after": "due_date",
         "description": "Bank account shown on the invoice for customer payments.",
     },
+
+    # ── Components Trading feature flag ────────────────────────────
+    {
+        "dt": "Company",
+        "fieldname": "trader_components_enabled",
+        "label": "Components Trading — Day Book & Variant Catalog",
+        "fieldtype": "Check",
+        "default": "0",
+        "insert_after": "trader_enabled_currencies",
+        "description": (
+            "When ON: attribute-driven component catalog, day-book entry, "
+            "stock valuation report, AR/AP lists, stock-take, and day-close become active. "
+            "Disabling hides the UI but preserves all data."
+        ),
+    },
+
+    # ── Component metadata on Item (all optional, default 0/blank) ──
+    {
+        "dt": "Item",
+        "fieldname": "trader_component_item",
+        "label": "Component Item",
+        "fieldtype": "Check",
+        "default": "0",
+        "insert_after": "item_group",
+        "description": "Managed by the Components Catalog feature.",
+    },
+    {
+        "dt": "Item",
+        "fieldname": "trader_component_category",
+        "label": "Component Category",
+        "fieldtype": "Data",
+        "insert_after": "trader_component_item",
+        "depends_on": "eval:doc.trader_component_item",
+    },
+    {
+        "dt": "Item",
+        "fieldname": "trader_component_form_factor",
+        "label": "Form Factor",
+        "fieldtype": "Data",
+        "insert_after": "trader_component_category",
+        "depends_on": "eval:doc.trader_component_item",
+    },
+    {
+        "dt": "Item",
+        "fieldname": "trader_component_capacity",
+        "label": "Capacity",
+        "fieldtype": "Data",
+        "insert_after": "trader_component_form_factor",
+        "depends_on": "eval:doc.trader_component_item",
+    },
+    {
+        "dt": "Item",
+        "fieldname": "trader_component_grade",
+        "label": "Grade / Variant",
+        "fieldtype": "Data",
+        "insert_after": "trader_component_capacity",
+        "depends_on": "eval:doc.trader_component_item",
+    },
+
+    # ── Short code + opening balance on Customer / Supplier ─────────
+    {
+        "dt": "Customer",
+        "fieldname": "trader_short_code",
+        "label": "Short Code",
+        "fieldtype": "Data",
+        "insert_after": "customer_name",
+        "description": "Informal short-code used in day-book entry (e.g. A7, C3, H3).",
+        "in_list_view": 1,
+    },
+    {
+        "dt": "Customer",
+        "fieldname": "trader_opening_balance",
+        "label": "Opening AR Balance",
+        "fieldtype": "Currency",
+        "default": "0",
+        "insert_after": "trader_short_code",
+        "description": "Opening receivable balance imported when Components feature is first enabled.",
+    },
+    {
+        "dt": "Supplier",
+        "fieldname": "trader_short_code",
+        "label": "Short Code",
+        "fieldtype": "Data",
+        "insert_after": "supplier_name",
+        "description": "Informal short-code used in day-book entry.",
+        "in_list_view": 1,
+    },
+    {
+        "dt": "Supplier",
+        "fieldname": "trader_opening_balance",
+        "label": "Opening AP Balance",
+        "fieldtype": "Currency",
+        "default": "0",
+        "insert_after": "trader_short_code",
+        "description": "Opening payable balance imported when Components feature is first enabled.",
+    },
 ]
 
 

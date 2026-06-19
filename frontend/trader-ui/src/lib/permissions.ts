@@ -21,7 +21,9 @@ export type AppCapability =
   | 'finance:view'
   | 'reports:view'
   | 'settings:view'
-  | 'operations:view';
+  | 'operations:view'
+  | 'components:view'
+  | 'components:execute';
 
 const FULL_ACCESS: AppCapability[] = [
   'dashboard:view',
@@ -37,6 +39,8 @@ const FULL_ACCESS: AppCapability[] = [
   'reports:view',
   'settings:view',
   'operations:view',
+  'components:view',
+  'components:execute',
 ];
 
 const ROLE_CAPABILITIES: Record<string, AppCapability[]> = {
@@ -53,6 +57,8 @@ const ROLE_CAPABILITIES: Record<string, AppCapability[]> = {
     'finance:view',
     'reports:view',
     'operations:view',
+    'components:view',
+    'components:execute',
   ],
   'Trader Purchase Manager': [
     'dashboard:view',
@@ -62,6 +68,8 @@ const ROLE_CAPABILITIES: Record<string, AppCapability[]> = {
     'finance:view',
     'reports:view',
     'operations:view',
+    'components:view',
+    'components:execute',
   ],
   'Trader Inventory Manager': [
     'dashboard:view',
@@ -69,6 +77,8 @@ const ROLE_CAPABILITIES: Record<string, AppCapability[]> = {
     'inventory:execute',
     'reports:view',
     'operations:view',
+    'components:view',
+    'components:execute',
   ],
   /* DB alias for Inventory Manager */
   'Trader Warehouse Manager': [
@@ -77,6 +87,8 @@ const ROLE_CAPABILITIES: Record<string, AppCapability[]> = {
     'inventory:execute',
     'reports:view',
     'operations:view',
+    'components:view',
+    'components:execute',
   ],
   'Trader Finance Manager': [
     'dashboard:view',
@@ -85,6 +97,7 @@ const ROLE_CAPABILITIES: Record<string, AppCapability[]> = {
     'customers:view',
     'suppliers:view',
     'operations:view',
+    'components:view',
   ],
   /* DB alias for Finance Manager */
   'Trader Accountant': [
@@ -94,6 +107,7 @@ const ROLE_CAPABILITIES: Record<string, AppCapability[]> = {
     'customers:view',
     'suppliers:view',
     'operations:view',
+    'components:view',
   ],
 };
 
