@@ -589,9 +589,23 @@ def _get_open_invoices(party_type, party, company):
     """, {"party": party, "company": company}, as_dict=True)
 
 
+def _payment_reference_doctype(party_type):
+    return "Sales Invoice" if party_type == "Customer" else "Purchase Invoice"
+
+
+def _parse_allocations(allocations):
+    if allocations is None:
+        return None
+    if isinstance(allocations, str):
+        allocations = json.loads(allocations)
+    if not isinstance(allocations, list):
+        return None
+    return allocations
+
+
 def _allocate_payment_to_invoices(pe, party_type, party, company, amount):
     """FIFO allocation across oldest open invoices. Returns unallocated remainder."""
-    ref_doctype = "Sales Invoice" if party_type == "Customer" else "Purchase Invoice"
+    ref_doctype = _payment_reference_doctype(party_type)
     remaining = flt(amount)
 
     for inv in _get_open_invoices(party_type, party, company):
@@ -610,9 +624,69 @@ def _allocate_payment_to_invoices(pe, party_type, party, company, amount):
     return remaining
 
 
+def _allocate_payment_manual(pe, party_type, party, company, amount, allocations):
+    """Apply user-specified invoice allocations. Returns unallocated remainder."""
+    ref_doctype = _payment_reference_doctype(party_type)
+    open_map = {
+        inv.name: inv for inv in _get_open_invoices(party_type, party, company)
+    }
+    total_allocated = 0.0
+
+    for row in allocations:
+        ref_name = (row.get("reference_name") or row.get("name") or "").strip()
+        alloc = flt(row.get("allocated_amount", 0))
+        if alloc <= 0:
+            continue
+        if not ref_name:
+            frappe.throw(_("Each allocation row must include reference_name."))
+        if ref_name not in open_map:
+            frappe.throw(
+                _("Invoice {0} is not open for this party.").format(ref_name)
+            )
+        outstanding = flt(open_map[ref_name].outstanding_amount)
+        if alloc > outstanding + 0.005:
+            frappe.throw(
+                _("Allocation {0} exceeds outstanding {1} on {2}.").format(
+                    alloc, outstanding, ref_name
+                )
+            )
+        pe.append("references", {
+            "reference_doctype": ref_doctype,
+            "reference_name": ref_name,
+            "allocated_amount": alloc,
+        })
+        total_allocated += alloc
+
+    if total_allocated > flt(amount) + 0.005:
+        frappe.throw(_("Total allocated amount exceeds payment amount."))
+
+    return flt(amount) - total_allocated
+
+
+def _allocate_payment(pe, party_type, party, company, amount, allocations=None):
+    """Allocate payment to invoices.
+
+    ``allocations=None`` — FIFO across open invoices.
+    ``allocations=[]`` — post full amount as party advance (no invoice refs).
+    ``allocations=[{...}]`` — apply explicit per-invoice rows.
+    """
+    if allocations is None:
+        return _allocate_payment_to_invoices(pe, party_type, party, company, amount)
+
+    parsed = _parse_allocations(allocations)
+    if parsed is not None and len(parsed) == 0:
+        return flt(amount)
+
+    if parsed:
+        return _allocate_payment_manual(pe, party_type, party, company, amount, parsed)
+
+    return _allocate_payment_to_invoices(pe, party_type, party, company, amount)
+
+
 def _create_settlement_payment(party_type, party, amount, company, posting_date=None,
-                               mode_of_payment=None, settlement_account=None):
-    """Create and submit a Payment Entry with FIFO invoice allocation."""
+                               mode_of_payment=None, settlement_account=None,
+                               allocations=None):
+    """Create and submit a Payment Entry with invoice allocation."""
     payment_type = "Receive" if party_type == "Customer" else "Pay"
     party = _resolve_party(party_type, party)
     mode_of_payment = _resolve_payment_mode(mode_of_payment or "Cash")
@@ -640,7 +714,9 @@ def _create_settlement_payment(party_type, party, amount, company, posting_date=
         paid_from=settlement_account if payment_type == "Pay" else None,
     )
 
-    unallocated = _allocate_payment_to_invoices(doc, party_type, party, company, amount)
+    unallocated = _allocate_payment(
+        doc, party_type, party, company, amount, allocations=allocations,
+    )
     fallback = doc.references[0].reference_name if doc.get("references") else party
     _apply_bank_reference_fields(doc, fallback_reference=fallback)
 
@@ -659,10 +735,11 @@ def _create_settlement_payment(party_type, party, amount, company, posting_date=
 
 @frappe.whitelist()
 def settle_party(party_type, party, amount, mode_of_payment="Cash", company=None,
-                 posting_date=None, settlement_account=None):
+                 posting_date=None, settlement_account=None, allocations=None):
     """Create and submit a Payment Entry to settle a party's balance.
 
-    Allocates FIFO to oldest open invoices. Any remainder is posted as advance.
+    When ``allocations`` is provided, applies those invoice rows; otherwise FIFO.
+    Any remainder is posted as advance.
     """
     company = resolve_active_company(company)
     _assert_enabled(company)
@@ -682,6 +759,7 @@ def settle_party(party_type, party, amount, mode_of_payment="Cash", company=None
         posting_date=posting_date,
         mode_of_payment=mode_of_payment,
         settlement_account=settlement_account,
+        allocations=allocations,
     )
     return {"ok": True, **result}
 
@@ -756,7 +834,8 @@ def find_or_create_party(party_type, party_name, short_code=None, company=None):
 @frappe.whitelist()
 def post_day_transaction(tx_type, party, lines=None, amount=0, mode_of_payment="Cash",
                          posting_date=None, company=None, record_payment=0,
-                         payment_amount=None, settlement_account=None, invoice_type=None):
+                         payment_amount=None, settlement_account=None, invoice_type=None,
+                         allocations=None):
     """Post a day-book transaction: sale, purchase, payment_in, or payment_out."""
     company = resolve_active_company(company)
     _assert_enabled(company)
@@ -777,6 +856,7 @@ def post_day_transaction(tx_type, party, lines=None, amount=0, mode_of_payment="
             posting_date=posting_date,
             mode_of_payment=mode_of_payment,
             settlement_account=settlement_account,
+            allocations=allocations,
         )
         return {
             "ok": True,

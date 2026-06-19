@@ -3,7 +3,11 @@ import { Loader2, X } from 'lucide-react';
 import SearchableSelect from './SearchableSelect';
 import QuickAddProvider from './QuickAddProvider';
 import useQuickAdd from './useQuickAdd';
-import ComponentLineEntry, { type ComponentLine } from './ComponentLineEntry';
+import DayBookItemLineEntry, { type DayBookLine } from './DayBookItemLineEntry';
+import PaymentAllocationPanel, {
+  type InvoiceAllocation,
+  buildFifoAllocations,
+} from './PaymentAllocationPanel';
 import {
   customersApi,
   daybookApi,
@@ -42,14 +46,15 @@ export default function DayBookEntryPanel({
   const [customers, setCustomers] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [party, setParty] = useState('');
-  const [lines, setLines] = useState<ComponentLine[]>([]);
+  const [lines, setLines] = useState<DayBookLine[]>([]);
   const [cashNow, setCashNow] = useState(true);
   const [amount, setAmount] = useState('');
   const [modeOfPayment, setModeOfPayment] = useState('Cash');
   const [settlementAccount, setSettlementAccount] = useState('');
-  const [paymentModes, setPaymentModes] = useState<{ name: string }[]>([]);
+  const [paymentModes, setPaymentModes] = useState<{ name: string; type?: string }[]>([]);
   const [settlementAccounts, setSettlementAccounts] = useState<{ name: string; account_name?: string; account_type?: string }[]>([]);
   const [openInvoices, setOpenInvoices] = useState<any[]>([]);
+  const [allocations, setAllocations] = useState<InvoiceAllocation[]>([]);
   const [loadingSetup, setLoadingSetup] = useState(false);
   const [loadingInvoices, setLoadingInvoices] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -68,12 +73,26 @@ export default function DayBookEntryPanel({
     }));
   }, [customers, suppliers, entryType]);
 
+  const paymentModeOptions = useMemo(
+    () => paymentModes.map((m) => ({ label: m.name, value: m.name })),
+    [paymentModes],
+  );
+
+  const settlementAccountOptions = useMemo(
+    () => settlementAccounts.map((a) => ({
+      label: `${a.account_type === 'Bank' ? 'Bank' : 'Cash'}: ${a.account_name || a.name}`,
+      value: a.name,
+    })),
+    [settlementAccounts],
+  );
+
   const resetForm = useCallback(() => {
     setParty('');
     setLines([]);
     setCashNow(true);
     setAmount('');
     setOpenInvoices([]);
+    setAllocations([]);
     setError(null);
   }, []);
 
@@ -115,6 +134,7 @@ export default function DayBookEntryPanel({
   useEffect(() => {
     if (!open || !party) {
       setOpenInvoices([]);
+      setAllocations([]);
       return;
     }
     if (entryType !== 'payment_in' && entryType !== 'payment_out') return;
@@ -125,16 +145,24 @@ export default function DayBookEntryPanel({
       party,
     }).then((res) => {
       const msg = res.data.message as any;
-      setOpenInvoices(msg.invoices || []);
+      const invoices = msg.invoices || [];
+      setOpenInvoices(invoices);
       if (msg.total_outstanding > 0) {
         setAmount((prev) => prev || String(msg.total_outstanding));
       }
     }).catch(() => {
       setOpenInvoices([]);
+      setAllocations([]);
     }).finally(() => {
       setLoadingInvoices(false);
     });
   }, [open, party, entryType]);
+
+  const payAmount = parseFloat(amount) || 0;
+  const totalAllocated = allocations.reduce(
+    (sum, row) => sum + (Number(row.allocated_amount) || 0),
+    0,
+  );
 
   const handleSubmit = async () => {
     if (!party) {
@@ -155,10 +183,23 @@ export default function DayBookEntryPanel({
           setSaving(false);
           return;
         }
+        const invalid = lines.some((l) => !l.item_code || !l.qty || l.qty <= 0);
+        if (invalid) {
+          setError('Each line needs an item and quantity greater than zero.');
+          setSaving(false);
+          return;
+        }
         const res = await daybookApi.postDayTransaction({
           tx_type: entryType,
           party,
-          lines: lines.map((l) => ({ item_code: l.item_code, qty: l.qty, rate: l.rate })),
+          lines: lines.map((l) => ({
+            item_code: l.item_code,
+            qty: l.qty,
+            rate: l.rate,
+            warehouse: l.warehouse || undefined,
+            serial_no: l.serial_no || undefined,
+            description: l.description || l.item_name || undefined,
+          })),
           posting_date: postingDate,
           record_payment: cashNow ? 1 : 0,
           mode_of_payment: modeOfPayment,
@@ -171,12 +212,23 @@ export default function DayBookEntryPanel({
           + (msg.outstanding_amount > 0 ? ` · Outstanding ${msg.outstanding_amount.toFixed(2)}` : ''),
         );
       } else {
-        const payAmount = parseFloat(amount);
         if (!payAmount || payAmount <= 0) {
           setError('Enter a valid payment amount.');
           setSaving(false);
           return;
         }
+        if (totalAllocated > payAmount + 0.005) {
+          setError('Allocated total exceeds payment amount.');
+          setSaving(false);
+          return;
+        }
+        const activeAllocations = allocations
+          .filter((row) => Number(row.allocated_amount) > 0)
+          .map((row) => ({
+            reference_name: row.reference_name,
+            allocated_amount: Number(row.allocated_amount),
+          }));
+
         const res = await daybookApi.postDayTransaction({
           tx_type: entryType,
           party,
@@ -184,11 +236,14 @@ export default function DayBookEntryPanel({
           posting_date: postingDate,
           mode_of_payment: modeOfPayment,
           settlement_account: settlementAccount || undefined,
+          allocations: openInvoices.length > 0 ? activeAllocations : undefined,
         });
         const msg = res.data.message as any;
+        const unapplied = payAmount - (Number(msg.allocated_amount) || totalAllocated);
         onSuccess(
           `Payment ${msg.payment_entry} recorded`
-          + (msg.allocated_amount ? ` · Allocated ${Number(msg.allocated_amount).toFixed(2)}` : ''),
+          + (msg.allocated_amount ? ` · Allocated ${Number(msg.allocated_amount).toFixed(2)}` : '')
+          + (unapplied > 0.005 ? ` · Advance ${unapplied.toFixed(2)}` : ''),
         );
       }
       onClose();
@@ -235,7 +290,7 @@ export default function DayBookEntryPanel({
                   value={party}
                   onChange={setParty}
                   options={partyOptions}
-                  placeholder="Select party"
+                  placeholder="Search party"
                   creatable
                   onCreateNew={(q) => quickAdd.open(
                     entryType === 'purchase' || entryType === 'payment_out' ? 'supplier' : 'customer',
@@ -246,7 +301,11 @@ export default function DayBookEntryPanel({
 
               {isInvoice && (
                 <>
-                  <ComponentLineEntry lines={lines} onChange={setLines} />
+                  <DayBookItemLineEntry
+                    lines={lines}
+                    onChange={setLines}
+                    entryType={entryType}
+                  />
                   <div className="space-y-2 rounded-lg border border-gray-200 dark:border-slate-700 p-3">
                     <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-slate-200">
                       <input
@@ -267,27 +326,19 @@ export default function DayBookEntryPanel({
                       Credit (invoice only)
                     </label>
                     {cashNow && (
-                      <div className="grid grid-cols-2 gap-2 pt-1">
-                        <select
+                      <div className="grid grid-cols-1 gap-2 pt-1">
+                        <SearchableSelect
                           value={modeOfPayment}
-                          onChange={(e) => setModeOfPayment(e.target.value)}
-                          className="input-field text-sm"
-                        >
-                          {paymentModes.map((m) => (
-                            <option key={m.name} value={m.name}>{m.name}</option>
-                          ))}
-                        </select>
-                        <select
+                          onChange={setModeOfPayment}
+                          options={paymentModeOptions}
+                          placeholder="Mode of payment"
+                        />
+                        <SearchableSelect
                           value={settlementAccount}
-                          onChange={(e) => setSettlementAccount(e.target.value)}
-                          className="input-field text-sm"
-                        >
-                          {settlementAccounts.map((a) => (
-                            <option key={a.name} value={a.name}>
-                              {a.account_name || a.name}
-                            </option>
-                          ))}
-                        </select>
+                          onChange={setSettlementAccount}
+                          options={settlementAccountOptions}
+                          placeholder="Settlement account"
+                        />
                       </div>
                     )}
                   </div>
@@ -305,58 +356,48 @@ export default function DayBookEntryPanel({
                       min={0}
                       step="0.01"
                       value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
+                      onChange={(e) => {
+                        setAmount(e.target.value);
+                        const next = parseFloat(e.target.value) || 0;
+                        if (openInvoices.length > 0) {
+                          setAllocations(buildFifoAllocations(openInvoices, next));
+                        }
+                      }}
                       className="input-field"
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 gap-2">
                     <div>
                       <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">
                         Mode
                       </span>
-                      <select
+                      <SearchableSelect
                         value={modeOfPayment}
-                        onChange={(e) => setModeOfPayment(e.target.value)}
-                        className="input-field text-sm"
-                      >
-                        {paymentModes.map((m) => (
-                          <option key={m.name} value={m.name}>{m.name}</option>
-                        ))}
-                      </select>
+                        onChange={setModeOfPayment}
+                        options={paymentModeOptions}
+                        placeholder="Mode of payment"
+                      />
                     </div>
                     <div>
                       <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">
                         Account
                       </span>
-                      <select
+                      <SearchableSelect
                         value={settlementAccount}
-                        onChange={(e) => setSettlementAccount(e.target.value)}
-                        className="input-field text-sm"
-                      >
-                        {settlementAccounts.map((a) => (
-                          <option key={a.name} value={a.name}>
-                            {a.account_name || a.name}
-                          </option>
-                        ))}
-                      </select>
+                        onChange={setSettlementAccount}
+                        options={settlementAccountOptions}
+                        placeholder="Settlement account"
+                      />
                     </div>
                   </div>
                   {party && (
-                    <div className="rounded-lg border border-gray-200 dark:border-slate-700 p-3 text-xs space-y-1">
-                      <p className="font-semibold text-gray-700 dark:text-slate-200">Open invoices (FIFO)</p>
-                      {loadingInvoices ? (
-                        <p className="text-gray-400">Loading…</p>
-                      ) : openInvoices.length === 0 ? (
-                        <p className="text-gray-400">No open invoices — payment posts as advance.</p>
-                      ) : (
-                        openInvoices.map((inv) => (
-                          <div key={inv.name} className="flex justify-between text-gray-600 dark:text-slate-300">
-                            <span className="font-mono">{inv.name}</span>
-                            <span>{Number(inv.outstanding_amount).toFixed(2)}</span>
-                          </div>
-                        ))
-                      )}
-                    </div>
+                    <PaymentAllocationPanel
+                      invoices={openInvoices}
+                      amount={payAmount}
+                      allocations={allocations}
+                      onChange={setAllocations}
+                      loading={loadingInvoices}
+                    />
                   )}
                 </>
               )}

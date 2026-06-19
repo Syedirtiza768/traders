@@ -6,6 +6,10 @@ import {
 } from 'lucide-react';
 import { daybookApi } from '../lib/api';
 import { useCompanyStore } from '../stores/companyStore';
+import PaymentAllocationPanel, {
+  type InvoiceAllocation,
+  buildFifoAllocations,
+} from '../components/PaymentAllocationPanel';
 
 function fmtAmt(n: number) {
   return new Intl.NumberFormat('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
@@ -45,6 +49,9 @@ export default function ReceivablesPage() {
   const [error, setError] = useState<string | null>(null);
   const [settle, setSettle] = useState<SettleState | null>(null);
   const [settleSuccess, setSettleSuccess] = useState<string | null>(null);
+  const [settleInvoices, setSettleInvoices] = useState<any[]>([]);
+  const [settleAllocations, setSettleAllocations] = useState<InvoiceAllocation[]>([]);
+  const [loadingSettleInvoices, setLoadingSettleInvoices] = useState(false);
 
   const load = useCallback(async () => {
     if (!company) return;
@@ -65,16 +72,52 @@ export default function ReceivablesPage() {
 
   useEffect(() => { void load(); }, [load]);
 
+  useEffect(() => {
+    if (!settle) {
+      setSettleInvoices([]);
+      setSettleAllocations([]);
+      return;
+    }
+    setLoadingSettleInvoices(true);
+    daybookApi.getPartyOpenInvoices({ party_type: 'Customer', party: settle.party })
+      .then((res) => {
+        const invoices = (res.data.message as any)?.invoices || [];
+        setSettleInvoices(invoices);
+        const amt = parseFloat(settle.amount) || 0;
+        setSettleAllocations(buildFifoAllocations(invoices, amt));
+      })
+      .catch(() => {
+        setSettleInvoices([]);
+        setSettleAllocations([]);
+      })
+      .finally(() => setLoadingSettleInvoices(false));
+  }, [settle?.party]);
+
   const handleSettle = async () => {
     if (!settle) return;
     const amt = parseFloat(settle.amount);
     if (isNaN(amt) || amt <= 0) return;
+    const totalAllocated = settleAllocations.reduce(
+      (sum, row) => sum + (Number(row.allocated_amount) || 0),
+      0,
+    );
+    if (totalAllocated > amt + 0.005) {
+      setSettle((s) => s ? { ...s, error: 'Allocated total exceeds payment amount.' } : null);
+      return;
+    }
+    const activeAllocations = settleAllocations
+      .filter((row) => Number(row.allocated_amount) > 0)
+      .map((row) => ({
+        reference_name: row.reference_name,
+        allocated_amount: Number(row.allocated_amount),
+      }));
     setSettle((s) => s ? { ...s, loading: true, error: null } : null);
     try {
       await daybookApi.settleParty({
         party_type: 'Customer',
         party: settle.party,
         amount: amt,
+        allocations: settleInvoices.length > 0 ? activeAllocations : undefined,
       });
       setSettleSuccess(`Payment of ${fmtAmt(amt)} received from ${settle.name}.`);
       setSettle(null);
@@ -203,7 +246,7 @@ export default function ReceivablesPage() {
       {/* Settle modal */}
       {settle && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-gray-900 dark:text-gray-100">Settle — {settle.name}</h3>
               <button onClick={() => setSettle(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
@@ -214,9 +257,23 @@ export default function ReceivablesPage() {
               value={settle.amount}
               min={0}
               max={settle.balance}
-              onChange={(e) => setSettle((s) => s ? { ...s, amount: e.target.value } : null)}
+              onChange={(e) => {
+                const next = e.target.value;
+                setSettle((s) => s ? { ...s, amount: next } : null);
+                const amt = parseFloat(next) || 0;
+                if (settleInvoices.length > 0) {
+                  setSettleAllocations(buildFifoAllocations(settleInvoices, amt));
+                }
+              }}
               className="input-field"
               placeholder="Amount to settle"
+            />
+            <PaymentAllocationPanel
+              invoices={settleInvoices}
+              amount={parseFloat(settle.amount) || 0}
+              allocations={settleAllocations}
+              onChange={setSettleAllocations}
+              loading={loadingSettleInvoices}
             />
             {settle.error && <p className="text-xs text-red-600">{settle.error}</p>}
             <div className="flex gap-2 pt-1">

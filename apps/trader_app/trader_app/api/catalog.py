@@ -96,15 +96,77 @@ def _assert_enabled(company):
 # 1.  TAXONOMY
 # ────────────────────────────────────────────────────────────────
 
+def _merge_list(base, extra):
+    seen = set()
+    merged = []
+    for value in list(base or []) + list(extra or []):
+        if not value:
+            continue
+        key = str(value).strip()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        merged.append(key)
+    return merged
+
+
+def _merged_taxonomy():
+    """Seed taxonomy plus distinct attribute values already used on items."""
+    merged = {}
+    for category, spec in TAXONOMY.items():
+        merged[category] = {
+            "form_factors": list(spec.get("form_factors") or []),
+            "capacities": list(spec.get("capacities") or []),
+            "grades": list(spec.get("grades") or []),
+        }
+
+    if not frappe.db.has_column("Item", "trader_component_item"):
+        return merged
+
+    rows = frappe.db.sql("""
+        SELECT
+            trader_component_category AS category,
+            trader_component_form_factor AS form_factor,
+            trader_component_capacity AS capacity,
+            trader_component_grade AS grade
+        FROM `tabItem`
+        WHERE trader_component_item = 1
+          AND disabled = 0
+          AND trader_component_category IS NOT NULL
+          AND trader_component_category != ''
+    """, as_dict=True)
+
+    for row in rows:
+        category = row.category
+        if category not in merged:
+            merged[category] = {"form_factors": [], "capacities": [], "grades": []}
+        spec = merged[category]
+        if row.form_factor:
+            spec["form_factors"] = _merge_list(spec["form_factors"], [row.form_factor])
+        if row.capacity:
+            spec["capacities"] = _merge_list(spec["capacities"], [row.capacity])
+        if row.grade:
+            spec["grades"] = _merge_list(spec["grades"], [row.grade])
+
+    for spec in merged.values():
+        spec["form_factors"] = sorted(spec["form_factors"])
+        spec["capacities"] = sorted(spec["capacities"], key=lambda v: (len(v), v))
+        spec["grades"] = sorted(spec["grades"])
+
+    return merged
+
+
 @frappe.whitelist()
 def get_taxonomy(company=None):
     """Return the full attribute taxonomy (categories / form-factors / capacities / grades).
     Does NOT require the flag — used to display the catalog even before first enable.
+    Merges seed data with values already present on component items.
     """
     company = resolve_active_company(company)
+    taxonomy = _merged_taxonomy()
     return {
-        "taxonomy": TAXONOMY,
-        "categories": sorted(TAXONOMY.keys()),
+        "taxonomy": taxonomy,
+        "categories": sorted(taxonomy.keys()),
     }
 
 

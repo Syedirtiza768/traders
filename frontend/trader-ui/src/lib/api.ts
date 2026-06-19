@@ -767,6 +767,7 @@ export const daybookApi = {
     company?: string;
     posting_date?: string;
     settlement_account?: string;
+    allocations?: { reference_name: string; allocated_amount: number }[];
   }) => call('trader_app.api.daybook.settle_party', data),
 
   getPartyOpenInvoices: (params: {
@@ -785,7 +786,14 @@ export const daybookApi = {
   postDayTransaction: (data: {
     tx_type: 'sale' | 'purchase' | 'payment_in' | 'payment_out';
     party: string;
-    lines?: { item_code: string; qty: number; rate: number; warehouse?: string }[];
+    lines?: {
+      item_code: string;
+      qty: number;
+      rate: number;
+      warehouse?: string;
+      serial_no?: string;
+      description?: string;
+    }[];
     amount?: number;
     mode_of_payment?: string;
     posting_date?: string;
@@ -794,5 +802,6 @@ export const daybookApi = {
     payment_amount?: number;
     settlement_account?: string;
     invoice_type?: string;
+    allocations?: { reference_name: string; allocated_amount: number }[];
   }) => call('trader_app.api.daybook.post_day_transaction', data),
 };
