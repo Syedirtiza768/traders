@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRightLeft, Calendar, Search } from 'lucide-react';
+import { ArrowLeft, ArrowRightLeft, Calendar } from 'lucide-react';
 import { inventoryApi } from '../lib/api';
 import { formatCurrency, formatDate, formatDateTime } from '../lib/utils';
 import SearchableSelect from '../components/SearchableSelect';

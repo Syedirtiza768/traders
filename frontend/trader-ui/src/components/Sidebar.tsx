@@ -2,8 +2,6 @@ import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
-  ShoppingCart,
-  Package,
   Warehouse,
   Users,
   Truck,
@@ -12,19 +10,9 @@ import {
   Settings,
   TrendingUp,
   TrendingDown,
-  FileText,
   Activity,
   X,
   ChevronDown,
-  ClipboardList,
-  Receipt,
-  BookOpen,
-  CreditCard,
-  ArrowLeftRight,
-  FilePlus2,
-  ShoppingBag,
-  ScrollText,
-  ScanLine,
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { useCompanyStore } from '../stores/companyStore';

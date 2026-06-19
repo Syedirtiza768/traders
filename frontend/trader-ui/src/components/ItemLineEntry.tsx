@@ -61,14 +61,6 @@ export type ItemLineEntryProps = {
   hideLineTotal?: boolean;
 };
 
-function mergeOptions(existing: string[], extra: string): string[] {
-  const values = [...existing];
-  const trimmed = extra.trim();
-  if (trimmed && !values.some((v) => v.toLowerCase() === trimmed.toLowerCase())) {
-    values.push(trimmed);
-  }
-  return values.sort((a, b) => a.localeCompare(b));
-}
 
 export default function ItemLineEntry({
   lines,

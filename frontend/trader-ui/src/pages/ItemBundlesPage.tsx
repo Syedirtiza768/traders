@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Box, Edit2, Package, Plus, Save, Search, Trash2, X } from 'lucide-react';
 import { bundlingApi, inventoryApi } from '../lib/api';

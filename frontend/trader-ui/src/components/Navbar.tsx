@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { BarChart3, LogOut, Bell, ChevronDown, User, Menu } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import CompanySwitcher from './CompanySwitcher';

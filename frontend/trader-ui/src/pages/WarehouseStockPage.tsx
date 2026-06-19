@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Boxes, CircleDollarSign, Package, Warehouse } from 'lucide-react';
+import { ArrowLeft, Boxes, CircleDollarSign, Package } from 'lucide-react';
 import { inventoryApi } from '../lib/api';
 import { formatCurrency } from '../lib/utils';
 

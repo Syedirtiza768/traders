@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DollarSign, TrendingUp, TrendingDown, CreditCard, BookOpen, Wallet } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { reportsApi, dashboardApi } from '../lib/api';
 import { formatCurrency, formatCompact } from '../lib/utils';
-
-const COLORS = ['#16a34a', '#dc2626', '#f59e0b', '#6366f1', '#06b6d4', '#ec4899', '#8b5cf6', '#84cc16'];
 
 export default function FinancePage() {
   const navigate = useNavigate();

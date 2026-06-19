@@ -797,6 +797,7 @@ def get_stock_aging_report(company=None, warehouse=None, item_group=None,
                    MAX(CASE WHEN actual_qty < 0 THEN posting_date END) AS last_sale_date
             FROM `tabStock Ledger Entry`
             WHERE is_cancelled = 0
+              AND posting_date >= DATE_SUB(CURDATE(), INTERVAL 3 YEAR)
             GROUP BY item_code, warehouse
         ) sle ON sle.item_code = b.item_code AND sle.warehouse = b.warehouse
         WHERE {where}

@@ -545,6 +545,16 @@ def cancel_sales_order(name):
 
 
 @frappe.whitelist()
+def cancel_quotation(name):
+    """Cancel a submitted Quotation."""
+    doc = frappe.get_doc("Quotation", name)
+    doc.check_permission("cancel")
+    doc.cancel()
+    frappe.db.commit()
+    return {"name": doc.name, "status": "Cancelled"}
+
+
+@frappe.whitelist()
 def create_quotation(customer, items, company=None, transaction_date=None,
                      valid_till=None, taxes_and_charges=None,
                      tax_inclusive=0, invoice_type=None):

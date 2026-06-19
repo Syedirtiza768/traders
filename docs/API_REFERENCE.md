@@ -27,7 +27,7 @@ GET /api/method/frappe.auth.get_logged_user
 
 ### Get Dashboard KPIs
 ```
-GET /api/method/trader_app.api.dashboard.get_dashboard_kpis
+GET /api/method/trader_app.api.dashboard.get_kpis
 ```
 
 Response:

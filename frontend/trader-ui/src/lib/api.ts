@@ -218,6 +218,9 @@ export const salesApi = {
   cancelOrder: (name: string) =>
     call('trader_app.api.sales.cancel_sales_order', { name }),
 
+  cancelQuotation: (name: string) =>
+    call('trader_app.api.sales.cancel_quotation', { name }),
+
   createReturnInvoice: (data: Record<string, any>) =>
     call('trader_app.api.sales.create_sales_invoice', { ...data, is_return: 1 }),
 

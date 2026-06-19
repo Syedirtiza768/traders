@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Calendar, FileText, GitCompareArrows, Save, ShoppingCart, Truck } from 'lucide-react';
+import { ArrowLeft, Calendar, FileText, GitCompareArrows, ShoppingCart, Truck } from 'lucide-react';
 import { purchasesApi } from '../lib/api';
 import { appendPreservedListQuery, classNames, extractFrappeError, formatCurrency, formatDate, getStatusColor, isOperationsContext } from '../lib/utils';
 

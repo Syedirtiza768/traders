@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
   Calendar,
@@ -18,13 +18,13 @@ type QuotationDetail = Record<string, any>;
 
 export default function QuotationDetailPage() {
   const navigate = useNavigate();
-  const location = useLocation();
   const { quotationId } = useParams();
   const [searchParams] = useSearchParams();
   const [quotation, setQuotation] = useState<QuotationDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   useEffect(() => {
@@ -75,6 +75,24 @@ export default function QuotationDetailPage() {
       setFeedback({ type: 'error', message: extractFrappeError(err, 'Could not submit this quotation.') });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleCancelQuotation = async () => {
+    if (!quotation?.name) return;
+    if (!window.confirm('Cancel this quotation? This action cannot be undone.')) return;
+
+    setCancelling(true);
+    setFeedback(null);
+    try {
+      await salesApi.cancelQuotation(quotation.name);
+      await reloadQuotation();
+      setFeedback({ type: 'success', message: 'Quotation cancelled successfully.' });
+    } catch (err) {
+      console.error('Failed to cancel quotation:', err);
+      setFeedback({ type: 'error', message: extractFrappeError(err, 'Could not cancel this quotation.') });
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -145,6 +163,11 @@ export default function QuotationDetailPage() {
           {quotation.docstatus === 0 && (
             <button onClick={handleSubmitQuotation} disabled={submitting} className="btn-primary disabled:opacity-60">
               {submitting ? 'Submitting…' : 'Submit Quotation'}
+            </button>
+          )}
+          {quotation.docstatus === 1 && (
+            <button onClick={handleCancelQuotation} disabled={cancelling} className="btn-danger disabled:opacity-60">
+              {cancelling ? 'Cancelling…' : 'Cancel Quotation'}
             </button>
           )}
         </div>

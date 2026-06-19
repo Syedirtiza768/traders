@@ -14,7 +14,15 @@ def after_install():
 
 
 def create_roles():
-    """Create custom trader roles."""
+    """Create custom trader roles.
+
+    Canonical role names (matched to hooks.py fixtures and permissions.ts):
+    - Trader Admin
+    - Trader Sales Manager
+    - Trader Purchase Manager
+    - Trader Finance Manager  (formerly 'Trader Accountant' — alias kept in permissions.ts)
+    - Trader Inventory Manager  (formerly 'Trader Warehouse Manager' — alias kept in permissions.ts)
+    """
     import frappe
 
     roles = [
@@ -34,12 +42,12 @@ def create_roles():
             "is_custom": 1,
         },
         {
-            "role_name": "Trader Accountant",
+            "role_name": "Trader Finance Manager",
             "desk_access": 1,
             "is_custom": 1,
         },
         {
-            "role_name": "Trader Warehouse Manager",
+            "role_name": "Trader Inventory Manager",
             "desk_access": 1,
             "is_custom": 1,
         },

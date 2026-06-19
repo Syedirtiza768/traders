@@ -12,6 +12,15 @@
 - 📊 **Trader-Focused Modules** — Sales, purchasing, inventory, receivables, payables, financial dashboards
 - 🔐 **Custom Auth Flow** — Branded login, role-based access, trader-specific permissions
 
+## System Documentation
+
+For the complete, up-to-date architecture reference, audit findings, and API map, see
+[`docs/SYSTEM_MASTER_CONTEXT.md`](docs/SYSTEM_MASTER_CONTEXT.md).
+
+> **Note on planned features:** Tally/CSV data migration and document approval workflows are
+> declared in the codebase but **not yet implemented**. The Migration Job DocType schema exists
+> as a placeholder. Do not rely on these features for production use.
+
 ## Quick Start
 
 ```bash

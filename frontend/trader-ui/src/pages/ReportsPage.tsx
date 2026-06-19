@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { TrendingUp, ShoppingCart, Package, DollarSign, ChevronRight } from 'lucide-react';
-import { REPORTS, CATEGORIES, getReportsByCategory, getReportById } from '../lib/reportDefinitions';
+import { CATEGORIES, getReportsByCategory, getReportById } from '../lib/reportDefinitions';
 import type { ReportCategory, ReportDef } from '../lib/reportDefinitions';
 import ReportView from '../components/reports/ReportView';
 

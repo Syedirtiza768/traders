@@ -6,12 +6,32 @@ import {
   BarChart2,
   MoreHorizontal,
 } from 'lucide-react';
+import { useAuthStore } from '../stores/authStore';
+import { hasCapability, type AppCapability } from '../lib/permissions';
 
-const tabs = [
-  { to: '/', label: 'Home', icon: LayoutDashboard, exact: true },
-  { to: '/sales', label: 'Sales', icon: TrendingUp },
-  { to: '/inventory', label: 'Stock', icon: Warehouse },
-  { to: '/reports', label: 'Reports', icon: BarChart2 },
+interface Tab {
+  to: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  exact?: boolean;
+  capability?: AppCapability;
+  id?: never;
+}
+
+interface MoreTab {
+  id: 'more';
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  to?: never;
+  exact?: never;
+  capability?: never;
+}
+
+const ALL_TABS: (Tab | MoreTab)[] = [
+  { to: '/', label: 'Home', icon: LayoutDashboard, exact: true, capability: 'dashboard:view' },
+  { to: '/sales', label: 'Sales', icon: TrendingUp, capability: 'sales:view' },
+  { to: '/inventory', label: 'Stock', icon: Warehouse, capability: 'inventory:view' },
+  { to: '/reports', label: 'Reports', icon: BarChart2, capability: 'reports:view' },
   { id: 'more', label: 'More', icon: MoreHorizontal },
 ];
 
@@ -21,17 +41,23 @@ interface MobileNavProps {
 
 export default function MobileNav({ onMorePress }: MobileNavProps) {
   const location = useLocation();
+  const roles = useAuthStore((s) => s.roles);
 
-  // "More" matches any route not covered by the first 4 tabs
-  const isMoreActive =
-    !['/', '/sales', '/inventory', '/reports'].some((p) =>
-      p === '/' ? location.pathname === '/' : location.pathname.startsWith(p)
-    );
+  const visibleTabs = ALL_TABS.filter(
+    (t) => !t.capability || hasCapability(roles, t.capability)
+  );
+
+  const pinnedPaths = visibleTabs.filter((t): t is Tab => !t.id).map((t) => t.to);
+
+  // "More" is active when the current path is not covered by any visible tab
+  const isMoreActive = !pinnedPaths.some((p) =>
+    p === '/' ? location.pathname === '/' : location.pathname.startsWith(p)
+  );
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-700 lg:hidden pb-safe" aria-label="Mobile navigation">
       <div className="flex items-center justify-around h-[var(--mobile-nav-height)]">
-        {tabs.map((tab) => {
+        {visibleTabs.map((tab) => {
           if (tab.id === 'more') {
             return (
               <button
@@ -48,12 +74,12 @@ export default function MobileNav({ onMorePress }: MobileNavProps) {
 
           const active = tab.exact
             ? location.pathname === tab.to
-            : location.pathname.startsWith(tab.to!);
+            : location.pathname.startsWith(tab.to);
 
           return (
             <NavLink
               key={tab.to}
-              to={tab.to!}
+              to={tab.to}
               className={`mobile-nav-link ${active ? 'active' : ''}`}
               aria-label={tab.label}
             >

@@ -39,19 +39,22 @@ fixtures = [
             "Trader Admin",
             "Trader Sales Manager",
             "Trader Purchase Manager",
-            "Trader Accountant",
-            "Trader Warehouse Manager",
+            "Trader Finance Manager",
+            "Trader Inventory Manager",
         ]]],
     },
-    {
-        "dt": "Workflow",
-        "filters": [["name", "in", [
-            "Trader Sales Order Workflow",
-            "Trader Sales Invoice Workflow",
-            "Trader Purchase Order Workflow",
-            "Trader Purchase Invoice Workflow",
-        ]]],
-    },
+    # Document approval workflows — declared here for future implementation.
+    # Workflow JSON fixture files do not yet exist; the fixture entry is
+    # intentionally omitted until the workflows are designed and exported.
+    # {
+    #     "dt": "Workflow",
+    #     "filters": [["name", "in", [
+    #         "Trader Sales Order Workflow",
+    #         "Trader Sales Invoice Workflow",
+    #         "Trader Purchase Order Workflow",
+    #         "Trader Purchase Invoice Workflow",
+    #     ]]],
+    # },
     {
         "dt": "Custom Field",
         "filters": [["module", "=", "Trader"]],

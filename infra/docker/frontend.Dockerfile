@@ -12,12 +12,9 @@ RUN npm ci --no-audit
 # Copy source
 COPY frontend/trader-ui/ .
 
-# Build for production
-ARG VITE_API_URL=/api
-ARG VITE_SITE_NAME=trader.localhost
-ENV VITE_API_URL=${VITE_API_URL}
-ENV VITE_SITE_NAME=${VITE_SITE_NAME}
-
+# Build for production.
+# No VITE_* env vars are needed: API routing is handled entirely by the Nginx
+# reverse proxy (proxy.conf). The Axios base URL in api.ts is always '/'.
 RUN npm run build
 
 # --- Production stage ---

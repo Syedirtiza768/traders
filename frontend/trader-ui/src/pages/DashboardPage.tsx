@@ -23,8 +23,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  LineChart,
-  Line,
 } from 'recharts';
 import KPICard from '../components/KPICard';
 import { dashboardApi } from '../lib/api';

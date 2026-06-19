@@ -2,6 +2,11 @@
 # Synthesized from: eng-review, CEO review, design review — 2026-05-11
 # Branch: main | Commit: a9d1463
 #
+# IMPORTANT: This file is manually maintained and may lag behind the codebase.
+# For the authoritative implementation status, see:
+#   docs/IMPLEMENTATION_PROGRESS.md  (auto-generated — run `npm run progress:sync`)
+#   docs/SYSTEM_MASTER_CONTEXT.md    (full architecture audit — updated 2026-06-20)
+#
 # Legend:
 #   [DONE]    — already complete in codebase
 #   [P0]      — do before any other sprint work (unblocks testing or is a security fix)
@@ -19,7 +24,7 @@
 
 ## Phase 0: Quick Wins — Do These First (< 1 hour total)
 
-### [P0] QW-1: Remove duplicate `inventoryApi.getInventorySummary` method
+### [DONE] QW-1: Remove duplicate `inventoryApi.getInventorySummary` method
 **Source:** ENG CQ3
 **File:** `frontend/trader-ui/src/lib/api.ts`
 **Effort:** 5 min
@@ -31,7 +36,7 @@ Search the codebase for any call to inventoryApi.getInventorySummary and replace
 inventoryApi.getSummary. Verify no component breaks.
 ```
 
-### [P0] QW-2: Delete dead `ReportsPage.tsx`, rename `ReportsPageNew.tsx`
+### [DONE] QW-2: Delete dead `ReportsPage.tsx`, rename `ReportsPageNew.tsx`
 **Source:** ENG CQ4
 **Files:** `frontend/trader-ui/src/pages/ReportsPage.tsx`, `ReportsPageNew.tsx`
 **Effort:** 5 min
@@ -44,7 +49,7 @@ inventoryApi.getSummary. Verify no component breaks.
    './pages/ReportsPage'. No logic changes.
 ```
 
-### [P0] QW-3: Fix `_check_customer_credit_limit` broad exception catch
+### [DONE] QW-3: Fix `_check_customer_credit_limit` broad exception catch
 **Source:** ENG CQ6
 **File:** `apps/trader_app/trader_app/api/sales.py` ~line 558
 **Effort:** 10 min
@@ -67,7 +72,7 @@ except (AttributeError, ImportError):
 # All other exceptions propagate — they represent real errors that need fixing.
 ```
 
-### [P0] QW-4: Add `defusedxml` to requirements
+### [DONE] QW-4: Add `defusedxml` to requirements
 **Source:** ENG, CEO (security)
 **File:** `apps/trader_app/requirements.txt`
 **Effort:** 2 min
@@ -109,7 +114,7 @@ After adding, rebuild the Docker image:
 ```
 **Acceptance:** You can extract customer count, ledger count, invoice count from the real export.
 
-### [P1] M-2: Create `Migration Job` custom DocType
+### [DONE] M-2: Create `Migration Job` custom DocType
 **Source:** CEO, ENG A2
 **File:** `apps/trader_app/trader_app/migration/doctype/migration_job/migration_job.json`
 **Effort:** 2 hours

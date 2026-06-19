@@ -1,12 +1,17 @@
+/**
+ * Canonical Frappe role names (created by setup/__init__.py).
+ * The two legacy aliases below are retained for backward compatibility with
+ * sites that were provisioned before the rename (pre-1.1 installations).
+ */
 export type TraderRole =
   | 'System Manager'
   | 'Trader Admin'
   | 'Trader Sales Manager'
   | 'Trader Purchase Manager'
   | 'Trader Inventory Manager'
-  | 'Trader Warehouse Manager'   // DB alias → maps to Inventory Manager
+  | 'Trader Warehouse Manager'   // legacy alias → same caps as Inventory Manager
   | 'Trader Finance Manager'
-  | 'Trader Accountant';          // DB alias → maps to Finance Manager
+  | 'Trader Accountant';          // legacy alias → same caps as Finance Manager
 
 export type AppCapability =
   | 'dashboard:view'
@@ -43,6 +48,26 @@ const FULL_ACCESS: AppCapability[] = [
   'components:execute',
 ];
 
+const INVENTORY_MANAGER_CAPS: AppCapability[] = [
+  'dashboard:view',
+  'inventory:view',
+  'inventory:execute',
+  'reports:view',
+  'operations:view',
+  'components:view',
+  'components:execute',
+];
+
+const FINANCE_MANAGER_CAPS: AppCapability[] = [
+  'dashboard:view',
+  'finance:view',
+  'reports:view',
+  'customers:view',
+  'suppliers:view',
+  'operations:view',
+  'components:view',
+];
+
 const ROLE_CAPABILITIES: Record<string, AppCapability[]> = {
   /* ── System-level admins (full access) ── */
   'System Manager': FULL_ACCESS,
@@ -71,44 +96,12 @@ const ROLE_CAPABILITIES: Record<string, AppCapability[]> = {
     'components:view',
     'components:execute',
   ],
-  'Trader Inventory Manager': [
-    'dashboard:view',
-    'inventory:view',
-    'inventory:execute',
-    'reports:view',
-    'operations:view',
-    'components:view',
-    'components:execute',
-  ],
-  /* DB alias for Inventory Manager */
-  'Trader Warehouse Manager': [
-    'dashboard:view',
-    'inventory:view',
-    'inventory:execute',
-    'reports:view',
-    'operations:view',
-    'components:view',
-    'components:execute',
-  ],
-  'Trader Finance Manager': [
-    'dashboard:view',
-    'finance:view',
-    'reports:view',
-    'customers:view',
-    'suppliers:view',
-    'operations:view',
-    'components:view',
-  ],
-  /* DB alias for Finance Manager */
-  'Trader Accountant': [
-    'dashboard:view',
-    'finance:view',
-    'reports:view',
-    'customers:view',
-    'suppliers:view',
-    'operations:view',
-    'components:view',
-  ],
+  'Trader Inventory Manager': INVENTORY_MANAGER_CAPS,
+  'Trader Finance Manager': FINANCE_MANAGER_CAPS,
+
+  /* ── Legacy aliases (pre-1.1 installations) ── */
+  'Trader Warehouse Manager': INVENTORY_MANAGER_CAPS,
+  'Trader Accountant': FINANCE_MANAGER_CAPS,
 };
 
 export function getCapabilitiesForRoles(roles: string[] | null | undefined): Set<AppCapability> {

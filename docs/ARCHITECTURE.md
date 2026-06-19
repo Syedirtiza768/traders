@@ -40,18 +40,21 @@
 
 ## 2. Container Architecture
 
-| Container | Image | Port | Purpose |
-|-----------|-------|------|---------|
-| backend | Custom (Frappe+ERPNext+TraderApp) | 8000 | API server, Frappe backend |
-| frontend | trader-ui (React) | 3000 | Custom SaaS UI |
-| db | MariaDB 10.11 | 3306 | Primary database |
-| redis-cache | Redis 7 | 6379 | Caching layer |
-| redis-queue | Redis 7 | 6380 | Background job queue |
-| worker-short | Custom (same as backend) | — | Short-running background jobs |
-| worker-long | Custom (same as backend) | — | Long-running background jobs |
-| scheduler | Custom (same as backend) | — | Scheduled tasks |
-| websocket | Custom (same as backend) | 9000 | Real-time updates |
-| proxy | Nginx | 8080 | Reverse proxy / routing |
+| Container | Image | Internal Port | Host-Exposed Port | Purpose |
+|-----------|-------|--------------|-------------------|---------|
+| backend | Custom (Frappe+ERPNext+TraderApp) | 8000 | 8000 | API server, Frappe backend |
+| frontend | trader-ui (React) | 3000 | — (proxied only) | Custom SaaS UI |
+| db | MariaDB 10.11 | 3306 | — (internal only) | Primary database |
+| redis-cache | Redis 7 | 6379 | — (internal only) | Caching layer |
+| redis-queue | Redis 7 | 6380 | — (internal only) | Background job queue |
+| worker-short | Custom (same as backend) | — | — | Short-running background jobs |
+| worker-long | Custom (same as backend) | — | — | Long-running background jobs |
+| scheduler | Custom (same as backend) | — | — | Scheduled tasks |
+| websocket | Custom (same as backend) | 9000 | 9000 | Real-time updates |
+| proxy | Nginx | 8080 | `$HTTP_PORT` (default 8080) | Reverse proxy — primary entry point |
+
+> **Single entry point:** All browser traffic uses `http://localhost:$HTTP_PORT` (default `:8080`).
+> Direct access to backend port 8000 is only for local debugging; never expose it in production.
 
 ## 3. Data Flow
 

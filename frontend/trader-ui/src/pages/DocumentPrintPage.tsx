@@ -2,10 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
-  Download,
   Eye,
   EyeOff,
-  FileText,
   Printer,
 } from 'lucide-react';
 import { printApi } from '../lib/api';

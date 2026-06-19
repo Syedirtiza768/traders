@@ -1,6 +1,9 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
+import { useCompanyStore } from './stores/companyStore';
+import { hasCapability, type AppCapability } from './lib/permissions';
+import AccessDenied from './components/AccessDenied';
 import LoginPage from './pages/LoginPage';
 import DashboardLayout from './layouts/DashboardLayout';
 import DashboardPage from './pages/DashboardPage';
@@ -76,14 +79,6 @@ const OpeningStockPage = lazy(() => import('./pages/OpeningStockPage'));
 const StockValuationPage = lazy(() => import('./pages/StockValuationPage'));
 const StockTakePage = lazy(() => import('./pages/StockTakePage'));
 
-function PageLoader() {
-  return (
-    <div className="flex items-center justify-center h-64">
-      <div className="spinner" />
-    </div>
-  );
-}
-
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, initialized } = useAuthStore();
   if (!initialized) {
@@ -95,6 +90,32 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+  return <>{children}</>;
+}
+
+function CapabilityRoute({
+  children,
+  capability,
+  requiresComponents = false,
+}: {
+  children: React.ReactNode;
+  capability?: AppCapability;
+  requiresComponents?: boolean;
+}) {
+  const roles = useAuthStore((s) => s.roles);
+  const componentsEnabled = useCompanyStore((s) => s.componentsEnabled);
+
+  if (capability && !hasCapability(roles, capability)) {
+    return <AccessDenied />;
+  }
+  if (requiresComponents && !componentsEnabled) {
+    return (
+      <AccessDenied
+        title="Feature not enabled"
+        description="The Components Trading feature is not enabled for this company. Enable it in Settings → Feature Flags."
+      />
+    );
   }
   return <>{children}</>;
 }
@@ -114,56 +135,63 @@ export default function App() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<DashboardPage />} />
+        <Route
+          index
+          element={
+            <CapabilityRoute capability="dashboard:view">
+              <DashboardPage />
+            </CapabilityRoute>
+          }
+        />
 
         {/* Sales */}
-        <Route path="sales" element={<SalesPage />} />
-        <Route path="sales/pos" element={<PosCheckoutPage />} />
-        <Route path="sales/documents/new" element={<CreateSalesDocumentHubPage />} />
-        <Route path="sales/new" element={<CreateSalesInvoicePage />} />
-        <Route path="sales/proforma/new" element={<CreateQuotationPage />} />
-        <Route path="sales/challans" element={<DeliveryChallansPage />} />
-        <Route path="sales/challans/new" element={<CreateDeliveryChallanPage />} />
-        <Route path="sales/challans/:challanId" element={<DeliveryChallanDetailPage />} />
-        <Route path="sales/returns/new" element={<CreateSalesReturnPage />} />
-        <Route path="sales/dispatches/new" element={<CreateSalesDispatchPage />} />
-        <Route path="sales/orders" element={<SalesOrdersPage />} />
-        <Route path="sales/orders/new" element={<CreateSalesOrderPage />} />
-        <Route path="sales/orders/:orderId" element={<SalesOrderDetailPage />} />
-        <Route path="sales/quotations" element={<QuotationsPage />} />
-        <Route path="sales/quotations/new" element={<CreateQuotationPage />} />
-        <Route path="sales/quotations/:quotationId" element={<QuotationDetailPage />} />
-        <Route path="sales/:invoiceId" element={<SalesInvoiceDetailPage />} />
+        <Route path="sales" element={<CapabilityRoute capability="sales:view"><SalesPage /></CapabilityRoute>} />
+        <Route path="sales/pos" element={<CapabilityRoute capability="sales:view"><PosCheckoutPage /></CapabilityRoute>} />
+        <Route path="sales/documents/new" element={<CapabilityRoute capability="sales:view"><CreateSalesDocumentHubPage /></CapabilityRoute>} />
+        <Route path="sales/new" element={<CapabilityRoute capability="sales:view"><CreateSalesInvoicePage /></CapabilityRoute>} />
+        <Route path="sales/proforma/new" element={<CapabilityRoute capability="sales:view"><CreateQuotationPage /></CapabilityRoute>} />
+        <Route path="sales/challans" element={<CapabilityRoute capability="sales:view"><DeliveryChallansPage /></CapabilityRoute>} />
+        <Route path="sales/challans/new" element={<CapabilityRoute capability="sales:view"><CreateDeliveryChallanPage /></CapabilityRoute>} />
+        <Route path="sales/challans/:challanId" element={<CapabilityRoute capability="sales:view"><DeliveryChallanDetailPage /></CapabilityRoute>} />
+        <Route path="sales/returns/new" element={<CapabilityRoute capability="sales:view"><CreateSalesReturnPage /></CapabilityRoute>} />
+        <Route path="sales/dispatches/new" element={<CapabilityRoute capability="sales:view"><CreateSalesDispatchPage /></CapabilityRoute>} />
+        <Route path="sales/orders" element={<CapabilityRoute capability="sales:view"><SalesOrdersPage /></CapabilityRoute>} />
+        <Route path="sales/orders/new" element={<CapabilityRoute capability="sales:view"><CreateSalesOrderPage /></CapabilityRoute>} />
+        <Route path="sales/orders/:orderId" element={<CapabilityRoute capability="sales:view"><SalesOrderDetailPage /></CapabilityRoute>} />
+        <Route path="sales/quotations" element={<CapabilityRoute capability="sales:view"><QuotationsPage /></CapabilityRoute>} />
+        <Route path="sales/quotations/new" element={<CapabilityRoute capability="sales:view"><CreateQuotationPage /></CapabilityRoute>} />
+        <Route path="sales/quotations/:quotationId" element={<CapabilityRoute capability="sales:view"><QuotationDetailPage /></CapabilityRoute>} />
+        <Route path="sales/:invoiceId" element={<CapabilityRoute capability="sales:view"><SalesInvoiceDetailPage /></CapabilityRoute>} />
 
         {/* Purchases */}
-        <Route path="purchases" element={<PurchasesPage />} />
-        <Route path="purchases/documents/new" element={<CreatePurchaseDocumentHubPage />} />
-        <Route path="purchases/new" element={<CreatePurchaseInvoicePage />} />
-        <Route path="purchases/returns/new" element={<CreatePurchaseReturnPage />} />
-        <Route path="purchases/receipts/new" element={<CreatePurchaseReceiptPage />} />
-        <Route path="purchases/orders" element={<PurchaseOrdersPage />} />
-        <Route path="purchases/orders/new" element={<CreatePurchaseOrderPage />} />
-        <Route path="purchases/orders/:orderId" element={<PurchaseOrderDetailPage />} />
-        <Route path="purchases/requisitions" element={<PurchaseRequisitionsPage />} />
-        <Route path="purchases/requisitions/new" element={<CreatePurchaseRequisitionPage />} />
-        <Route path="purchases/requisitions/:reqId" element={<PurchaseRequisitionDetailPage />} />
-        <Route path="purchases/rfqs" element={<SupplierQuotationsPage />} />
-        <Route path="purchases/rfqs/new" element={<CreateSupplierQuotationPage />} />
-        <Route path="purchases/rfqs/:quotationId" element={<SupplierQuotationDetailPage />} />
-        <Route path="purchases/:invoiceId" element={<PurchaseInvoiceDetailPage />} />
+        <Route path="purchases" element={<CapabilityRoute capability="purchases:view"><PurchasesPage /></CapabilityRoute>} />
+        <Route path="purchases/documents/new" element={<CapabilityRoute capability="purchases:view"><CreatePurchaseDocumentHubPage /></CapabilityRoute>} />
+        <Route path="purchases/new" element={<CapabilityRoute capability="purchases:view"><CreatePurchaseInvoicePage /></CapabilityRoute>} />
+        <Route path="purchases/returns/new" element={<CapabilityRoute capability="purchases:view"><CreatePurchaseReturnPage /></CapabilityRoute>} />
+        <Route path="purchases/receipts/new" element={<CapabilityRoute capability="purchases:view"><CreatePurchaseReceiptPage /></CapabilityRoute>} />
+        <Route path="purchases/orders" element={<CapabilityRoute capability="purchases:view"><PurchaseOrdersPage /></CapabilityRoute>} />
+        <Route path="purchases/orders/new" element={<CapabilityRoute capability="purchases:view"><CreatePurchaseOrderPage /></CapabilityRoute>} />
+        <Route path="purchases/orders/:orderId" element={<CapabilityRoute capability="purchases:view"><PurchaseOrderDetailPage /></CapabilityRoute>} />
+        <Route path="purchases/requisitions" element={<CapabilityRoute capability="purchases:view"><PurchaseRequisitionsPage /></CapabilityRoute>} />
+        <Route path="purchases/requisitions/new" element={<CapabilityRoute capability="purchases:view"><CreatePurchaseRequisitionPage /></CapabilityRoute>} />
+        <Route path="purchases/requisitions/:reqId" element={<CapabilityRoute capability="purchases:view"><PurchaseRequisitionDetailPage /></CapabilityRoute>} />
+        <Route path="purchases/rfqs" element={<CapabilityRoute capability="purchases:view"><SupplierQuotationsPage /></CapabilityRoute>} />
+        <Route path="purchases/rfqs/new" element={<CapabilityRoute capability="purchases:view"><CreateSupplierQuotationPage /></CapabilityRoute>} />
+        <Route path="purchases/rfqs/:quotationId" element={<CapabilityRoute capability="purchases:view"><SupplierQuotationDetailPage /></CapabilityRoute>} />
+        <Route path="purchases/:invoiceId" element={<CapabilityRoute capability="purchases:view"><PurchaseInvoiceDetailPage /></CapabilityRoute>} />
 
         {/* Inventory */}
-        <Route path="inventory" element={<InventoryPage />} />
-        <Route path="inventory/items/new" element={<CreateItemPage />} />
-        <Route path="inventory/items/:itemId" element={<InventoryItemDetailPage />} />
-        <Route path="inventory/bundles" element={<ItemBundlesPage />} />
-        <Route path="inventory/warehouse" element={<WarehouseStockPage />} />
-        <Route path="inventory/movements" element={<StockMovementPage />} />
-        <Route path="inventory/dispatches/new" element={<CreateSalesDispatchPage />} />
-        <Route path="inventory/catalog" element={<ComponentCatalogPage />} />
-        <Route path="inventory/opening-stock" element={<OpeningStockPage />} />
-        <Route path="inventory/stock-valuation" element={<StockValuationPage />} />
-        <Route path="inventory/stock-take" element={<StockTakePage />} />
+        <Route path="inventory" element={<CapabilityRoute capability="inventory:view"><InventoryPage /></CapabilityRoute>} />
+        <Route path="inventory/items/new" element={<CapabilityRoute capability="inventory:view"><CreateItemPage /></CapabilityRoute>} />
+        <Route path="inventory/items/:itemId" element={<CapabilityRoute capability="inventory:view"><InventoryItemDetailPage /></CapabilityRoute>} />
+        <Route path="inventory/bundles" element={<CapabilityRoute capability="inventory:view"><ItemBundlesPage /></CapabilityRoute>} />
+        <Route path="inventory/warehouse" element={<CapabilityRoute capability="inventory:view"><WarehouseStockPage /></CapabilityRoute>} />
+        <Route path="inventory/movements" element={<CapabilityRoute capability="inventory:view"><StockMovementPage /></CapabilityRoute>} />
+        <Route path="inventory/dispatches/new" element={<CapabilityRoute capability="inventory:view"><CreateSalesDispatchPage /></CapabilityRoute>} />
+        <Route path="inventory/catalog" element={<CapabilityRoute capability="inventory:view" requiresComponents><ComponentCatalogPage /></CapabilityRoute>} />
+        <Route path="inventory/opening-stock" element={<CapabilityRoute capability="inventory:view" requiresComponents><OpeningStockPage /></CapabilityRoute>} />
+        <Route path="inventory/stock-valuation" element={<CapabilityRoute capability="inventory:view" requiresComponents><StockValuationPage /></CapabilityRoute>} />
+        <Route path="inventory/stock-take" element={<CapabilityRoute capability="inventory:view" requiresComponents><StockTakePage /></CapabilityRoute>} />
         <Route path="components/catalog" element={<Navigate to="/inventory/catalog" replace />} />
         <Route path="components/opening-stock" element={<Navigate to="/inventory/opening-stock" replace />} />
         <Route path="components/stock-valuation" element={<Navigate to="/inventory/stock-valuation" replace />} />
@@ -171,38 +199,38 @@ export default function App() {
         <Route path="components" element={<Navigate to="/inventory/catalog" replace />} />
 
         {/* Customers */}
-        <Route path="customers" element={<CustomersPage />} />
-        <Route path="customers/new" element={<CreateCustomerPage />} />
-        <Route path="customers/:customerId" element={<CustomerDetailPage />} />
-        <Route path="customers/:customerId/edit" element={<EditCustomerPage />} />
+        <Route path="customers" element={<CapabilityRoute capability="customers:view"><CustomersPage /></CapabilityRoute>} />
+        <Route path="customers/new" element={<CapabilityRoute capability="customers:view"><CreateCustomerPage /></CapabilityRoute>} />
+        <Route path="customers/:customerId" element={<CapabilityRoute capability="customers:view"><CustomerDetailPage /></CapabilityRoute>} />
+        <Route path="customers/:customerId/edit" element={<CapabilityRoute capability="customers:view"><EditCustomerPage /></CapabilityRoute>} />
 
         {/* Suppliers */}
-        <Route path="suppliers" element={<SuppliersPage />} />
-        <Route path="suppliers/new" element={<CreateSupplierPage />} />
-        <Route path="suppliers/:supplierId" element={<SupplierDetailPage />} />
-        <Route path="suppliers/:supplierId/edit" element={<EditSupplierPage />} />
+        <Route path="suppliers" element={<CapabilityRoute capability="suppliers:view"><SuppliersPage /></CapabilityRoute>} />
+        <Route path="suppliers/new" element={<CapabilityRoute capability="suppliers:view"><CreateSupplierPage /></CapabilityRoute>} />
+        <Route path="suppliers/:supplierId" element={<CapabilityRoute capability="suppliers:view"><SupplierDetailPage /></CapabilityRoute>} />
+        <Route path="suppliers/:supplierId/edit" element={<CapabilityRoute capability="suppliers:view"><EditSupplierPage /></CapabilityRoute>} />
 
         {/* Finance */}
-        <Route path="finance" element={<FinancePage />} />
-        <Route path="finance/journals" element={<JournalEntriesPage />} />
-        <Route path="finance/journals/new" element={<CreateJournalEntryPage />} />
-        <Route path="finance/journals/:journalId" element={<JournalEntryDetailPage />} />
-        <Route path="finance/payments" element={<PaymentEntriesPage />} />
-        <Route path="finance/payments/new" element={<CreatePaymentEntryPage />} />
-        <Route path="finance/payments/:paymentId" element={<PaymentEntryDetailPage />} />
+        <Route path="finance" element={<CapabilityRoute capability="finance:view"><FinancePage /></CapabilityRoute>} />
+        <Route path="finance/journals" element={<CapabilityRoute capability="finance:view"><JournalEntriesPage /></CapabilityRoute>} />
+        <Route path="finance/journals/new" element={<CapabilityRoute capability="finance:view"><CreateJournalEntryPage /></CapabilityRoute>} />
+        <Route path="finance/journals/:journalId" element={<CapabilityRoute capability="finance:view"><JournalEntryDetailPage /></CapabilityRoute>} />
+        <Route path="finance/payments" element={<CapabilityRoute capability="finance:view"><PaymentEntriesPage /></CapabilityRoute>} />
+        <Route path="finance/payments/new" element={<CapabilityRoute capability="finance:view"><CreatePaymentEntryPage /></CapabilityRoute>} />
+        <Route path="finance/payments/:paymentId" element={<CapabilityRoute capability="finance:view"><PaymentEntryDetailPage /></CapabilityRoute>} />
 
-        <Route path="operations" element={<OperationsPage />} />
-        <Route path="reports" element={<ReportsPage />} />
-        <Route path="settings" element={<SettingsPage />} />
-        <Route path="settings/audit" element={<AuditLogPage />} />
-        <Route path="settings/gst" element={<GstSettingsPage />} />
+        {/* Components Trading — Finance sub-routes (feature + capability gated) */}
+        <Route path="finance/day-book" element={<CapabilityRoute capability="finance:view" requiresComponents><DayBookPage /></CapabilityRoute>} />
+        <Route path="finance/receivables" element={<CapabilityRoute capability="finance:view" requiresComponents><ReceivablesPage /></CapabilityRoute>} />
+        <Route path="finance/payables" element={<CapabilityRoute capability="finance:view" requiresComponents><PayablesPage /></CapabilityRoute>} />
+        <Route path="finance/day-close" element={<CapabilityRoute capability="finance:view" requiresComponents><DayClosePage /></CapabilityRoute>} />
+
+        <Route path="operations" element={<CapabilityRoute capability="operations:view"><OperationsPage /></CapabilityRoute>} />
+        <Route path="reports" element={<CapabilityRoute capability="reports:view"><ReportsPage /></CapabilityRoute>} />
+        <Route path="settings" element={<CapabilityRoute capability="settings:view"><SettingsPage /></CapabilityRoute>} />
+        <Route path="settings/audit" element={<CapabilityRoute capability="settings:view"><AuditLogPage /></CapabilityRoute>} />
+        <Route path="settings/gst" element={<CapabilityRoute capability="settings:view"><GstSettingsPage /></CapabilityRoute>} />
         <Route path="print" element={<DocumentPrintPage />} />
-
-        {/* Components Trading — all routes behind feature flag (pages self-guard) */}
-        <Route path="finance/day-book" element={<DayBookPage />} />
-        <Route path="finance/receivables" element={<ReceivablesPage />} />
-        <Route path="finance/payables" element={<PayablesPage />} />
-        <Route path="finance/day-close" element={<DayClosePage />} />
       </Route>
       <Route path="*" element={<NotFoundPage />} />
     </Routes>

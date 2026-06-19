@@ -281,7 +281,7 @@ curl -X POST http://localhost:8080/api/method/login \
   -d '{"usr":"demo.admin@traderapp.com","pwd":"Demo@12345"}'
 
 # Dashboard KPIs (requires auth cookie)
-curl http://localhost:8080/api/method/trader_app.api.dashboard.get_dashboard_kpis \
+curl http://localhost:8080/api/method/trader_app.api.dashboard.get_kpis \
   -H "Cookie: sid=<session-id-from-login>"
 ```
 
