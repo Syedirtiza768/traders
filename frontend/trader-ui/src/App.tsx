@@ -160,6 +160,15 @@ export default function App() {
         <Route path="inventory/warehouse" element={<WarehouseStockPage />} />
         <Route path="inventory/movements" element={<StockMovementPage />} />
         <Route path="inventory/dispatches/new" element={<CreateSalesDispatchPage />} />
+        <Route path="inventory/catalog" element={<ComponentCatalogPage />} />
+        <Route path="inventory/opening-stock" element={<OpeningStockPage />} />
+        <Route path="inventory/stock-valuation" element={<StockValuationPage />} />
+        <Route path="inventory/stock-take" element={<StockTakePage />} />
+        <Route path="components/catalog" element={<Navigate to="/inventory/catalog" replace />} />
+        <Route path="components/opening-stock" element={<Navigate to="/inventory/opening-stock" replace />} />
+        <Route path="components/stock-valuation" element={<Navigate to="/inventory/stock-valuation" replace />} />
+        <Route path="components/stock-take" element={<Navigate to="/inventory/stock-take" replace />} />
+        <Route path="components" element={<Navigate to="/inventory/catalog" replace />} />
 
         {/* Customers */}
         <Route path="customers" element={<CustomersPage />} />
@@ -194,10 +203,6 @@ export default function App() {
         <Route path="finance/receivables" element={<ReceivablesPage />} />
         <Route path="finance/payables" element={<PayablesPage />} />
         <Route path="finance/day-close" element={<DayClosePage />} />
-        <Route path="components/catalog" element={<ComponentCatalogPage />} />
-        <Route path="components/opening-stock" element={<OpeningStockPage />} />
-        <Route path="components/stock-valuation" element={<StockValuationPage />} />
-        <Route path="components/stock-take" element={<StockTakePage />} />
       </Route>
       <Route path="*" element={<NotFoundPage />} />
     </Routes>

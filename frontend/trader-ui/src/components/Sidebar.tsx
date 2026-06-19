@@ -20,7 +20,6 @@ import {
   Receipt,
   BookOpen,
   CreditCard,
-  Layers,
   ArrowLeftRight,
   FilePlus2,
   ShoppingBag,
@@ -75,6 +74,10 @@ const navItems: NavItem[] = [
       { to: '/inventory/bundles', label: 'Bundles' },
       { to: '/inventory/warehouse', label: 'Warehouse Stock' },
       { to: '/inventory/movements', label: 'Stock Movements' },
+      { to: '/inventory/catalog', label: 'SKU Catalog', requiresComponents: true },
+      { to: '/inventory/opening-stock', label: 'Opening Stock', requiresComponents: true },
+      { to: '/inventory/stock-valuation', label: 'Stock Valuation', requiresComponents: true },
+      { to: '/inventory/stock-take', label: 'Stock Take', requiresComponents: true },
     ],
   },
   { to: '/customers', label: 'Customers', icon: Users, capability: 'customers:view' },
@@ -93,19 +96,6 @@ const navItems: NavItem[] = [
   },
   { to: '/operations', label: 'Operations', icon: Activity, capability: 'operations:view' },
   { to: '/reports', label: 'Reports', icon: BarChart2, capability: 'reports:view' },
-  {
-    to: '/components',
-    label: 'Components',
-    icon: Layers,
-    capability: 'components:view',
-    requiresComponents: true,
-    children: [
-      { to: '/components/catalog', label: 'Catalog' },
-      { to: '/components/opening-stock', label: 'Opening Stock' },
-      { to: '/components/stock-valuation', label: 'Stock Valuation' },
-      { to: '/components/stock-take', label: 'Stock Take' },
-    ],
-  },
 ];
 
 const bottomItems: NavItem[] = [
