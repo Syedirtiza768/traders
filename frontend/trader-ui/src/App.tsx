@@ -67,6 +67,12 @@ const GstSettingsPage = lazy(() => import('./pages/GstSettingsPage'));
 const ReportsPage = lazy(() => import('./pages/ReportsPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const AuditLogPage = lazy(() => import('./pages/AuditLogPage'));
+const UserManagementPage = lazy(() => import('./pages/UserManagementPage'));
+const RoleManagementPage = lazy(() => import('./pages/RoleManagementPage'));
+const CompanySettingsAdminPage = lazy(() => import('./pages/CompanySettingsAdminPage'));
+const FiscalYearPage = lazy(() => import('./pages/FiscalYearPage'));
+const WarehouseManagementPage = lazy(() => import('./pages/WarehouseManagementPage'));
+const AccountingSettingsPage = lazy(() => import('./pages/AccountingSettingsPage'));
 const PosCheckoutPage = lazy(() => import('./pages/PosCheckoutPage'));
 
 /* ---------- components-trading feature pages (flag-gated) ---------- */
@@ -230,6 +236,12 @@ export default function App() {
         <Route path="settings" element={<CapabilityRoute capability="settings:view"><SettingsPage /></CapabilityRoute>} />
         <Route path="settings/audit" element={<CapabilityRoute capability="settings:view"><AuditLogPage /></CapabilityRoute>} />
         <Route path="settings/gst" element={<CapabilityRoute capability="settings:view"><GstSettingsPage /></CapabilityRoute>} />
+        <Route path="settings/admin/users" element={<CapabilityRoute capability="settings:view"><UserManagementPage /></CapabilityRoute>} />
+        <Route path="settings/admin/roles" element={<CapabilityRoute capability="settings:view"><RoleManagementPage /></CapabilityRoute>} />
+        <Route path="settings/admin/company" element={<CapabilityRoute capability="settings:view"><CompanySettingsAdminPage /></CapabilityRoute>} />
+        <Route path="settings/admin/fiscal-year" element={<CapabilityRoute capability="settings:view"><FiscalYearPage /></CapabilityRoute>} />
+        <Route path="settings/admin/warehouses" element={<CapabilityRoute capability="settings:view"><WarehouseManagementPage /></CapabilityRoute>} />
+        <Route path="settings/admin/accounting" element={<CapabilityRoute capability="settings:view"><AccountingSettingsPage /></CapabilityRoute>} />
         <Route path="print" element={<DocumentPrintPage />} />
       </Route>
       <Route path="*" element={<NotFoundPage />} />

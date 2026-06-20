@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Building2, Users, Shield, Globe, RefreshCw, SlidersHorizontal, Save, ScrollText, Layers } from 'lucide-react';
+import { Building2, Users, Shield, Globe, RefreshCw, SlidersHorizontal, Save, ScrollText, Layers, Percent, Calendar, Warehouse, BookOpen } from 'lucide-react';
 import CurrencySettingsPanel from '../components/CurrencySettingsPanel';
 import SkuConfigEditor from '../components/SkuConfigEditor';
 import { settingsApi, catalogApi } from '../lib/api';
@@ -519,24 +519,25 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Quick Links */}
+      {/* Administration */}
       <div className="card p-6">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
             <Users size={20} className="text-amber-700 dark:text-amber-300" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Administration Links</h2>
-            <p className="text-sm text-gray-500 dark:text-slate-400">Jump to ERPNext admin panels</p>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Administration</h2>
+            <p className="text-sm text-gray-500 dark:text-slate-400">Manage users, roles, company structure and accounting defaults</p>
           </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          <AdminLink href="/app/user" label="User Management" description="Manage user accounts and permissions" />
-          <AdminLink href="/app/role" label="Role Management" description="Configure roles and access levels" />
-          <AdminLink href="/app/company" label="Company Settings" description="Edit company details and defaults" />
-          <AdminLink href="/app/fiscal-year" label="Fiscal Year" description="Set active fiscal year period" />
-          <AdminLink href="/app/warehouse" label="Warehouses" description="Configure warehouse structure" />
-          <AdminLink href="/app/accounts-settings" label="Accounting" description="Configure accounting defaults" />
+          <AdminLink to="/settings/admin/users" label="User Management" description="Create and manage system user accounts" icon={<Users size={16} />} color="text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30" />
+          <AdminLink to="/settings/admin/roles" label="Role Management" description="Configure roles and view user assignments" icon={<Shield size={16} />} color="text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30" />
+          <AdminLink to="/settings/admin/company" label="Company Settings" description="Edit company details and default accounts" icon={<Building2 size={16} />} color="text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/30" />
+          <AdminLink to="/settings/admin/fiscal-year" label="Fiscal Year" description="Set up and switch accounting periods" icon={<Calendar size={16} />} color="text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/30" />
+          <AdminLink to="/settings/admin/warehouses" label="Warehouses" description="Create and manage warehouse structure" icon={<Warehouse size={16} />} color="text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30" />
+          <AdminLink to="/settings/admin/accounting" label="Accounting" description="Invoice rules, freeze dates, credit control" icon={<BookOpen size={16} />} color="text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/30" />
+          <AdminLink to="/settings/gst" label="GST / Tax Settings" description="Tax templates and registration details" icon={<Percent size={16} />} color="text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/30" />
         </div>
       </div>
     </div>
@@ -574,16 +575,33 @@ function InfoRow({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
-function AdminLink({ href, label, description }: { href: string; label: string; description: string }) {
+function AdminLink({
+  to,
+  label,
+  description,
+  icon,
+  color,
+}: {
+  to: string;
+  label: string;
+  description: string;
+  icon?: React.ReactNode;
+  color?: string;
+}) {
   return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="block p-4 rounded-lg border border-gray-200 dark:border-slate-600 hover:border-brand-300 dark:hover:border-brand-600 hover:shadow-sm transition-all dark:bg-slate-900/30"
+    <Link
+      to={to}
+      className="flex items-start gap-3 p-4 rounded-lg border border-gray-200 dark:border-slate-600 hover:border-brand-300 dark:hover:border-brand-600 hover:shadow-sm transition-all dark:bg-slate-900/30 group"
     >
-      <h4 className="text-sm font-medium text-brand-700 dark:text-brand-300">{label}</h4>
-      <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">{description}</p>
-    </a>
+      {icon && (
+        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${color || 'bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-slate-300'}`}>
+          {icon}
+        </div>
+      )}
+      <div>
+        <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 group-hover:text-brand-700 dark:group-hover:text-brand-300 transition-colors">{label}</h4>
+        <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5 leading-relaxed">{description}</p>
+      </div>
+    </Link>
   );
 }

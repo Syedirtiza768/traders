@@ -95,6 +95,26 @@ const COMPANY_EXEMPT_METHODS = new Set([
   'trader_app.api.currency.save_currency_settings',
   'trader_app.api.currency.save_exchange_rate',
   'trader_app.api.currency.delete_exchange_rate',
+  // Admin methods resolve company internally via resolve_active_company()
+  'trader_app.api.admin.get_users',
+  'trader_app.api.admin.get_user_detail',
+  'trader_app.api.admin.create_user',
+  'trader_app.api.admin.update_user',
+  'trader_app.api.admin.set_user_enabled',
+  'trader_app.api.admin.get_all_roles',
+  'trader_app.api.admin.get_role_users',
+  'trader_app.api.admin.assign_role_to_user',
+  'trader_app.api.admin.remove_role_from_user',
+  'trader_app.api.admin.get_company_settings',
+  'trader_app.api.admin.save_company_settings',
+  'trader_app.api.admin.get_fiscal_years',
+  'trader_app.api.admin.create_fiscal_year',
+  'trader_app.api.admin.set_active_fiscal_year',
+  'trader_app.api.admin.get_warehouses',
+  'trader_app.api.admin.create_warehouse',
+  'trader_app.api.admin.update_warehouse',
+  'trader_app.api.admin.get_accounting_settings',
+  'trader_app.api.admin.save_accounting_settings',
 ]);
 
 function withCompany(method: string, params?: Record<string, any>): Record<string, any> | undefined {
@@ -778,6 +798,60 @@ export const catalogApi = {
 
   toggleFeature: (enabled: boolean, company?: string) =>
     call('trader_app.api.settings.toggle_components_feature', { enabled: enabled ? 1 : 0, company }),
+};
+
+// ─── Admin API ───────────────────────────────────────────────────
+
+export const adminApi = {
+  // Users
+  getUsers: (params?: Record<string, any>) =>
+    get('trader_app.api.admin.get_users', params),
+  getUserDetail: (user: string) =>
+    get('trader_app.api.admin.get_user_detail', { user }),
+  createUser: (data: Record<string, any>) =>
+    call('trader_app.api.admin.create_user', { data }),
+  updateUser: (data: Record<string, any>) =>
+    call('trader_app.api.admin.update_user', { data }),
+  setUserEnabled: (user: string, enabled: boolean) =>
+    call('trader_app.api.admin.set_user_enabled', { user, enabled: enabled ? 1 : 0 }),
+
+  // Roles
+  getAllRoles: () =>
+    get('trader_app.api.admin.get_all_roles'),
+  getRoleUsers: (role: string) =>
+    get('trader_app.api.admin.get_role_users', { role }),
+  assignRoleToUser: (user: string, role: string) =>
+    call('trader_app.api.admin.assign_role_to_user', { user, role }),
+  removeRoleFromUser: (user: string, role: string) =>
+    call('trader_app.api.admin.remove_role_from_user', { user, role }),
+
+  // Company Settings
+  getCompanySettings: (company?: string) =>
+    get('trader_app.api.admin.get_company_settings', { company }),
+  saveCompanySettings: (data: Record<string, any>) =>
+    call('trader_app.api.admin.save_company_settings', { data }),
+
+  // Fiscal Year
+  getFiscalYears: () =>
+    get('trader_app.api.admin.get_fiscal_years'),
+  createFiscalYear: (data: Record<string, any>) =>
+    call('trader_app.api.admin.create_fiscal_year', { data }),
+  setActiveFiscalYear: (name: string) =>
+    call('trader_app.api.admin.set_active_fiscal_year', { name }),
+
+  // Warehouses
+  getWarehouses: (company?: string) =>
+    get('trader_app.api.admin.get_warehouses', { company }),
+  createWarehouse: (data: Record<string, any>) =>
+    call('trader_app.api.admin.create_warehouse', { data }),
+  updateWarehouse: (data: Record<string, any>) =>
+    call('trader_app.api.admin.update_warehouse', { data }),
+
+  // Accounting Settings
+  getAccountingSettings: () =>
+    get('trader_app.api.admin.get_accounting_settings'),
+  saveAccountingSettings: (data: Record<string, any>) =>
+    call('trader_app.api.admin.save_accounting_settings', { data }),
 };
 
 // ─── Day-Book API (Components feature) ───────────────────────────
