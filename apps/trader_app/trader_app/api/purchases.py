@@ -443,6 +443,8 @@ def create_purchase_invoice(supplier, items, company=None, posting_date=None,
         }
         if serial_no:
             row["serial_no"] = serial_no
+        if item.get("description"):
+            row["description"] = item["description"]
         pi.append("items", row)
 
     if taxes_and_charges:

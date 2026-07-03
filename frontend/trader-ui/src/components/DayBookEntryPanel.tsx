@@ -117,7 +117,9 @@ export default function DayBookEntryPanel({
         setModeOfPayment(
           modes.find((m: { name: string }) => m.name === 'Cash')?.name || modes[0]?.name || 'Cash',
         );
-        const defaultAccount = payMsg.defaults?.receive_account
+        const defaultAccount = (entryType === 'payment_out'
+          ? payMsg.defaults?.pay_account
+          : payMsg.defaults?.receive_account)
           || payMsg.defaults?.cash_account
           || accounts[0]?.name
           || '';
@@ -184,21 +186,36 @@ export default function DayBookEntryPanel({
       return;
     }
 
+    if (isInvoice) {
+      if (lines.length === 0) {
+        setError('Add at least one item line.');
+        return;
+      }
+      const invalid = lines.some((l) => !l.item_code || !l.qty || l.qty <= 0);
+      if (invalid) {
+        setError('Each line needs an item and quantity greater than zero.');
+        return;
+      }
+      const zeroRate = lines.some((l) => l.rate <= 0);
+      if (zeroRate) {
+        setError('Each line must have a rate greater than zero.');
+        return;
+      }
+    } else {
+      if (!payAmount || payAmount <= 0) {
+        setError('Enter a valid payment amount.');
+        return;
+      }
+      if (totalAllocated > payAmount + 0.005) {
+        setError('Allocated total exceeds payment amount.');
+        return;
+      }
+    }
+
     setSaving(true);
     setError(null);
     try {
       if (isInvoice) {
-        if (lines.length === 0) {
-          setError('Add at least one item line.');
-          setSaving(false);
-          return;
-        }
-        const invalid = lines.some((l) => !l.item_code || !l.qty || l.qty <= 0);
-        if (invalid) {
-          setError('Each line needs an item and quantity greater than zero.');
-          setSaving(false);
-          return;
-        }
         const res = await daybookApi.postDayTransaction({
           tx_type: entryType,
           party,
@@ -222,16 +239,6 @@ export default function DayBookEntryPanel({
           + (msg.outstanding_amount > 0 ? ` · Outstanding ${msg.outstanding_amount.toFixed(2)}` : ''),
         );
       } else {
-        if (!payAmount || payAmount <= 0) {
-          setError('Enter a valid payment amount.');
-          setSaving(false);
-          return;
-        }
-        if (totalAllocated > payAmount + 0.005) {
-          setError('Allocated total exceeds payment amount.');
-          setSaving(false);
-          return;
-        }
         const activeAllocations = allocations
           .filter((row) => Number(row.allocated_amount) > 0)
           .map((row) => ({
