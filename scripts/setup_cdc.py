@@ -202,6 +202,11 @@ def _create_company():
         print(f"  Company '{COMPANY_NAME}' already exists — skipping creation.")
         return
 
+    # Ensure Warehouse Type 'Transit' exists (required by ERPNext)
+    if not frappe.db.exists("Warehouse Type", "Transit"):
+        frappe.get_doc({"doctype": "Warehouse Type", "name": "Transit"}).insert(ignore_permissions=True)
+        frappe.db.commit()
+
     doc = frappe.get_doc({
         "doctype": "Company",
         "company_name": COMPANY_NAME,
@@ -459,11 +464,15 @@ def _get_leaf_customer_group():
     leaf = frappe.db.get_value("Customer Group", {"is_group": 0}, "name")
     if leaf:
         return leaf
+    # Find the root group dynamically
+    root = frappe.db.get_value("Customer Group", {"is_group": 1, "parent_customer_group": ""}, "name")
+    if not root:
+        root = frappe.db.get_value("Customer Group", {"is_group": 1}, "name") or "All Customer Groups"
     # Create one if none exists
     doc = frappe.get_doc({
         "doctype": "Customer Group",
         "customer_group_name": "Default",
-        "parent_customer_group": "All Customer Groups",
+        "parent_customer_group": root,
         "is_group": 0,
     })
     doc.insert(ignore_permissions=True)
@@ -475,10 +484,13 @@ def _get_leaf_territory():
     leaf = frappe.db.get_value("Territory", {"is_group": 0}, "name")
     if leaf:
         return leaf
+    root = frappe.db.get_value("Territory", {"is_group": 1, "parent_territory": ""}, "name")
+    if not root:
+        root = frappe.db.get_value("Territory", {"is_group": 1}, "name") or "All Territories"
     doc = frappe.get_doc({
         "doctype": "Territory",
         "territory_name": "Default",
-        "parent_territory": "All Territories",
+        "parent_territory": root,
         "is_group": 0,
     })
     doc.insert(ignore_permissions=True)
@@ -700,15 +712,31 @@ def _import_opening_stock():
     })
 
     for item in items_for_import:
+        item_uom = frappe.db.get_value("Item", item["item_code"], "stock_uom") or "Nos"
         doc.append("items", {
             "item_code": item["item_code"],
             "qty": item["qty"],
             "basic_rate": item["rate"],
+            "s_warehouse": warehouse,
             "t_warehouse": warehouse,
+            "uom": item_uom,
+            "stock_uom": item_uom,
+            "conversion_factor": 1.0,
+            "allow_zero_valuation_rate": 1,
         })
 
     doc.insert(ignore_permissions=True)
+
+    # Enable allow_negative_stock in Stock Settings temporarily
+    old_neg = frappe.db.get_single_value("Stock Settings", "allow_negative_stock")
+    frappe.db.set_value("Stock Settings", "Stock Settings", "allow_negative_stock", 1)
+    frappe.db.commit()
+
     doc.submit()
+
+    # Restore
+    frappe.db.set_value("Stock Settings", "Stock Settings", "allow_negative_stock", old_neg or 0)
+    frappe.db.commit()
 
     total_qty = sum(i["qty"] for i in items_for_import)
     total_val = sum(i["qty"] * i["rate"] for i in items_for_import)

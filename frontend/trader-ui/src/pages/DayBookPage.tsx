@@ -211,6 +211,8 @@ export default function DayBookPage() {
 
     setSuccess(message);
 
+    setPage(1);
+
     void load();
 
   };
