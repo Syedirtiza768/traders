@@ -802,3 +802,7 @@ def _resolve_payment_mode(mode_of_payment):
 
     first = frappe.db.get_value("Mode of Payment", {"enabled": 1}, "name", order_by="name asc")
     return first  # may be None if table is still empty — ERPNext will use its own default
+
+from trader_app.api._tenant_guard import apply_module_guards
+
+apply_module_guards(globals(), "finance")

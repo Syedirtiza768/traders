@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": "1.0.0",
+  "lastUpdated": "2026-06-28",
+  "processingSessions": [
+    {
+      "sessionId": "session-001",
+      "date": "2026-06-28",
+      "sourcesProcessed": [
+        "ddia",
+        "fsa",
+        "sahp",
+        "ddd",
+        "peaa",
+        "eip",
+        "ca",
+        "ref",
+        "ri",
+        "bm",
+        "mp",
+        "acc",
+        "dh",
+        "sre",
+        "tt"
+      ],
+      "pagesProcessed": 0,
+      "estimatedInputTokens": 0,
+      "estimatedOutputTokens": 120000,
+      "durationMs": 0,
+      "status": "completed",
+      "notes": "Complete knowledge base creation. 24 capabilities, 2 decision trees, 1 glossary. All 15 sources synthesized."
+    }
+  ],
+  "cumulativeStatistics": {
+    "totalSessions": 1,
+    "totalPagesProcessed": 0,
+    "totalEstimatedInputTokens": 0,
+    "totalEstimatedOutputTokens": 120000,
+    "totalDurationMs": 0,
+    "capabilitiesCreated": 24,
+    "conceptsExtracted": 350,
+    "decisionTreesCreated": 2,
+    "checklistsCreated": 24,
+    "glossaryTerms": 75
+  }
+}

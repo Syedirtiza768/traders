@@ -16,11 +16,14 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { useCompanyStore } from '../stores/companyStore';
+import { useTenantStore } from '../stores/tenantStore';
 import { hasCapability, type AppCapability } from '../lib/permissions';
+import { type TenantModuleKey } from '../lib/tenantModules';
 
 interface NavChild {
   to: string;
   label: string;
+  module?: TenantModuleKey;
   requiresComponents?: boolean;
 }
 
@@ -30,64 +33,65 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   exact?: boolean;
   capability?: AppCapability;
+  module?: TenantModuleKey;
   requiresComponents?: boolean;
   children?: NavChild[];
 }
 
 const navItems: NavItem[] = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, exact: true, capability: 'dashboard:view' },
+  { to: '/', label: 'Dashboard', icon: LayoutDashboard, exact: true, capability: 'dashboard:view', module: 'dashboard' },
   {
-    to: '/sales', label: 'Sales', icon: TrendingUp, capability: 'sales:view',
+    to: '/sales', label: 'Sales', icon: TrendingUp, capability: 'sales:view', module: 'sales',
     children: [
-      { to: '/sales', label: 'Invoices' },
-      { to: '/sales/pos', label: 'POS Checkout' },
-      { to: '/sales/challans', label: 'Delivery Challans' },
-      { to: '/sales/orders', label: 'Sales Orders' },
-      { to: '/sales/quotations', label: 'Quotations' },
+      { to: '/sales', label: 'Invoices', module: 'sales' },
+      { to: '/sales/pos', label: 'POS Checkout', module: 'pos' },
+      { to: '/sales/challans', label: 'Delivery Challans', module: 'sales' },
+      { to: '/sales/orders', label: 'Sales Orders', module: 'sales' },
+      { to: '/sales/quotations', label: 'Quotations', module: 'sales' },
     ],
   },
   {
-    to: '/purchases', label: 'Purchases', icon: TrendingDown, capability: 'purchases:view',
+    to: '/purchases', label: 'Purchases', icon: TrendingDown, capability: 'purchases:view', module: 'purchases',
     children: [
-      { to: '/purchases', label: 'Invoices' },
-      { to: '/purchases/orders', label: 'Purchase Orders' },
-      { to: '/purchases/requisitions', label: 'Requisitions' },
-      { to: '/purchases/rfqs', label: 'Supplier Quotations' },
+      { to: '/purchases', label: 'Invoices', module: 'purchases' },
+      { to: '/purchases/orders', label: 'Purchase Orders', module: 'purchases' },
+      { to: '/purchases/requisitions', label: 'Requisitions', module: 'purchases' },
+      { to: '/purchases/rfqs', label: 'Supplier Quotations', module: 'purchases' },
     ],
   },
   {
-    to: '/inventory', label: 'Inventory', icon: Warehouse, capability: 'inventory:view',
+    to: '/inventory', label: 'Inventory', icon: Warehouse, capability: 'inventory:view', module: 'inventory',
     children: [
-      { to: '/inventory', label: 'Items & Stock' },
-      { to: '/inventory/bundles', label: 'Bundles' },
-      { to: '/inventory/warehouse', label: 'Warehouse Stock' },
-      { to: '/inventory/movements', label: 'Stock Movements' },
-      { to: '/inventory/catalog', label: 'SKU Catalog', requiresComponents: true },
-      { to: '/inventory/opening-stock', label: 'Opening Stock', requiresComponents: true },
-      { to: '/inventory/stock-valuation', label: 'Stock Valuation', requiresComponents: true },
-      { to: '/inventory/stock-take', label: 'Stock Take', requiresComponents: true },
+      { to: '/inventory', label: 'Items & Stock', module: 'inventory' },
+      { to: '/inventory/bundles', label: 'Bundles', module: 'inventory' },
+      { to: '/inventory/warehouse', label: 'Warehouse Stock', module: 'inventory' },
+      { to: '/inventory/movements', label: 'Stock Movements', module: 'inventory' },
+      { to: '/inventory/catalog', label: 'SKU Catalog', module: 'components', requiresComponents: true },
+      { to: '/inventory/opening-stock', label: 'Opening Stock', module: 'components', requiresComponents: true },
+      { to: '/inventory/stock-valuation', label: 'Stock Valuation', module: 'components', requiresComponents: true },
+      { to: '/inventory/stock-take', label: 'Stock Take', module: 'components', requiresComponents: true },
     ],
   },
-  { to: '/customers', label: 'Customers', icon: Users, capability: 'customers:view' },
-  { to: '/suppliers', label: 'Suppliers', icon: Truck, capability: 'suppliers:view' },
+  { to: '/customers', label: 'Customers', icon: Users, capability: 'customers:view', module: 'customers' },
+  { to: '/suppliers', label: 'Suppliers', icon: Truck, capability: 'suppliers:view', module: 'suppliers' },
   {
-    to: '/finance', label: 'Finance', icon: DollarSign, capability: 'finance:view',
+    to: '/finance', label: 'Finance', icon: DollarSign, capability: 'finance:view', module: 'finance',
     children: [
-      { to: '/finance', label: 'Overview' },
-      { to: '/finance/payments', label: 'Payments' },
-      { to: '/finance/journals', label: 'Journal Entries' },
-      { to: '/finance/day-book', label: 'Day Book', requiresComponents: true },
-      { to: '/finance/receivables', label: 'In-Coming (AR)', requiresComponents: true },
-      { to: '/finance/payables', label: 'Out-Going (AP)', requiresComponents: true },
-      { to: '/finance/day-close', label: 'Day Close', requiresComponents: true },
+      { to: '/finance', label: 'Overview', module: 'finance' },
+      { to: '/finance/payments', label: 'Payments', module: 'finance' },
+      { to: '/finance/journals', label: 'Journal Entries', module: 'finance' },
+      { to: '/finance/day-book', label: 'Day Book', module: 'components', requiresComponents: true },
+      { to: '/finance/receivables', label: 'In-Coming (AR)', module: 'components', requiresComponents: true },
+      { to: '/finance/payables', label: 'Out-Going (AP)', module: 'components', requiresComponents: true },
+      { to: '/finance/day-close', label: 'Day Close', module: 'components', requiresComponents: true },
     ],
   },
-  { to: '/operations', label: 'Operations', icon: Activity, capability: 'operations:view' },
-  { to: '/reports', label: 'Reports', icon: BarChart2, capability: 'reports:view' },
+  { to: '/operations', label: 'Operations', icon: Activity, capability: 'operations:view', module: 'operations' },
+  { to: '/reports', label: 'Reports', icon: BarChart2, capability: 'reports:view', module: 'reports' },
 ];
 
 const bottomItems: NavItem[] = [
-  { to: '/settings', label: 'Settings', icon: Settings, capability: 'settings:view' },
+  { to: '/settings', label: 'Settings', icon: Settings, capability: 'settings:view', module: 'settings' },
 ];
 
 interface SidebarProps {
@@ -99,7 +103,31 @@ export default function Sidebar({ mobile = false, onClose }: SidebarProps) {
   const location = useLocation();
   const roles = useAuthStore((s) => s.roles);
   const componentsEnabled = useCompanyStore((s) => s.componentsEnabled);
+  const multitenantEnabled = useTenantStore((s) => s.enabled);
+  const isModuleEnabled = useTenantStore((s) => s.isModuleEnabled);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  const isModuleVisible = (module?: TenantModuleKey) => {
+    if (!module || !multitenantEnabled) return true;
+    return isModuleEnabled(module);
+  };
+
+  const isChildVisible = (child: NavChild) => {
+    if (child.requiresComponents && !componentsEnabled) return false;
+    return isModuleVisible(child.module);
+  };
+
+  const isItemVisible = (item: NavItem) => {
+    if (item.capability && roles.length > 0 && !hasCapability(roles, item.capability)) {
+      return false;
+    }
+    if (item.requiresComponents && !componentsEnabled) return false;
+    if (!isModuleVisible(item.module)) return false;
+    if (item.children) {
+      return item.children.some(isChildVisible);
+    }
+    return true;
+  };
 
   const toggleExpand = (key: string) => {
     setExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -121,24 +149,15 @@ export default function Sidebar({ mobile = false, onClose }: SidebarProps) {
   const isOpen = (item: NavItem) => expanded[item.to] ?? isParentActive(item);
 
   const renderItem = (item: NavItem) => {
-    // Check capability-based access
-    if (item.capability && roles.length > 0 && !hasCapability(roles, item.capability)) {
+    if (!isItemVisible(item)) {
       return null;
     }
-    // Components feature: hide when flag is OFF
-    if (item.requiresComponents && !componentsEnabled) {
-      return null;
-    }
-    // For Finance children that are components-only, hide them when feature is OFF
-    // (children are rendered inline below — handled via component-gated child filter)
-
 
     const active = isParentActive(item);
 
     if (item.children) {
-      const visibleChildren = item.children.filter(
-        (c) => !c.requiresComponents || componentsEnabled
-      );
+      const visibleChildren = item.children.filter(isChildVisible);
+      if (!visibleChildren.length) return null;
       const open = isOpen(item);
       return (
         <div key={item.to}>

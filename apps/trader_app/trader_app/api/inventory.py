@@ -727,3 +727,7 @@ def update_reorder_levels():
             )
 
 
+
+from trader_app.api._tenant_guard import apply_module_guards
+
+apply_module_guards(globals(), "inventory")

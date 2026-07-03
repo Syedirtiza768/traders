@@ -9,6 +9,12 @@ import frappe
 from frappe.utils import cint
 
 from trader_app.api.company import resolve_active_company
+from trader_app.api.tenant import (
+    count_tenant_users,
+    get_user_tenant_name,
+    is_multitenant_enabled,
+    _tenant_payload,
+)
 
 
 def _cache_key():
@@ -45,12 +51,25 @@ def _read_user_ui_settings():
     return stored
 
 
+def _tenant_settings_block():
+    if not is_multitenant_enabled():
+        return None
+
+    tenant = get_user_tenant_name()
+    if not tenant:
+        return None
+
+    payload = _tenant_payload(tenant) or {}
+    payload["user_count"] = count_tenant_users(tenant)
+    return payload
+
+
 def _payload():
     company_name = resolve_active_company()
     company_doc = frappe.get_doc("Company", company_name)
     ui_settings = _read_user_ui_settings()
 
-    return {
+    result = {
         "company": {
             "name": company_doc.name,
             "abbr": company_doc.abbr,
@@ -72,6 +91,15 @@ def _payload():
             "email_notifications": cint(ui_settings.get("email_notifications") or 1),
         },
     }
+
+    tenant_block = _tenant_settings_block()
+    if tenant_block:
+        result["tenant"] = tenant_block
+        result["multitenant_enabled"] = True
+    else:
+        result["multitenant_enabled"] = is_multitenant_enabled()
+
+    return result
 
 
 @frappe.whitelist()
@@ -198,7 +226,11 @@ def get_current_user_roles():
 
     all_roles = {r.role for r in rows}
 
-    # System-level admins → full access
+    # Platform super admin — expose Trader Super Admin before business-admin shortcut
+    if "Trader Super Admin" in all_roles:
+        return ["Trader Super Admin"]
+
+    # System-level admins → full business access (not platform-only)
     if "Administrator" in all_roles or "System Manager" in all_roles or user == "Administrator":
         return ["Trader Admin"]
 
@@ -216,3 +248,7 @@ def get_current_user_roles():
                 trader_roles.append(canonical)
 
     return trader_roles
+
+from trader_app.api._tenant_guard import apply_module_guards
+
+apply_module_guards(globals(), "settings")

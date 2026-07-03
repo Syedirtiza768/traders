@@ -105,3 +105,7 @@ def create_pos_sale(customer, items, company=None, posting_date=None,
                 result["outstanding_amount"] = flt(pe_result.get("outstanding_amount"))
 
     return result
+
+from trader_app.api._tenant_guard import apply_module_guards
+
+apply_module_guards(globals(), "pos")

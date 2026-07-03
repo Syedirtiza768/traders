@@ -941,3 +941,7 @@ def post_day_transaction(tx_type, party, lines=None, amount=0, mode_of_payment="
         "grand_total": flt(invoice.grand_total),
         "outstanding_amount": outstanding,
     }
+
+from trader_app.api._tenant_guard import apply_module_guards
+
+apply_module_guards(globals(), "components")

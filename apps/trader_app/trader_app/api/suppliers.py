@@ -190,3 +190,7 @@ def _default_supplier_group():
     return frappe.get_all(
         "Supplier Group", filters={"is_group": 0}, order_by="name", limit=1, pluck="name"
     )[0]
+
+from trader_app.api._tenant_guard import apply_module_guards
+
+apply_module_guards(globals(), "suppliers")

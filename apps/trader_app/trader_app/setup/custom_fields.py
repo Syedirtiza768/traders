@@ -214,6 +214,35 @@ CUSTOM_FIELDS = [
         "insert_after": "trader_short_code",
         "description": "Opening payable balance imported when Components feature is first enabled.",
     },
+
+    # ── Multi-tenant platform fields ─────────────────────────────────
+    {
+        "dt": "User",
+        "fieldname": "trader_tenant",
+        "label": "Trader Tenant",
+        "fieldtype": "Link",
+        "options": "Trader Tenant",
+        "insert_after": "user_type",
+        "description": "Business account this user belongs to. Platform admins leave blank.",
+    },
+    {
+        "dt": "Company",
+        "fieldname": "trader_tenant",
+        "label": "Trader Tenant",
+        "fieldtype": "Link",
+        "options": "Trader Tenant",
+        "insert_after": "company_name",
+        "description": "Platform tenant that owns this company.",
+    },
+    {
+        "dt": "Company",
+        "fieldname": "trader_user_limit",
+        "label": "Trader User Limit",
+        "fieldtype": "Int",
+        "default": "10",
+        "insert_after": "trader_tenant",
+        "description": "Maximum users allowed for this business (synced from tenant).",
+    },
 ]
 
 

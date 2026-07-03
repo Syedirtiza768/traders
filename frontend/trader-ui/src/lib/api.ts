@@ -115,6 +115,18 @@ const COMPANY_EXEMPT_METHODS = new Set([
   'trader_app.api.admin.update_warehouse',
   'trader_app.api.admin.get_accounting_settings',
   'trader_app.api.admin.save_accounting_settings',
+  'trader_app.api.tenant.get_multitenant_status',
+  'trader_app.api.tenant.get_tenant_config',
+  'trader_app.api.tenant.get_business_tenant_audit_log',
+  'trader_app.api.super_admin.get_tenant_dashboard',
+  'trader_app.api.super_admin.list_tenants',
+  'trader_app.api.super_admin.get_tenant_detail',
+  'trader_app.api.super_admin.create_tenant',
+  'trader_app.api.super_admin.update_tenant',
+  'trader_app.api.super_admin.set_tenant_status',
+  'trader_app.api.super_admin.set_tenant_modules',
+  'trader_app.api.super_admin.set_tenant_branding',
+  'trader_app.api.super_admin.get_tenant_audit_log',
 ]);
 
 function withCompany(method: string, params?: Record<string, any>): Record<string, any> | undefined {
@@ -145,6 +157,50 @@ export const companyApi = {
 
   setActive: (company: string) =>
     call('trader_app.api.company.set_active_company', { company }),
+};
+
+// ─── Tenant API ──────────────────────────────────────────────────
+
+export const tenantApi = {
+  getStatus: () =>
+    get('trader_app.api.tenant.get_multitenant_status'),
+
+  getConfig: () =>
+    get('trader_app.api.tenant.get_tenant_config'),
+
+  getBusinessAuditLog: (params?: { page?: number; page_size?: number }) =>
+    get('trader_app.api.tenant.get_business_tenant_audit_log', params),
+};
+
+// ─── Super Admin API ─────────────────────────────────────────────
+
+export const superAdminApi = {
+  getDashboard: () =>
+    get('trader_app.api.super_admin.get_tenant_dashboard'),
+
+  listTenants: (params?: { search?: string; status?: string; page?: number; page_size?: number }) =>
+    get('trader_app.api.super_admin.list_tenants', params),
+
+  getTenant: (tenant: string) =>
+    get('trader_app.api.super_admin.get_tenant_detail', { tenant }),
+
+  createTenant: (data: Record<string, unknown>) =>
+    call('trader_app.api.super_admin.create_tenant', { data }),
+
+  updateTenant: (tenant: string, data: Record<string, unknown>) =>
+    call('trader_app.api.super_admin.update_tenant', { tenant, data }),
+
+  setTenantStatus: (tenant: string, status: string) =>
+    call('trader_app.api.super_admin.set_tenant_status', { tenant, status }),
+
+  setTenantModules: (tenant: string, modules: string[]) =>
+    call('trader_app.api.super_admin.set_tenant_modules', { tenant, modules }),
+
+  setTenantBranding: (tenant: string, branding: Record<string, unknown>, logo?: string) =>
+    call('trader_app.api.super_admin.set_tenant_branding', { tenant, branding, logo }),
+
+  getTenantAuditLog: (tenant: string, params?: { page?: number; page_size?: number }) =>
+    get('trader_app.api.super_admin.get_tenant_audit_log', { tenant, ...params }),
 };
 
 // ─── Auth API ────────────────────────────────────────────────────

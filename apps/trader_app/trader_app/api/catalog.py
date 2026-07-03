@@ -1005,3 +1005,7 @@ def create_stock_take(items, warehouse=None, company=None):
         "stock_reconciliation": doc.name,
         "adjusted": adjusted,
     }
+
+from trader_app.api._tenant_guard import apply_module_guards
+
+apply_module_guards(globals(), "components")

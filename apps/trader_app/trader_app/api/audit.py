@@ -119,3 +119,7 @@ def get_audit_log(
         "page_size": page_size,
     }
 
+
+from trader_app.api._tenant_guard import apply_module_guards
+
+apply_module_guards(globals(), "settings")

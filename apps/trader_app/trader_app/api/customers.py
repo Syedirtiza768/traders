@@ -196,3 +196,7 @@ def _default_territory():
     return frappe.db.get_single_value("Selling Settings", "territory") or frappe.get_all(
         "Territory", filters={"is_group": 0}, order_by="name", limit=1, pluck="name"
     )[0]
+
+from trader_app.api._tenant_guard import apply_module_guards
+
+apply_module_guards(globals(), "customers")

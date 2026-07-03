@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { authApi, settingsApi } from '../lib/api';
 import { applyTraderUiTheme, clearTraderUiTheme, normaliseUiPrefs } from '../lib/traderUiTheme';
 import { useCompanyStore } from './companyStore';
+import { useTenantStore } from './tenantStore';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -21,8 +22,15 @@ interface AuthState {
 async function hydrateUiFromServer(): Promise<void> {
   try {
     const res = await settingsApi.get();
-    const ui = res.data?.message?.ui;
-    if (ui) applyTraderUiTheme(normaliseUiPrefs(ui as Record<string, unknown>));
+    const message = res.data?.message as {
+      ui?: Record<string, unknown>;
+      tenant?: import('./tenantStore').TenantConfig;
+      multitenant_enabled?: boolean;
+    };
+    if (message?.ui) applyTraderUiTheme(normaliseUiPrefs(message.ui));
+    if (message?.tenant) {
+      useTenantStore.getState().hydrateFromSettings(message.tenant, message.multitenant_enabled);
+    }
   } catch {
     /* settings optional at bootstrap */
   }
@@ -56,6 +64,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         loading: false,
       });
       void hydrateUiFromServer();
+      void useTenantStore.getState().load();
       void useCompanyStore.getState().load();
     } catch (err: any) {
       const message =
@@ -80,6 +89,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       initialized: false,
       revision: 0,
     });
+    useTenantStore.getState().reset();
     set({ isAuthenticated: false, user: null, fullName: null, roles: [], initialized: true });
   },
 
@@ -100,13 +110,16 @@ export const useAuthStore = create<AuthState>((set) => ({
           initialized: true,
         });
         void hydrateUiFromServer();
+        void useTenantStore.getState().load();
         void useCompanyStore.getState().load();
       } else {
         clearTraderUiTheme();
+        useTenantStore.getState().reset();
         set({ isAuthenticated: false, user: null, roles: [], initialized: true });
       }
     } catch {
       clearTraderUiTheme();
+      useTenantStore.getState().reset();
       set({ isAuthenticated: false, user: null, roles: [], initialized: true });
     }
   },

@@ -342,3 +342,7 @@ def get_tax_templates(doctype="Sales", company=None):
         )
 
     return {"templates": templates}
+
+from trader_app.api._tenant_guard import apply_module_guards
+
+apply_module_guards(globals(), "settings")

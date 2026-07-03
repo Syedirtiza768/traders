@@ -41,6 +41,9 @@ fixtures = [
             "Trader Purchase Manager",
             "Trader Finance Manager",
             "Trader Inventory Manager",
+            "Trader Super Admin",
+            "Trader Staff",
+            "Trader Viewer",
         ]]],
     },
     # Document approval workflows — declared here for future implementation.
@@ -125,7 +128,7 @@ has_permission = {
 }
 
 # ── Boot Session ───────────────────────────────────────────────────
-# boot_session = ""
+boot_session = "trader_app.api.tenant.boot_session"
 
 # ── Notification ───────────────────────────────────────────────────
 # notification_config = ""

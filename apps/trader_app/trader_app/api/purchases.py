@@ -750,3 +750,7 @@ def on_purchase_invoice_cancel(doc, method):
 #    HELPERS
 # ────────────────────────────────────────────────────────────────
 
+
+from trader_app.api._tenant_guard import apply_module_guards
+
+apply_module_guards(globals(), "purchases")

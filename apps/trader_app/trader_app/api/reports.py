@@ -2326,3 +2326,7 @@ def get_fx_gain_loss_report(company=None, as_on_date=None, format=None):
         return
 
     return {"summary": summary, "data": rows, "total": len(rows)}
+
+from trader_app.api._tenant_guard import apply_module_guards
+
+apply_module_guards(globals(), "reports")

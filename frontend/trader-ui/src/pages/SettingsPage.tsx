@@ -7,6 +7,7 @@ import { settingsApi, catalogApi } from '../lib/api';
 import { applyTraderUiTheme, normaliseUiPrefs, type TraderUiPrefs } from '../lib/traderUiTheme';
 import { useCompanyStore } from '../stores/companyStore';
 import { useAuthStore } from '../stores/authStore';
+import { useTenantStore } from '../stores/tenantStore';
 
 const TIME_ZONES = [
   'Asia/Karachi',
@@ -47,6 +48,8 @@ export default function SettingsPage() {
 
   const { componentsEnabled, setComponentsEnabled } = useCompanyStore();
   const roles_ = useAuthStore((s) => s.roles);
+  const tenant = useTenantStore((s) => s.tenant);
+  const multitenantEnabled = useTenantStore((s) => s.enabled);
   const isAdmin = roles_.includes('Trader Admin') || roles_.includes('System Manager');
   const [togglingComponents, setTogglingComponents] = useState(false);
   const [skuCategoryCount, setSkuCategoryCount] = useState<number | null>(null);
@@ -227,6 +230,35 @@ export default function SettingsPage() {
           <p className="text-gray-500 dark:text-slate-400 text-sm">No company configured. Run the setup wizard first.</p>
         )}
       </div>
+
+      {multitenantEnabled && tenant && (
+        <div className="card p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-lg bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center">
+              <Layers size={20} className="text-violet-700 dark:text-violet-300" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Business Account</h2>
+              <p className="text-sm text-gray-500 dark:text-slate-400">Tenant subscription and limits</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+            <InfoRow label="Business Name" value={tenant.tenant_name} />
+            <InfoRow label="Account Status" value={tenant.status} />
+            <InfoRow label="Plan" value={String(tenant.subscription_plan || '—')} />
+            <InfoRow label="Billing" value={String(tenant.billing_status || '—')} />
+            <InfoRow label="Users" value={`${tenant.user_count ?? 0} / ${tenant.max_users ?? '—'}`} />
+            <InfoRow label="Timezone" value={String(tenant.timezone || '—')} />
+          </div>
+          {isAdmin && (
+            <div className="mt-6 pt-4 border-t border-gray-100 dark:border-slate-700">
+              <Link to="/settings/tenant-audit" className="btn-secondary inline-flex items-center gap-2">
+                <ScrollText size={14} /> View business audit log
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* User preferences — persisted via trader_app.api.settings.save_settings */}
       {uiPrefs && (
@@ -531,6 +563,9 @@ export default function SettingsPage() {
           </div>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {multitenantEnabled && (
+            <AdminLink to="/settings/tenant-audit" label="Business Audit Log" description="Platform actions for your business account" icon={<ScrollText size={16} />} color="text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/30" />
+          )}
           <AdminLink to="/settings/admin/users" label="User Management" description="Create and manage system user accounts" icon={<Users size={16} />} color="text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30" />
           <AdminLink to="/settings/admin/roles" label="Role Management" description="Configure roles and view user assignments" icon={<Shield size={16} />} color="text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30" />
           <AdminLink to="/settings/admin/company" label="Company Settings" description="Edit company details and default accounts" icon={<Building2 size={16} />} color="text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/30" />

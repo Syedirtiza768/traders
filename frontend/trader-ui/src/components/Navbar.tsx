@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { BarChart3, LogOut, Bell, ChevronDown, User, Menu } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
+import { useTenantStore } from '../stores/tenantStore';
+import { parseTenantBranding, tenantLogoUrl } from '../lib/tenantBranding';
 import CompanySwitcher from './CompanySwitcher';
 
 interface NavbarProps {
@@ -9,13 +11,18 @@ interface NavbarProps {
 
 export default function Navbar({ onMenuToggle }: NavbarProps) {
   const { user, logout } = useAuthStore();
+  const tenant = useTenantStore((s) => s.tenant);
+  const multitenantEnabled = useTenantStore((s) => s.enabled);
   const [showMenu, setShowMenu] = useState(false);
+
+  const branding = parseTenantBranding(tenant);
+  const logoUrl = tenantLogoUrl(tenant?.logo);
+  const appTitle = multitenantEnabled && branding.appName ? branding.appName : 'Traders';
+  const appSubtitle = branding.tagline || 'Business Management';
 
   return (
     <header className="fixed top-0 left-0 right-0 h-[var(--navbar-height)] bg-white border-b border-gray-200 z-50 flex items-center justify-between px-4 sm:px-6 dark:bg-slate-900 dark:border-slate-700" role="banner">
-      {/* Left: Hamburger + Logo */}
       <div className="flex items-center gap-2 sm:gap-3">
-        {/* Hamburger — visible below lg */}
         <button
           onClick={onMenuToggle}
           className="lg:hidden p-2 -ml-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
@@ -25,26 +32,29 @@ export default function Navbar({ onMenuToggle }: NavbarProps) {
         </button>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          <div className="w-8 h-8 sm:w-9 sm:h-9 bg-brand-700 rounded-lg flex items-center justify-center">
-            <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-          </div>
+          {logoUrl ? (
+            <img src={logoUrl} alt="" className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg object-cover border border-gray-200" />
+          ) : (
+            <div className="w-8 h-8 sm:w-9 sm:h-9 bg-brand-700 rounded-lg flex items-center justify-center">
+              <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+            </div>
+          )}
           <div>
-            <h1 className="text-base sm:text-lg font-bold text-gray-900 dark:text-gray-100 leading-none">Traders</h1>
-            <p className="text-[10px] text-gray-400 dark:text-slate-500 hidden xs:block">Business Management</p>
+            <h1 className="text-base sm:text-lg font-bold text-gray-900 dark:text-gray-100 leading-none truncate max-w-[180px] sm:max-w-none">
+              {appTitle}
+            </h1>
+            <p className="text-[10px] text-gray-400 dark:text-slate-500 hidden xs:block truncate">{appSubtitle}</p>
           </div>
         </div>
       </div>
 
-      {/* Right */}
       <div className="flex items-center gap-2 sm:gap-4">
         <CompanySwitcher />
-        {/* Notifications placeholder */}
         <button className="relative p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors" aria-label="Notifications">
           <Bell className="w-5 h-5" />
           <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" aria-hidden="true" />
         </button>
 
-        {/* User menu */}
         <div className="relative">
           <button
             onClick={() => setShowMenu(!showMenu)}

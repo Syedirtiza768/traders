@@ -9,6 +9,9 @@ export default function CompanySwitcher() {
 
   if (!company || companies.length === 0) return null;
 
+  // Single-company tenants: no switcher UI (1:1 tenant → company model).
+  if (companies.length === 1) return null;
+
   const handleSelect = async (name: string) => {
     if (name === company) {
       setOpen(false);

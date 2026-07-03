@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Search, UserCheck, UserX, RefreshCw, X, Save, ChevronLeft, ChevronRight } from 'lucide-react';
 import { adminApi, settingsApi } from '../lib/api';
 import { useAuthStore } from '../stores/authStore';
+import { useTenantStore } from '../stores/tenantStore';
 
 type User = {
   name: string;
@@ -28,6 +29,8 @@ const EMPTY_FORM = {
 export default function UserManagementPage() {
   const navigate = useNavigate();
   const roles_ = useAuthStore((s) => s.roles);
+  const tenant = useTenantStore((s) => s.tenant);
+  const multitenantEnabled = useTenantStore((s) => s.enabled);
   const isAdmin = roles_.includes('Trader Admin') || roles_.includes('System Manager');
 
   const [users, setUsers] = useState<User[]>([]);
@@ -186,6 +189,19 @@ export default function UserManagementPage() {
           </div>
         </div>
       </div>
+
+      {multitenantEnabled && tenant?.max_users ? (
+        <div className={`rounded-lg border px-4 py-3 text-sm ${
+          (tenant.user_count ?? total) >= tenant.max_users
+            ? 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100'
+            : 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200'
+        }`}>
+          Business users: <strong>{tenant.user_count ?? total}</strong> / <strong>{tenant.max_users}</strong>
+          {(tenant.user_count ?? total) >= tenant.max_users && (
+            <span className="ml-2">— user limit reached. Upgrade plan or remove inactive users.</span>
+          )}
+        </div>
+      ) : null}
 
       {/* Feedback */}
       {feedback && (

@@ -6,6 +6,16 @@ from __future__ import unicode_literals
 import frappe
 from frappe import _
 
+from trader_app.api.tenant import (
+    assert_company_belongs_to_tenant,
+    assert_tenant_active,
+    get_tenant_companies,
+    get_user_tenant_name,
+    is_multitenant_enabled,
+    is_super_admin,
+    resolve_active_tenant,
+)
+
 
 def get_active_company_name(user=None):
     """User's active company (Frappe user default), without access validation."""
@@ -19,9 +29,20 @@ def get_active_company_name(user=None):
 
 
 def get_permitted_company_names(user=None):
-    """Company names the user may access (ERPNext permission rules)."""
+    """Company names the user may access (tenant-scoped when multi-tenant is enabled)."""
     user = user or frappe.session.user
-    return frappe.get_all("Company", pluck="name", order_by="name asc")
+    if user == "Administrator":
+        return frappe.get_all("Company", pluck="name", order_by="name asc")
+
+    companies = frappe.get_all("Company", pluck="name", order_by="name asc")
+
+    if is_multitenant_enabled() and not is_super_admin(user):
+        tenant = get_user_tenant_name(user)
+        if tenant:
+            allowed = set(get_tenant_companies(tenant))
+            return [name for name in companies if name in allowed]
+
+    return companies
 
 
 def user_can_access_company(company, user=None):
@@ -43,6 +64,13 @@ def resolve_active_company(company=None, user=None):
         frappe.throw(_("Company {0} does not exist.").format(company))
     if not user_can_access_company(company, user):
         frappe.throw(_("You do not have permission to access company {0}.").format(company))
+
+    if is_multitenant_enabled() and not is_super_admin(user):
+        tenant = resolve_active_tenant(user=user)
+        if tenant:
+            assert_tenant_active(tenant)
+            assert_company_belongs_to_tenant(company, tenant, user=user)
+
     return company
 
 
@@ -86,9 +114,14 @@ def _company_payload(company_name):
 
 @frappe.whitelist()
 def get_companies():
-    """Companies the current user may access (respects ERPNext permissions)."""
+    """Companies the current user may access (tenant-scoped when multi-tenant is enabled)."""
+    permitted = get_permitted_company_names()
+    if not permitted:
+        return []
+
     return frappe.get_all(
         "Company",
+        filters={"name": ["in", permitted]},
         fields=["name", "abbr", "default_currency", "country"],
         order_by="name asc",
     )

@@ -23,6 +23,14 @@ from frappe import _
 from frappe.utils import cint, flt, getdate
 
 from trader_app.api.company import resolve_active_company
+from trader_app.api.tenant import (
+    assert_user_limit,
+    get_user_tenant_name,
+    is_multitenant_enabled,
+    is_super_admin,
+    log_tenant_action,
+    resolve_active_tenant,
+)
 
 
 # ─── Permission helper ────────────────────────────────────────────────────────
@@ -49,6 +57,15 @@ def _parse(data):
     return data or {}
 
 
+def _admin_tenant_scope():
+    """Return tenant name for business admin scoping, or None for platform admins."""
+    if not is_multitenant_enabled():
+        return None
+    if is_super_admin() and not get_user_tenant_name():
+        return None
+    return resolve_active_tenant()
+
+
 # ─── 1. User Management ───────────────────────────────────────────────────────
 
 @frappe.whitelist()
@@ -67,6 +84,11 @@ def get_users(search=None, page=1, page_size=20):
             "(u.name LIKE %(search)s OR u.full_name LIKE %(search)s OR u.email LIKE %(search)s)"
         )
         params["search"] = "%{}%".format(search)
+
+    tenant = _admin_tenant_scope()
+    if tenant:
+        conditions.append("u.trader_tenant = %(tenant)s")
+        params["tenant"] = tenant
 
     where = " AND ".join(conditions)
 
@@ -113,6 +135,11 @@ def get_user_detail(user):
     """Full user detail including all assigned roles."""
     _require_admin()
     doc = frappe.get_doc("User", user)
+
+    tenant = _admin_tenant_scope()
+    if tenant and getattr(doc, "trader_tenant", None) and doc.trader_tenant != tenant:
+        frappe.throw(_("You cannot view users from another business account."), frappe.PermissionError)
+
     return {
         "name": doc.name,
         "first_name": doc.first_name or "",
@@ -142,17 +169,27 @@ def create_user(data=None):
     if frappe.db.exists("User", email):
         frappe.throw(_("A user with email {0} already exists.").format(email))
 
+    tenant = _admin_tenant_scope()
+    if tenant:
+        assert_user_limit(tenant)
+
     user = frappe.new_doc("User")
     user.email = email
     user.first_name = first_name
     user.last_name = last_name
     user.user_type = "System User"
     user.send_welcome_email = cint(data.get("send_welcome_email", 0))
+    if tenant:
+        user.trader_tenant = tenant
 
     for role in (data.get("roles") or []):
+        if role == "Trader Super Admin" and tenant:
+            frappe.throw(_("Business admins cannot assign the Super Admin role."))
         user.append("roles", {"role": role})
 
     user.insert(ignore_permissions=True)
+    if tenant:
+        log_tenant_action(tenant, "user_added", {"email": email, "roles": data.get("roles") or []})
     frappe.db.commit()
     return {"ok": True, "name": user.name}
 
@@ -168,6 +205,10 @@ def update_user(data=None):
         frappe.throw(_("User name is required."))
 
     doc = frappe.get_doc("User", user_name)
+
+    tenant = _admin_tenant_scope()
+    if tenant and getattr(doc, "trader_tenant", None) and doc.trader_tenant != tenant:
+        frappe.throw(_("You cannot modify users from another business account."), frappe.PermissionError)
 
     if "first_name" in data:
         doc.first_name = data["first_name"] or ""
@@ -508,3 +549,7 @@ def save_accounting_settings(data=None):
     doc.save(ignore_permissions=True)
     frappe.db.commit()
     return {"ok": True, "message": "Accounting settings saved."}
+
+from trader_app.api._tenant_guard import apply_module_guards
+
+apply_module_guards(globals(), "settings")

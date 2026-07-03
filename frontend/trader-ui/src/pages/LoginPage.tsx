@@ -1,26 +1,35 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
+import { hasCapability } from '../lib/permissions';
 import { BarChart3, Eye, EyeOff } from 'lucide-react';
+
+function postLoginPath(roles: string[]): string {
+  if (hasCapability(roles, 'superadmin:view')) {
+    return '/super-admin';
+  }
+  return '/';
+}
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { login, isAuthenticated, loading, error, clearError } = useAuthStore();
+  const { login, isAuthenticated, roles, loading, error, clearError } = useAuthStore();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/', { replace: true });
+      navigate(postLoginPath(roles), { replace: true });
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, roles, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       await login(username, password);
-      navigate('/', { replace: true });
+      const nextRoles = useAuthStore.getState().roles;
+      navigate(postLoginPath(nextRoles), { replace: true });
     } catch {
       // Error handled in store
     }
@@ -154,15 +163,26 @@ export default function LoginPage() {
               </button>
             </form>
 
-            {/* Demo credentials hint */}
-            <div className="mt-6 p-3 bg-blue-50 border border-blue-100 rounded-lg">
-              <p className="text-xs font-medium text-blue-700 mb-1">Demo Credentials</p>
-              <p className="text-xs text-blue-600">
-                Email: <code className="bg-blue-100 px-1 rounded">demo@globaltrading.pk</code>
-              </p>
-              <p className="text-xs text-blue-600">
-                Password: <code className="bg-blue-100 px-1 rounded">Demo@12345</code>
-              </p>
+            {/* Dev credentials hint */}
+            <div className="mt-6 p-3 bg-blue-50 border border-blue-100 rounded-lg space-y-3">
+              <div>
+                <p className="text-xs font-medium text-blue-700 mb-1">Business user (demo)</p>
+                <p className="text-xs text-blue-600">
+                  Email: <code className="bg-blue-100 px-1 rounded">demo@globaltrading.pk</code>
+                </p>
+                <p className="text-xs text-blue-600">
+                  Password: <code className="bg-blue-100 px-1 rounded">Demo@12345</code>
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-blue-700 mb-1">Platform Super Admin (dev seed)</p>
+                <p className="text-xs text-blue-600">
+                  Email: <code className="bg-blue-100 px-1 rounded">superadmin@traders.local</code>
+                </p>
+                <p className="text-xs text-blue-600">
+                  Password: <code className="bg-blue-100 px-1 rounded">SuperAdmin@2026</code>
+                </p>
+              </div>
             </div>
           </div>
         </div>

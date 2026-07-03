@@ -7,7 +7,9 @@ import {
   MoreHorizontal,
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
+import { useTenantStore } from '../stores/tenantStore';
 import { hasCapability, type AppCapability } from '../lib/permissions';
+import { type TenantModuleKey } from '../lib/tenantModules';
 
 interface Tab {
   to: string;
@@ -15,6 +17,7 @@ interface Tab {
   icon: React.ComponentType<{ className?: string }>;
   exact?: boolean;
   capability?: AppCapability;
+  module?: TenantModuleKey;
   id?: never;
 }
 
@@ -28,10 +31,10 @@ interface MoreTab {
 }
 
 const ALL_TABS: (Tab | MoreTab)[] = [
-  { to: '/', label: 'Home', icon: LayoutDashboard, exact: true, capability: 'dashboard:view' },
-  { to: '/sales', label: 'Sales', icon: TrendingUp, capability: 'sales:view' },
-  { to: '/inventory', label: 'Stock', icon: Warehouse, capability: 'inventory:view' },
-  { to: '/reports', label: 'Reports', icon: BarChart2, capability: 'reports:view' },
+  { to: '/', label: 'Home', icon: LayoutDashboard, exact: true, capability: 'dashboard:view', module: 'dashboard' },
+  { to: '/sales', label: 'Sales', icon: TrendingUp, capability: 'sales:view', module: 'sales' },
+  { to: '/inventory', label: 'Stock', icon: Warehouse, capability: 'inventory:view', module: 'inventory' },
+  { to: '/reports', label: 'Reports', icon: BarChart2, capability: 'reports:view', module: 'reports' },
   { id: 'more', label: 'More', icon: MoreHorizontal },
 ];
 
@@ -42,10 +45,15 @@ interface MobileNavProps {
 export default function MobileNav({ onMorePress }: MobileNavProps) {
   const location = useLocation();
   const roles = useAuthStore((s) => s.roles);
+  const multitenantEnabled = useTenantStore((s) => s.enabled);
+  const isModuleEnabled = useTenantStore((s) => s.isModuleEnabled);
 
-  const visibleTabs = ALL_TABS.filter(
-    (t) => !t.capability || hasCapability(roles, t.capability)
-  );
+  const visibleTabs = ALL_TABS.filter((t) => {
+    if ('id' in t && t.id === 'more') return true;
+    if (t.capability && !hasCapability(roles, t.capability)) return false;
+    if ('module' in t && t.module && multitenantEnabled && !isModuleEnabled(t.module)) return false;
+    return true;
+  });
 
   const pinnedPaths = visibleTabs.filter((t): t is Tab => !t.id).map((t) => t.to);
 

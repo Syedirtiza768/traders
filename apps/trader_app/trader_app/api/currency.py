@@ -338,3 +338,7 @@ def delete_exchange_rate(name):
     frappe.delete_doc("Currency Exchange", name, ignore_permissions=True)
     frappe.db.commit()
     return {"ok": True, "message": _("Exchange rate deleted.")}
+
+from trader_app.api._tenant_guard import apply_module_guards
+
+apply_module_guards(globals(), "finance")

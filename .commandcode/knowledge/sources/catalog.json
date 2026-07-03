@@ -1,0 +1,179 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": "1.0.0",
+  "lastUpdated": "2026-06-28",
+  "sources": [
+    {
+      "id": "ddia",
+      "title": "Designing Data-Intensive Applications",
+      "author": "Martin Kleppmann",
+      "edition": "1st",
+      "publicationYear": 2017,
+      "acquisitionStatus": "knowledge_synthesized",
+      "sourceLocation": null,
+      "processingStatus": "completed",
+      "topics": ["distributed-systems", "databases", "data-modeling", "reliability", "scalability"]
+    },
+    {
+      "id": "fsa",
+      "title": "Fundamentals of Software Architecture",
+      "author": "Mark Richards, Neal Ford",
+      "edition": "1st",
+      "publicationYear": 2020,
+      "acquisitionStatus": "knowledge_synthesized",
+      "sourceLocation": null,
+      "processingStatus": "completed",
+      "topics": ["architecture", "architecture-patterns", "soft-skills"]
+    },
+    {
+      "id": "sahp",
+      "title": "Software Architecture: The Hard Parts",
+      "author": "Neal Ford, Rebecca Parsons, Pramod Sadalage",
+      "edition": "1st",
+      "publicationYear": 2021,
+      "acquisitionStatus": "knowledge_synthesized",
+      "sourceLocation": null,
+      "processingStatus": "completed",
+      "topics": ["architecture", "distributed-systems", "decision-making"]
+    },
+    {
+      "id": "ddd",
+      "title": "Domain-Driven Design",
+      "author": "Eric Evans",
+      "edition": "1st",
+      "publicationYear": 2003,
+      "acquisitionStatus": "knowledge_synthesized",
+      "sourceLocation": null,
+      "processingStatus": "completed",
+      "topics": ["domain-modeling", "architecture", "strategic-design"]
+    },
+    {
+      "id": "peaa",
+      "title": "Patterns of Enterprise Application Architecture",
+      "author": "Martin Fowler",
+      "edition": "1st",
+      "publicationYear": 2002,
+      "acquisitionStatus": "knowledge_synthesized",
+      "sourceLocation": null,
+      "processingStatus": "completed",
+      "topics": ["architecture-patterns", "enterprise", "data-access"]
+    },
+    {
+      "id": "eip",
+      "title": "Enterprise Integration Patterns",
+      "author": "Gregor Hohpe, Bobby Woolf",
+      "edition": "1st",
+      "publicationYear": 2003,
+      "acquisitionStatus": "knowledge_synthesized",
+      "sourceLocation": null,
+      "processingStatus": "completed",
+      "topics": ["messaging", "integrations", "patterns"]
+    },
+    {
+      "id": "ca",
+      "title": "Clean Architecture",
+      "author": "Robert C. Martin",
+      "edition": "1st",
+      "publicationYear": 2017,
+      "acquisitionStatus": "knowledge_synthesized",
+      "sourceLocation": null,
+      "processingStatus": "completed",
+      "topics": ["architecture", "design-principles", "testing"]
+    },
+    {
+      "id": "ref",
+      "title": "Refactoring",
+      "author": "Martin Fowler",
+      "edition": "2nd",
+      "publicationYear": 2018,
+      "acquisitionStatus": "knowledge_synthesized",
+      "sourceLocation": null,
+      "processingStatus": "completed",
+      "topics": ["refactoring", "code-quality", "smells"]
+    },
+    {
+      "id": "ri",
+      "title": "Release It!",
+      "author": "Michael Nygard",
+      "edition": "2nd",
+      "publicationYear": 2018,
+      "acquisitionStatus": "knowledge_synthesized",
+      "sourceLocation": null,
+      "processingStatus": "completed",
+      "topics": ["reliability", "resilience", "operations"]
+    },
+    {
+      "id": "bm",
+      "title": "Building Microservices",
+      "author": "Sam Newman",
+      "edition": "2nd",
+      "publicationYear": 2021,
+      "acquisitionStatus": "knowledge_synthesized",
+      "sourceLocation": null,
+      "processingStatus": "completed",
+      "topics": ["microservices", "architecture", "distributed-systems"]
+    },
+    {
+      "id": "mp",
+      "title": "Microservices Patterns",
+      "author": "Chris Richardson",
+      "edition": "1st",
+      "publicationYear": 2018,
+      "acquisitionStatus": "knowledge_synthesized",
+      "sourceLocation": null,
+      "processingStatus": "completed",
+      "topics": ["microservices", "patterns", "distributed-systems"]
+    },
+    {
+      "id": "acc",
+      "title": "Accelerate",
+      "author": "Nicole Forsgren, Jez Humble, Gene Kim",
+      "edition": "1st",
+      "publicationYear": 2018,
+      "acquisitionStatus": "knowledge_synthesized",
+      "sourceLocation": null,
+      "processingStatus": "completed",
+      "topics": ["devops", "metrics", "organizational"]
+    },
+    {
+      "id": "dh",
+      "title": "The DevOps Handbook",
+      "author": "Gene Kim, Jez Humble, Patrick Debois, John Willis",
+      "edition": "2nd",
+      "publicationYear": 2021,
+      "acquisitionStatus": "knowledge_synthesized",
+      "sourceLocation": null,
+      "processingStatus": "completed",
+      "topics": ["devops", "organizational", "practices"]
+    },
+    {
+      "id": "sre",
+      "title": "Site Reliability Engineering",
+      "author": "Google SRE Team",
+      "edition": "1st",
+      "publicationYear": 2016,
+      "acquisitionStatus": "knowledge_synthesized",
+      "sourceLocation": null,
+      "processingStatus": "completed",
+      "topics": ["sre", "reliability", "operations"]
+    },
+    {
+      "id": "tt",
+      "title": "Team Topologies",
+      "author": "Matthew Skelton, Manuel Pais",
+      "edition": "1st",
+      "publicationYear": 2019,
+      "acquisitionStatus": "knowledge_synthesized",
+      "sourceLocation": null,
+      "processingStatus": "completed",
+      "topics": ["organizational", "team-structure", "devops"]
+    }
+  ],
+  "statistics": {
+    "totalSources": 15,
+    "synthesized": 15,
+    "processing": 0,
+    "pending": 0,
+    "requiresAcquisition": 0
+  }
+}

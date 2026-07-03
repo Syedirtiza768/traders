@@ -1,0 +1,218 @@
+{
+ "actions": [],
+ "autoname": "format:TNT-{####}",
+ "creation": "2026-06-30 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "tenant_name",
+  "status",
+  "company",
+  "column_break_profile",
+  "subscription_plan",
+  "billing_status",
+  "trial_ends_on",
+  "max_users",
+  "section_contact",
+  "contact_email",
+  "contact_phone",
+  "address",
+  "timezone",
+  "section_branding",
+  "logo",
+  "branding",
+  "section_modules",
+  "enabled_modules",
+  "section_workflow",
+  "workflow_prefs",
+  "section_provision",
+  "created_by_admin",
+  "provisioned_on",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "tenant_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Business Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "default": "Pending",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Pending\nActive\nSuspended\nDeactivated",
+   "reqd": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Primary Company",
+   "options": "Company",
+   "unique": 1
+  },
+  {
+   "fieldname": "column_break_profile",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Starter",
+   "fieldname": "subscription_plan",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Subscription Plan",
+   "options": "Free\nStarter\nProfessional\nEnterprise"
+  },
+  {
+   "default": "Trial",
+   "fieldname": "billing_status",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Billing Status",
+   "options": "Trial\nActive\nPast Due\nCancelled"
+  },
+  {
+   "fieldname": "trial_ends_on",
+   "fieldtype": "Date",
+   "label": "Trial Ends On"
+  },
+  {
+   "default": "10",
+   "fieldname": "max_users",
+   "fieldtype": "Int",
+   "label": "Max Users",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "section_contact",
+   "fieldtype": "Section Break",
+   "label": "Contact"
+  },
+  {
+   "fieldname": "contact_email",
+   "fieldtype": "Data",
+   "label": "Contact Email",
+   "options": "Email"
+  },
+  {
+   "fieldname": "contact_phone",
+   "fieldtype": "Data",
+   "label": "Contact Phone"
+  },
+  {
+   "fieldname": "address",
+   "fieldtype": "Small Text",
+   "label": "Address"
+  },
+  {
+   "default": "Asia/Karachi",
+   "fieldname": "timezone",
+   "fieldtype": "Data",
+   "label": "Timezone"
+  },
+  {
+   "fieldname": "section_branding",
+   "fieldtype": "Section Break",
+   "label": "Branding"
+  },
+  {
+   "fieldname": "logo",
+   "fieldtype": "Attach Image",
+   "label": "Logo"
+  },
+  {
+   "fieldname": "branding",
+   "fieldtype": "JSON",
+   "label": "Branding Config",
+   "description": "Theme colors and display preferences for the business UI."
+  },
+  {
+   "fieldname": "section_modules",
+   "fieldtype": "Section Break",
+   "label": "Modules"
+  },
+  {
+   "fieldname": "enabled_modules",
+   "fieldtype": "Table",
+   "label": "Enabled Modules",
+   "options": "Trader Tenant Module"
+  },
+  {
+   "fieldname": "section_workflow",
+   "fieldtype": "Section Break",
+   "label": "Workflow"
+  },
+  {
+   "fieldname": "workflow_prefs",
+   "fieldtype": "JSON",
+   "label": "Workflow Preferences"
+  },
+  {
+   "fieldname": "section_provision",
+   "fieldtype": "Section Break",
+   "label": "Provisioning"
+  },
+  {
+   "fieldname": "created_by_admin",
+   "fieldtype": "Link",
+   "label": "Created By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "provisioned_on",
+   "fieldtype": "Datetime",
+   "label": "Provisioned On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Text",
+   "label": "Notes"
+  }
+ ],
+ "links": [],
+ "modified": "2026-06-30 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Trader",
+ "name": "Trader Tenant",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Trader Super Admin",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "title_field": "tenant_name",
+ "track_changes": 1
+}

@@ -51,6 +51,21 @@ def create_roles():
             "desk_access": 1,
             "is_custom": 1,
         },
+        {
+            "role_name": "Trader Super Admin",
+            "desk_access": 1,
+            "is_custom": 1,
+        },
+        {
+            "role_name": "Trader Staff",
+            "desk_access": 1,
+            "is_custom": 1,
+        },
+        {
+            "role_name": "Trader Viewer",
+            "desk_access": 1,
+            "is_custom": 1,
+        },
     ]
 
     for role_data in roles:

@@ -5,15 +5,20 @@
  */
 export type TraderRole =
   | 'System Manager'
+  | 'Trader Super Admin'
   | 'Trader Admin'
   | 'Trader Sales Manager'
   | 'Trader Purchase Manager'
   | 'Trader Inventory Manager'
   | 'Trader Warehouse Manager'   // legacy alias → same caps as Inventory Manager
   | 'Trader Finance Manager'
-  | 'Trader Accountant';          // legacy alias → same caps as Finance Manager
+  | 'Trader Accountant'          // legacy alias → same caps as Finance Manager
+  | 'Trader Staff'
+  | 'Trader Viewer';
 
 export type AppCapability =
+  | 'superadmin:view'
+  | 'superadmin:manage_tenants'
   | 'dashboard:view'
   | 'sales:view'
   | 'sales:approve'
@@ -68,7 +73,39 @@ const FINANCE_MANAGER_CAPS: AppCapability[] = [
   'components:view',
 ];
 
+const STAFF_CAPS: AppCapability[] = [
+  'dashboard:view',
+  'sales:view',
+  'purchases:view',
+  'inventory:view',
+  'customers:view',
+  'suppliers:view',
+  'operations:view',
+  'components:view',
+];
+
+const VIEWER_CAPS: AppCapability[] = [
+  'dashboard:view',
+  'sales:view',
+  'purchases:view',
+  'inventory:view',
+  'customers:view',
+  'suppliers:view',
+  'finance:view',
+  'reports:view',
+  'operations:view',
+  'components:view',
+];
+
+const SUPER_ADMIN_CAPS: AppCapability[] = [
+  'superadmin:view',
+  'superadmin:manage_tenants',
+];
+
 const ROLE_CAPABILITIES: Record<string, AppCapability[]> = {
+  /* ── Platform admins ── */
+  'Trader Super Admin': SUPER_ADMIN_CAPS,
+
   /* ── System-level admins (full access) ── */
   'System Manager': FULL_ACCESS,
   'Trader Admin': FULL_ACCESS,
@@ -102,6 +139,10 @@ const ROLE_CAPABILITIES: Record<string, AppCapability[]> = {
   /* ── Legacy aliases (pre-1.1 installations) ── */
   'Trader Warehouse Manager': INVENTORY_MANAGER_CAPS,
   'Trader Accountant': FINANCE_MANAGER_CAPS,
+
+  /* ── Tenant-level generic roles ── */
+  'Trader Staff': STAFF_CAPS,
+  'Trader Viewer': VIEWER_CAPS,
 };
 
 export function getCapabilitiesForRoles(roles: string[] | null | undefined): Set<AppCapability> {

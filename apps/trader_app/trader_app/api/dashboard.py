@@ -382,3 +382,7 @@ def _current_fiscal_year(company):
             "from": today.replace(month=1, day=1).isoformat(),
             "to": today.replace(month=12, day=31).isoformat(),
         }
+
+from trader_app.api._tenant_guard import apply_module_guards
+
+apply_module_guards(globals(), "dashboard")

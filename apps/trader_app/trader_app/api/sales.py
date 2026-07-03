@@ -865,3 +865,7 @@ def _check_customer_credit_limit(doc):
         pass
 
 
+
+from trader_app.api._tenant_guard import apply_module_guards
+
+apply_module_guards(globals(), "sales")
