@@ -12,7 +12,7 @@ All backend API routes, their handlers, parameters, accessed entities, and front
 - `apps/trader_app/trader_app/api/reports.py`
 
 ## Last Audit Basis
-All `@frappe.whitelist()` decorated functions — 2026-06-27
+All `@frappe.whitelist()` decorated functions — 2026-07-03
 
 ---
 
@@ -158,13 +158,25 @@ All `@frappe.whitelist()` decorated functions — 2026-06-27
 | 136 | `get_trader_roles` | settings | `/api/method/trader_app.api.settings.get_trader_roles` | none | Role | 🔍 Unknown |
 | 137 | `toggle_components_feature` | settings | `/api/method/trader_app.api.settings.toggle_components_feature` | enabled=0, company=None | — | 🔍 Unknown |
 | 138 | `get_current_user_roles` | settings | `/api/method/trader_app.api.settings.get_current_user_roles` | none | Has Role | 🔍 Unknown |
-| 139 | `get_suppliers` | suppliers | `/api/method/trader_app.api.suppliers.get_suppliers` | page=1, page_size=20, search=None, supplier_group=None | Supplier, Purchase Invoice | 🔍 Unknown |
-| 140 | `get_supplier_detail` | suppliers | `/api/method/trader_app.api.suppliers.get_supplier_detail` | name | Purchase Invoice | 🔍 Unknown |
-| 141 | `get_supplier_groups` | suppliers | `/api/method/trader_app.api.suppliers.get_supplier_groups` | none | — | 🔍 Unknown |
-| 142 | `get_supplier_transactions` | suppliers | `/api/method/trader_app.api.suppliers.get_supplier_transactions` | supplier, company=None, page=1, page_size=20 | Purchase Invoice | 🔍 Unknown |
-| 143 | `create_supplier` | suppliers | `/api/method/trader_app.api.suppliers.create_supplier` | supplier_name, supplier_group=None, country=None, mobile_no=None, email_id=None | — | 🔍 Unknown |
-| 144 | `disable_supplier` | suppliers | `/api/method/trader_app.api.suppliers.disable_supplier` | name | — | 🔍 Unknown |
-| 145 | `enable_supplier` | suppliers | `/api/method/trader_app.api.suppliers.enable_supplier` | name | — | 🔍 Unknown |
+| 139 | `get_tenant_dashboard` | super_admin | `/api/method/trader_app.api.super_admin.get_tenant_dashboard` | none | — | 🔍 Unknown |
+| 140 | `list_tenants` | super_admin | `/api/method/trader_app.api.super_admin.list_tenants` | search=None, status=None, page=1, page_size=20 | — | 🔍 Unknown |
+| 141 | `get_tenant_detail` | super_admin | `/api/method/trader_app.api.super_admin.get_tenant_detail` | tenant | — | 🔍 Unknown |
+| 142 | `create_tenant` | super_admin | `/api/method/trader_app.api.super_admin.create_tenant` | data=None | — | 🔍 Unknown |
+| 143 | `update_tenant` | super_admin | `/api/method/trader_app.api.super_admin.update_tenant` | tenant, data=None | — | 🔍 Unknown |
+| 144 | `set_tenant_status` | super_admin | `/api/method/trader_app.api.super_admin.set_tenant_status` | tenant, status | — | 🔍 Unknown |
+| 145 | `set_tenant_modules` | super_admin | `/api/method/trader_app.api.super_admin.set_tenant_modules` | tenant, modules=None | — | 🔍 Unknown |
+| 146 | `set_tenant_branding` | super_admin | `/api/method/trader_app.api.super_admin.set_tenant_branding` | tenant, branding=None, logo=None | — | 🔍 Unknown |
+| 147 | `get_tenant_audit_log` | super_admin | `/api/method/trader_app.api.super_admin.get_tenant_audit_log` | tenant, page=1, page_size=20 | — | 🔍 Unknown |
+| 148 | `get_suppliers` | suppliers | `/api/method/trader_app.api.suppliers.get_suppliers` | page=1, page_size=20, search=None, supplier_group=None | Supplier, Purchase Invoice | 🔍 Unknown |
+| 149 | `get_supplier_detail` | suppliers | `/api/method/trader_app.api.suppliers.get_supplier_detail` | name | Purchase Invoice | 🔍 Unknown |
+| 150 | `get_supplier_groups` | suppliers | `/api/method/trader_app.api.suppliers.get_supplier_groups` | none | — | 🔍 Unknown |
+| 151 | `get_supplier_transactions` | suppliers | `/api/method/trader_app.api.suppliers.get_supplier_transactions` | supplier, company=None, page=1, page_size=20 | Purchase Invoice | 🔍 Unknown |
+| 152 | `create_supplier` | suppliers | `/api/method/trader_app.api.suppliers.create_supplier` | supplier_name, supplier_group=None, country=None, mobile_no=None, email_id=None | — | 🔍 Unknown |
+| 153 | `disable_supplier` | suppliers | `/api/method/trader_app.api.suppliers.disable_supplier` | name | — | 🔍 Unknown |
+| 154 | `enable_supplier` | suppliers | `/api/method/trader_app.api.suppliers.enable_supplier` | name | — | 🔍 Unknown |
+| 155 | `get_multitenant_status` | tenant | `/api/method/trader_app.api.tenant.get_multitenant_status` | none | — | 🔍 Unknown |
+| 156 | `get_tenant_config` | tenant | `/api/method/trader_app.api.tenant.get_tenant_config` | none | — | 🔍 Unknown |
+| 157 | `get_business_tenant_audit_log` | tenant | `/api/method/trader_app.api.tenant.get_business_tenant_audit_log` | page=1, page_size=20 | — | 🔍 Unknown |
 
 ## Frappe Built-in Endpoints Used
 
@@ -184,7 +196,7 @@ All `@frappe.whitelist()` decorated functions — 2026-06-27
 
 | Category | Count |
 |---|---|
-| Custom whitelisted endpoints | 145 |
-| With frontend consumer | 145 |
+| Custom whitelisted endpoints | 157 |
+| With frontend consumer | 157 |
 | Without frontend consumer (orphan) | 0 |
 | Frappe built-in endpoints used | 4 (active) + 5 (defined, unused) |

@@ -12,7 +12,7 @@ Every screen, route, layout, user actions, and current status in the Traders fro
 - `frontend/trader-ui/src/layouts/*.tsx`
 
 ## Last Audit Basis
-All route definitions and page components — 2026-06-27
+All route definitions and page components — 2026-07-03
 
 ---
 
@@ -21,17 +21,20 @@ All route definitions and page components — 2026-06-27
 | # | Path | Component | Guard | Layout | Status |
 |---|---|---|---|---|---|
 | 1 | `/login` | LoginPage | None | None | ✅ Active |
-| 2 | `print` | DocumentPrintPage | ProtectedRoute | DashboardLayout | ✅ Active |
-| 3 | `*` | NotFoundPage | ProtectedRoute | None | ✅ Active |
-| 4 | `/` | DashboardPage | ProtectedRoute | DashboardLayout | ✅ Active |
-| 5 | `/sales` | SalesPage | ProtectedRoute | DashboardLayout | ✅ Active |
-| 6 | `/purchases` | PurchasesPage | ProtectedRoute | DashboardLayout | ✅ Active |
-| 7 | `/inventory` | InventoryPage | ProtectedRoute | DashboardLayout | ✅ Active |
-| 8 | `/customers` | CustomersPage | ProtectedRoute | DashboardLayout | ✅ Active |
-| 9 | `/suppliers` | SuppliersPage | ProtectedRoute | DashboardLayout | ✅ Active |
-| 10 | `/finance` | FinancePage | ProtectedRoute | DashboardLayout | ✅ Active |
-| 11 | `/reports` | ReportsPage | ProtectedRoute | DashboardLayout | ✅ Active |
-| 12 | `/settings` | SettingsPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 2 | `/` | SuperAdminDashboardPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 3 | `tenants` | TenantListPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 4 | `tenants/new` | CreateTenantPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 5 | `tenants/:tenantId` | TenantDetailPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 6 | `print` | DocumentPrintPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 7 | `*` | NotFoundPage | ProtectedRoute | None | ✅ Active |
+| 8 | `/sales` | SalesPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 9 | `/purchases` | PurchasesPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 10 | `/inventory` | InventoryPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 11 | `/customers` | CustomersPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 12 | `/suppliers` | SuppliersPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 13 | `/finance` | FinancePage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 14 | `/reports` | ReportsPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| 15 | `/settings` | SettingsPage | ProtectedRoute | DashboardLayout | ✅ Active |
 
 ## Screen Details
 
