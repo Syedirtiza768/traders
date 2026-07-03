@@ -1,3 +1,12 @@
-feat: add CDC company setup with multi-tenant, components trading, and deployment scripts
+fix: day-book add-line issues — stale closure, missing commit, settlement account sync, party validation
+
+1. DayBookPage: remove direct load() call from handleEntrySuccess to avoid
+   stale closure using old page value; let useEffect fire with correct page.
+2. daybook.py: add frappe.db.commit() after sale/purchase invoice creation
+   so the next request sees the new entry immediately.
+3. DayBookEntryPanel: store mode_accounts from setup response and add a
+   useEffect that updates settlementAccount when modeOfPayment changes.
+4. DayBookEntryPanel: validate party with trim() to reject whitespace-only.
+5. daybook.py: add early party validation before _resolve_party.
 
 Co-authored-by: CommandCodeBot <noreply@commandcode.ai>

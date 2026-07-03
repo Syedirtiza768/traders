@@ -53,6 +53,7 @@ export default function DayBookEntryPanel({
   const [settlementAccount, setSettlementAccount] = useState('');
   const [paymentModes, setPaymentModes] = useState<{ name: string; type?: string }[]>([]);
   const [settlementAccounts, setSettlementAccounts] = useState<{ name: string; account_name?: string; account_type?: string }[]>([]);
+  const [modeAccounts, setModeAccounts] = useState<Record<string, string>>({});
   const [openInvoices, setOpenInvoices] = useState<any[]>([]);
   const [allocations, setAllocations] = useState<InvoiceAllocation[]>([]);
   const [loadingSetup, setLoadingSetup] = useState(false);
@@ -112,6 +113,7 @@ export default function DayBookEntryPanel({
         const accounts = payMsg.settlement_accounts || [];
         setPaymentModes(modes);
         setSettlementAccounts(accounts);
+        setModeAccounts(payMsg.mode_accounts || {});
         setModeOfPayment(
           modes.find((m: { name: string }) => m.name === 'Cash')?.name || modes[0]?.name || 'Cash',
         );
@@ -130,6 +132,14 @@ export default function DayBookEntryPanel({
     };
     void load();
   }, [open, entryType, resetForm]);
+
+  useEffect(() => {
+    if (!open) return;
+    const mapped = modeAccounts[modeOfPayment];
+    if (mapped) {
+      setSettlementAccount(mapped);
+    }
+  }, [modeOfPayment, modeAccounts, open]);
 
   useEffect(() => {
     if (!open || !party) {
@@ -165,7 +175,7 @@ export default function DayBookEntryPanel({
   );
 
   const handleSubmit = async () => {
-    if (!party) {
+    if (!party || !party.trim()) {
       setError(
         entryType === 'purchase' || entryType === 'payment_out'
           ? 'Select a supplier.'

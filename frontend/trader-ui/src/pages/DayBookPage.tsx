@@ -213,8 +213,6 @@ export default function DayBookPage() {
 
     setPage(1);
 
-    void load();
-
   };
 
 

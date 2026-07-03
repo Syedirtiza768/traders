@@ -878,6 +878,8 @@ def post_day_transaction(tx_type, party, lines=None, amount=0, mode_of_payment="
         frappe.throw(_("At least one item line is required for {0}.").format(tx_type))
 
     party_type = "Customer" if tx_type == "sale" else "Supplier"
+    if not party or not party.strip():
+        frappe.throw(_("Select a {0}.").format(party_type.lower()))
     party = _resolve_party(party_type, party)
 
     if tx_type == "sale":
@@ -932,6 +934,8 @@ def post_day_transaction(tx_type, party, lines=None, amount=0, mode_of_payment="
         payment_entry = pe_result.get("name")
         invoice.reload()
         outstanding = flt(invoice.outstanding_amount)
+
+    frappe.db.commit()
 
     return {
         "ok": True,
