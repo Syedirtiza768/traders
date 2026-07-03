@@ -12,6 +12,13 @@ from trader_app.api.company import resolve_active_company
 from frappe.utils import nowdate, flt, cint
 
 
+def _set_trader_party_fields(doc, short_code=None, opening_balance=None):
+    if short_code is not None and frappe.db.has_column(doc.doctype, "trader_short_code"):
+        doc.trader_short_code = (short_code or "").strip()
+    if opening_balance is not None and frappe.db.has_column(doc.doctype, "trader_opening_balance"):
+        doc.trader_opening_balance = flt(opening_balance)
+
+
 @frappe.whitelist()
 def get_suppliers(page=1, page_size=20, search=None, supplier_group=None):
     """Paginated supplier list with payable summary."""
@@ -39,6 +46,8 @@ def get_suppliers(page=1, page_size=20, search=None, supplier_group=None):
     rows = frappe.db.sql(f"""
         SELECT s.name, s.supplier_name, s.supplier_group, s.country,
                s.mobile_no, s.email_id,
+               COALESCE(s.trader_short_code, '') AS trader_short_code,
+               COALESCE(s.trader_opening_balance, 0) AS trader_opening_balance,
                COALESCE(payable.total, 0) AS outstanding_amount,
                COALESCE(purchases.total, 0) AS total_purchases
         FROM `tabSupplier` s
@@ -128,7 +137,8 @@ def get_supplier_transactions(supplier, company=None, page=1, page_size=20):
 
 
 @frappe.whitelist()
-def create_supplier(supplier_name, supplier_group=None, country=None, mobile_no=None, email_id=None):
+def create_supplier(supplier_name, supplier_group=None, country=None, mobile_no=None,
+                    email_id=None, short_code=None, opening_balance=None):
     """Create a minimal Supplier record for the Trader UI."""
     doc = frappe.new_doc("Supplier")
     doc.supplier_name = supplier_name
@@ -136,6 +146,7 @@ def create_supplier(supplier_name, supplier_group=None, country=None, mobile_no=
     doc.country = country or frappe.db.get_default("country") or "Pakistan"
     doc.mobile_no = mobile_no
     doc.email_id = email_id
+    _set_trader_party_fields(doc, short_code=short_code, opening_balance=opening_balance)
     doc.insert(ignore_permissions=False)
     frappe.db.commit()
     return {"name": doc.name, "supplier_name": doc.supplier_name, "status": "Created"}
@@ -143,7 +154,7 @@ def create_supplier(supplier_name, supplier_group=None, country=None, mobile_no=
 
 @frappe.whitelist()
 def update_supplier(name, supplier_name=None, supplier_group=None, country=None,
-                    mobile_no=None, email_id=None):
+                    mobile_no=None, email_id=None, short_code=None, opening_balance=None):
     """Update an existing Supplier record."""
     doc = frappe.get_doc("Supplier", name)
     doc.check_permission("write")
@@ -158,6 +169,7 @@ def update_supplier(name, supplier_name=None, supplier_group=None, country=None,
         doc.mobile_no = mobile_no
     if email_id is not None:
         doc.email_id = email_id
+    _set_trader_party_fields(doc, short_code=short_code, opening_balance=opening_balance)
 
     doc.save(ignore_permissions=False)
     frappe.db.commit()

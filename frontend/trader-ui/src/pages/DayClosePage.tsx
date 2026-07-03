@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Calendar, RefreshCw, AlertTriangle, TrendingUp, TrendingDown, DollarSign, Package, ArrowDownLeft, ArrowUpRight, PrinterIcon } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Calendar, RefreshCw, AlertTriangle, TrendingUp, TrendingDown, DollarSign, Package, ArrowDownLeft, ArrowUpRight, PrinterIcon, BookOpen } from 'lucide-react';
 import { daybookApi } from '../lib/api';
 import { useCompanyStore } from '../stores/companyStore';
 
@@ -103,7 +103,17 @@ export default function DayClosePage() {
         <div className="flex items-center justify-center h-48"><div className="spinner" /></div>
       ) : summary ? (
         <>
-          <p className="text-sm text-gray-500 dark:text-slate-400">Summary for <strong>{summary.date}</strong></p>
+          <p className="text-sm text-gray-500 dark:text-slate-400">
+            Summary for <strong>{summary.date}</strong>
+            {' · '}
+            <Link
+              to={`/finance/day-book?date=${summary.date}`}
+              className="text-brand-600 hover:text-brand-700 inline-flex items-center gap-1"
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              View Day Book
+            </Link>
+          </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {tiles.map(({ label, value, icon: Icon, color, bg, border }) => (
               <div key={label} className={`rounded-xl border ${border} ${bg} p-4`}>

@@ -1,12 +1,8 @@
-fix: day-book add-line issues — stale closure, missing commit, settlement account sync, party validation
+fix: day-book entry panel — rate validation, button flash, settlement account, purchase description
 
-1. DayBookPage: remove direct load() call from handleEntrySuccess to avoid
-   stale closure using old page value; let useEffect fire with correct page.
-2. daybook.py: add frappe.db.commit() after sale/purchase invoice creation
-   so the next request sees the new entry immediately.
-3. DayBookEntryPanel: store mode_accounts from setup response and add a
-   useEffect that updates settlementAccount when modeOfPayment changes.
-4. DayBookEntryPanel: validate party with trim() to reject whitespace-only.
-5. daybook.py: add early party validation before _resolve_party.
+1. Validate rate > 0 before submitting sale/purchase lines.
+2. Move setSaving(true) after all validation to prevent button flash.
+3. Default settlement account to pay_account for payment_out, receive_account otherwise.
+4. Include description field in purchase invoice line creation.
 
 Co-authored-by: CommandCodeBot <noreply@commandcode.ai>

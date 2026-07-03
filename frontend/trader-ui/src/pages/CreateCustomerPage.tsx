@@ -13,6 +13,8 @@ export default function CreateCustomerPage() {
     territory: '',
     mobile_no: '',
     email_id: '',
+    trader_short_code: '',
+    trader_opening_balance: '',
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -44,7 +46,17 @@ export default function CreateCustomerPage() {
     setSaving(true);
     setError(null);
     try {
-      const response = await customersApi.create(form);
+      const response = await customersApi.create({
+        customer_name: form.customer_name,
+        customer_group: form.customer_group || undefined,
+        territory: form.territory || undefined,
+        mobile_no: form.mobile_no || undefined,
+        email_id: form.email_id || undefined,
+        short_code: form.trader_short_code || undefined,
+        opening_balance: form.trader_opening_balance
+          ? parseFloat(form.trader_opening_balance)
+          : undefined,
+      });
       const created = response.data.message;
       navigate(`/customers/${encodeURIComponent(created.name)}`);
     } catch (err: any) {
@@ -93,6 +105,12 @@ export default function CreateCustomerPage() {
         </Field>
         <Field label="Email Address">
           <input type="email" value={form.email_id} onChange={(e) => setForm((current) => ({ ...current, email_id: e.target.value }))} className="input-field" placeholder="accounts@example.com" />
+        </Field>
+        <Field label="Short Code">
+          <input value={form.trader_short_code} onChange={(e) => setForm((current) => ({ ...current, trader_short_code: e.target.value }))} className="input-field font-mono" placeholder="e.g. ANT" />
+        </Field>
+        <Field label="Opening Balance">
+          <input type="number" min={0} step="0.01" value={form.trader_opening_balance} onChange={(e) => setForm((current) => ({ ...current, trader_opening_balance: e.target.value }))} className="input-field" placeholder="0.00" />
         </Field>
       </div>
     </div>

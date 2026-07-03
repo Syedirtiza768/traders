@@ -14,6 +14,8 @@ export default function EditSupplierPage() {
     country: 'Pakistan',
     mobile_no: '',
     email_id: '',
+    trader_short_code: '',
+    trader_opening_balance: '',
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -41,6 +43,10 @@ export default function EditSupplierPage() {
           country: supplier.country || 'Pakistan',
           mobile_no: supplier.mobile_no || '',
           email_id: supplier.email_id || '',
+          trader_short_code: supplier.trader_short_code || '',
+          trader_opening_balance: supplier.trader_opening_balance
+            ? String(supplier.trader_opening_balance)
+            : '',
         });
         setGroups(groupsRes.data.message || []);
       } catch (err) {
@@ -65,7 +71,15 @@ export default function EditSupplierPage() {
     try {
       await suppliersApi.update({
         name: decodeURIComponent(supplierId || ''),
-        ...form,
+        supplier_name: form.supplier_name,
+        supplier_group: form.supplier_group || undefined,
+        country: form.country || undefined,
+        mobile_no: form.mobile_no || undefined,
+        email_id: form.email_id || undefined,
+        short_code: form.trader_short_code,
+        opening_balance: form.trader_opening_balance
+          ? parseFloat(form.trader_opening_balance)
+          : 0,
       });
       navigate(`/suppliers/${encodeURIComponent(supplierId || '')}`);
     } catch (err: any) {
@@ -117,6 +131,12 @@ export default function EditSupplierPage() {
         </Field>
         <Field label="Email Address">
           <input type="email" value={form.email_id} onChange={(e) => setForm((current) => ({ ...current, email_id: e.target.value }))} className="input-field" placeholder="purchasing@example.com" />
+        </Field>
+        <Field label="Short Code">
+          <input value={form.trader_short_code} onChange={(e) => setForm((current) => ({ ...current, trader_short_code: e.target.value }))} className="input-field font-mono" placeholder="e.g. PIS" />
+        </Field>
+        <Field label="Opening Balance">
+          <input type="number" min={0} step="0.01" value={form.trader_opening_balance} onChange={(e) => setForm((current) => ({ ...current, trader_opening_balance: e.target.value }))} className="input-field" placeholder="0.00" />
         </Field>
       </div>
     </div>

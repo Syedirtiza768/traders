@@ -48,6 +48,7 @@ export default function DayBookEntryPanel({
   const [party, setParty] = useState('');
   const [lines, setLines] = useState<ItemLineEntryLine[]>([]);
   const [cashNow, setCashNow] = useState(true);
+  const [paymentAmount, setPaymentAmount] = useState('');
   const [amount, setAmount] = useState('');
   const [modeOfPayment, setModeOfPayment] = useState('Cash');
   const [settlementAccount, setSettlementAccount] = useState('');
@@ -64,12 +65,16 @@ export default function DayBookEntryPanel({
   const partyOptions = useMemo(() => {
     if (entryType === 'purchase' || entryType === 'payment_out') {
       return suppliers.map((s) => ({
-        label: s.supplier_name || s.name,
+        label: s.trader_short_code
+          ? `${s.supplier_name || s.name} (${s.trader_short_code})`
+          : (s.supplier_name || s.name),
         value: s.name,
       }));
     }
     return customers.map((c) => ({
-      label: c.customer_name || c.name,
+      label: c.trader_short_code
+        ? `${c.customer_name || c.name} (${c.trader_short_code})`
+        : (c.customer_name || c.name),
       value: c.name,
     }));
   }, [customers, suppliers, entryType]);
@@ -91,6 +96,7 @@ export default function DayBookEntryPanel({
     setParty('');
     setLines([]);
     setCashNow(true);
+    setPaymentAmount('');
     setAmount('');
     setOpenInvoices([]);
     setAllocations([]);
@@ -170,11 +176,44 @@ export default function DayBookEntryPanel({
     });
   }, [open, party, entryType]);
 
+  const invoiceTotal = useMemo(
+    () => lines.reduce((sum, line) => sum + (Number(line.qty) || 0) * (Number(line.rate) || 0), 0),
+    [lines],
+  );
+
   const payAmount = parseFloat(amount) || 0;
   const totalAllocated = allocations.reduce(
     (sum, row) => sum + (Number(row.allocated_amount) || 0),
     0,
   );
+
+  const handleCreateParty = async (query: string) => {
+    const partyType = entryType === 'purchase' || entryType === 'payment_out' ? 'Supplier' : 'Customer';
+    try {
+      const res = await daybookApi.findOrCreateParty({
+        party_type: partyType,
+        party_name: query.trim(),
+      });
+      const msg = res.data.message as { party: string; created?: boolean };
+      const name = msg.party;
+      if (partyType === 'Customer') {
+        setCustomers((prev) => (
+          prev.some((c) => c.name === name)
+            ? prev
+            : [...prev, { name, customer_name: query.trim() }]
+        ));
+      } else {
+        setSuppliers((prev) => (
+          prev.some((s) => s.name === name)
+            ? prev
+            : [...prev, { name, supplier_name: query.trim() }]
+        ));
+      }
+      setParty(name);
+    } catch (err: unknown) {
+      setError(extractFrappeError(err, 'Could not resolve or create party.'));
+    }
+  };
 
   const handleSubmit = async () => {
     if (!party || !party.trim()) {
@@ -200,6 +239,17 @@ export default function DayBookEntryPanel({
       if (zeroRate) {
         setError('Each line must have a rate greater than zero.');
         return;
+      }
+      if (cashNow) {
+        const pay = parseFloat(paymentAmount);
+        if (!pay || pay <= 0) {
+          setError('Enter a payment amount greater than zero.');
+          return;
+        }
+        if (invoiceTotal > 0 && pay > invoiceTotal + 0.005) {
+          setError('Payment amount cannot exceed invoice total.');
+          return;
+        }
       }
     } else {
       if (!payAmount || payAmount <= 0) {
@@ -229,6 +279,7 @@ export default function DayBookEntryPanel({
           })),
           posting_date: postingDate,
           record_payment: cashNow ? 1 : 0,
+          payment_amount: cashNow && paymentAmount ? parseFloat(paymentAmount) : undefined,
           mode_of_payment: modeOfPayment,
           settlement_account: settlementAccount || undefined,
         });
@@ -307,12 +358,9 @@ export default function DayBookEntryPanel({
                   value={party}
                   onChange={setParty}
                   options={partyOptions}
-                  placeholder="Search party"
+                  placeholder="Search party or short code"
                   creatable
-                  onCreateNew={(q) => quickAdd.open(
-                    entryType === 'purchase' || entryType === 'payment_out' ? 'supplier' : 'customer',
-                    q,
-                  )}
+                  onCreateNew={(q) => { void handleCreateParty(q); }}
                 />
               </div>
 
@@ -320,7 +368,16 @@ export default function DayBookEntryPanel({
                 <>
                   <ItemLineEntry
                     lines={lines}
-                    onChange={setLines}
+                    onChange={(next) => {
+                      setLines(next);
+                      const total = next.reduce(
+                        (sum, line) => sum + (Number(line.qty) || 0) * (Number(line.rate) || 0),
+                        0,
+                      );
+                      if (cashNow && !paymentAmount) {
+                        setPaymentAmount(total > 0 ? String(total) : '');
+                      }
+                    }}
                     priceContext={entryType}
                   />
                   <div className="space-y-2 rounded-lg border border-gray-200 dark:border-slate-700 p-3">
@@ -328,10 +385,15 @@ export default function DayBookEntryPanel({
                       <input
                         type="radio"
                         checked={cashNow}
-                        onChange={() => setCashNow(true)}
+                        onChange={() => {
+                          setCashNow(true);
+                          if (!paymentAmount && invoiceTotal > 0) {
+                            setPaymentAmount(String(invoiceTotal));
+                          }
+                        }}
                         className="text-brand-600"
                       />
-                      Cash now (full payment on post)
+                      Cash now (record payment on post)
                     </label>
                     <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-slate-200">
                       <input
@@ -344,6 +406,20 @@ export default function DayBookEntryPanel({
                     </label>
                     {cashNow && (
                       <div className="grid grid-cols-1 gap-2 pt-1">
+                        <div>
+                          <span className="mb-1 block text-xs text-gray-500">
+                            Payment amount {invoiceTotal > 0 ? `(invoice ${invoiceTotal.toFixed(2)})` : ''}
+                          </span>
+                          <input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={paymentAmount}
+                            onChange={(e) => setPaymentAmount(e.target.value)}
+                            className="input-field"
+                            placeholder={invoiceTotal > 0 ? String(invoiceTotal) : 'Full or partial'}
+                          />
+                        </div>
                         <SearchableSelect
                           value={modeOfPayment}
                           onChange={setModeOfPayment}

@@ -191,6 +191,8 @@ export default function SupplierDetailPage() {
             <InfoRow icon={Globe} label="Country" value={supplier.country || '—'} />
             <InfoRow icon={Phone} label="Mobile" value={supplier.mobile_no || '—'} />
             <InfoRow icon={Mail} label="Email" value={supplier.email_id || '—'} />
+            <InfoRow icon={ReceiptText} label="Short Code" value={supplier.trader_short_code || '—'} />
+            <InfoRow icon={CreditCard} label="Opening Balance" value={formatCurrency(supplier.trader_opening_balance)} />
             <InfoRow icon={ReceiptText} label="Tax ID" value={supplier.tax_id || supplier.tax_id_number || '—'} />
           </div>
         </div>

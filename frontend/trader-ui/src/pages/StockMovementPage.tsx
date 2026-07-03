@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRightLeft, Calendar } from 'lucide-react';
 import { inventoryApi } from '../lib/api';
 import { formatCurrency, formatDate, formatDateTime } from '../lib/utils';
@@ -7,13 +7,15 @@ import SearchableSelect from '../components/SearchableSelect';
 
 export default function StockMovementPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [rows, setRows] = useState<any[]>([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [itemCode, setItemCode] = useState('');
   const [warehouse, setWarehouse] = useState('');
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
+  const [fromDate, setFromDate] = useState(() => searchParams.get('from_date') || '');
+  const [toDate, setToDate] = useState(() => searchParams.get('to_date') || '');
+  const [voucherNo, setVoucherNo] = useState(() => searchParams.get('voucher_no') || '');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [allItems, setAllItems] = useState<any[]>([]);
@@ -47,6 +49,7 @@ export default function StockMovementPage() {
           page_size: pageSize,
           item_code: itemCode || undefined,
           warehouse: warehouse || undefined,
+          voucher_no: voucherNo || undefined,
           from_date: fromDate || undefined,
           to_date: toDate || undefined,
         });
@@ -62,7 +65,7 @@ export default function StockMovementPage() {
     };
 
     load();
-  }, [page, itemCode, warehouse, fromDate, toDate]);
+  }, [page, itemCode, warehouse, fromDate, toDate, voucherNo]);
 
   const totalPages = Math.ceil(total / pageSize);
   const totalDelta = useMemo(() => rows.reduce((sum, row) => sum + Number(row.actual_qty || 0), 0), [rows]);
@@ -80,7 +83,14 @@ export default function StockMovementPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
+        <input
+          type="text"
+          value={voucherNo}
+          onChange={(e) => { setVoucherNo(e.target.value); setPage(1); }}
+          className="input-field"
+          placeholder="Stock entry / voucher no"
+        />
         <SearchableSelect
           value={itemCode}
           onChange={(v) => { setItemCode(v); setPage(1); }}

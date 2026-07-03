@@ -6,10 +6,10 @@ import {
 } from 'lucide-react';
 import { daybookApi } from '../lib/api';
 import { useCompanyStore } from '../stores/companyStore';
-import PaymentAllocationPanel, {
-  type InvoiceAllocation,
-  buildFifoAllocations,
-} from '../components/PaymentAllocationPanel';
+import { debounce } from '../lib/utils';
+import PartySettleModal from '../components/PartySettleModal';
+
+const PAGE_SIZE = 20;
 
 function fmtAmt(n: number) {
   return new Intl.NumberFormat('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
@@ -25,13 +25,10 @@ interface PartyRow {
   oldest_invoice_date: string;
 }
 
-interface SettleState {
+interface SettleTarget {
   party: string;
   name: string;
   balance: number;
-  amount: string;
-  loading: boolean;
-  error: string | null;
 }
 
 export default function ReceivablesPage() {
@@ -41,24 +38,27 @@ export default function ReceivablesPage() {
   const revision = useCompanyStore((s) => s.revision);
 
   const [page, setPage] = useState(1);
+  const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [rows, setRows] = useState<PartyRow[]>([]);
   const [total, setTotal] = useState(0);
   const [grandTotal, setGrandTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [settle, setSettle] = useState<SettleState | null>(null);
+  const [settle, setSettle] = useState<SettleTarget | null>(null);
   const [settleSuccess, setSettleSuccess] = useState<string | null>(null);
-  const [settleInvoices, setSettleInvoices] = useState<any[]>([]);
-  const [settleAllocations, setSettleAllocations] = useState<InvoiceAllocation[]>([]);
-  const [loadingSettleInvoices, setLoadingSettleInvoices] = useState(false);
+
+  const debouncedSetSearch = useCallback(
+    debounce((value: string) => { setSearch(value); setPage(1); }, 400),
+    [],
+  );
 
   const load = useCallback(async () => {
     if (!company) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await daybookApi.getIncoming({ page, page_size: 20, search: search || undefined });
+      const res = await daybookApi.getIncoming({ page, page_size: PAGE_SIZE, search: search || undefined });
       const msg = res.data.message as any;
       setRows(msg.data || []);
       setTotal(msg.total || 0);
@@ -72,61 +72,6 @@ export default function ReceivablesPage() {
 
   useEffect(() => { void load(); }, [load]);
 
-  useEffect(() => {
-    if (!settle) {
-      setSettleInvoices([]);
-      setSettleAllocations([]);
-      return;
-    }
-    setLoadingSettleInvoices(true);
-    daybookApi.getPartyOpenInvoices({ party_type: 'Customer', party: settle.party })
-      .then((res) => {
-        const invoices = (res.data.message as any)?.invoices || [];
-        setSettleInvoices(invoices);
-        const amt = parseFloat(settle.amount) || 0;
-        setSettleAllocations(buildFifoAllocations(invoices, amt));
-      })
-      .catch(() => {
-        setSettleInvoices([]);
-        setSettleAllocations([]);
-      })
-      .finally(() => setLoadingSettleInvoices(false));
-  }, [settle?.party]);
-
-  const handleSettle = async () => {
-    if (!settle) return;
-    const amt = parseFloat(settle.amount);
-    if (isNaN(amt) || amt <= 0) return;
-    const totalAllocated = settleAllocations.reduce(
-      (sum, row) => sum + (Number(row.allocated_amount) || 0),
-      0,
-    );
-    if (totalAllocated > amt + 0.005) {
-      setSettle((s) => s ? { ...s, error: 'Allocated total exceeds payment amount.' } : null);
-      return;
-    }
-    const activeAllocations = settleAllocations
-      .filter((row) => Number(row.allocated_amount) > 0)
-      .map((row) => ({
-        reference_name: row.reference_name,
-        allocated_amount: Number(row.allocated_amount),
-      }));
-    setSettle((s) => s ? { ...s, loading: true, error: null } : null);
-    try {
-      await daybookApi.settleParty({
-        party_type: 'Customer',
-        party: settle.party,
-        amount: amt,
-        allocations: settleInvoices.length > 0 ? activeAllocations : undefined,
-      });
-      setSettleSuccess(`Payment of ${fmtAmt(amt)} received from ${settle.name}.`);
-      setSettle(null);
-      void load();
-    } catch (err: any) {
-      setSettle((s) => s ? { ...s, loading: false, error: err?.response?.data?.exception || 'Failed to settle.' } : null);
-    }
-  };
-
   if (!componentsEnabled) {
     return (
       <div className="p-8 flex flex-col items-center gap-4 text-center">
@@ -136,6 +81,8 @@ export default function ReceivablesPage() {
       </div>
     );
   }
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-4xl mx-auto">
@@ -149,20 +96,21 @@ export default function ReceivablesPage() {
         </button>
       </div>
 
-      {/* Grand total tile */}
       <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4 flex items-center justify-between">
         <span className="text-sm font-medium text-emerald-700 dark:text-emerald-400">Total Receivable</span>
         <span className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">{fmtAmt(grandTotal)}</span>
       </div>
 
-      {/* Search */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
         <input
           type="text"
           placeholder="Search by party name or short code…"
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+          value={searchInput}
+          onChange={(e) => {
+            setSearchInput(e.target.value);
+            debouncedSetSearch(e.target.value);
+          }}
           className="input-field pl-9 text-sm"
         />
       </div>
@@ -216,7 +164,7 @@ export default function ReceivablesPage() {
                     <td className="px-4 py-2.5 text-center text-xs text-gray-500">{r.oldest_invoice_date || '—'}</td>
                     <td className="px-4 py-2.5 text-center">
                       <button
-                        onClick={() => setSettle({ party: r.party, name: r.customer_name, balance: r.total_outstanding, amount: String(r.total_outstanding), loading: false, error: null })}
+                        onClick={() => setSettle({ party: r.party, name: r.customer_name, balance: r.total_outstanding })}
                         className="text-xs bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-700 rounded px-2 py-1 hover:bg-emerald-100 transition-colors"
                       >
                         Settle
@@ -231,63 +179,32 @@ export default function ReceivablesPage() {
 
         <div className="px-4 py-3 border-t border-gray-100 dark:border-slate-700 flex items-center justify-between text-xs text-gray-400">
           <span>{total} parties</span>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
             <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="p-1 rounded disabled:opacity-40">
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <span>Page {page}</span>
-            <button onClick={() => setPage((p) => p + 1)} disabled={rows.length < 20} className="p-1 rounded disabled:opacity-40">
+            <span>Page {page} of {totalPages}</span>
+            <button onClick={() => setPage((p) => p + 1)} disabled={page >= totalPages} className="p-1 rounded disabled:opacity-40">
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         </div>
       </div>
 
-      {/* Settle modal */}
       {settle && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold text-gray-900 dark:text-gray-100">Settle — {settle.name}</h3>
-              <button onClick={() => setSettle(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
-            </div>
-            <p className="text-sm text-gray-500">Outstanding: <span className="font-bold text-emerald-600">{fmtAmt(settle.balance)}</span></p>
-            <input
-              type="number"
-              value={settle.amount}
-              min={0}
-              max={settle.balance}
-              onChange={(e) => {
-                const next = e.target.value;
-                setSettle((s) => s ? { ...s, amount: next } : null);
-                const amt = parseFloat(next) || 0;
-                if (settleInvoices.length > 0) {
-                  setSettleAllocations(buildFifoAllocations(settleInvoices, amt));
-                }
-              }}
-              className="input-field"
-              placeholder="Amount to settle"
-            />
-            <PaymentAllocationPanel
-              invoices={settleInvoices}
-              amount={parseFloat(settle.amount) || 0}
-              allocations={settleAllocations}
-              onChange={setSettleAllocations}
-              loading={loadingSettleInvoices}
-            />
-            {settle.error && <p className="text-xs text-red-600">{settle.error}</p>}
-            <div className="flex gap-2 pt-1">
-              <button onClick={() => setSettle(null)} className="flex-1 btn-secondary text-sm py-2">Cancel</button>
-              <button
-                onClick={handleSettle}
-                disabled={settle.loading}
-                className="flex-1 btn-primary text-sm py-2 disabled:opacity-60"
-              >
-                {settle.loading ? 'Posting…' : 'Post Payment'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <PartySettleModal
+          partyType="Customer"
+          party={settle.party}
+          partyName={settle.name}
+          balance={settle.balance}
+          variant="receive"
+          onClose={() => setSettle(null)}
+          onSuccess={(message) => {
+            setSettleSuccess(message);
+            setSettle(null);
+            void load();
+          }}
+        />
       )}
     </div>
   );

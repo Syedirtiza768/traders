@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import {
 
@@ -54,6 +54,8 @@ interface Voucher {
   direction: string;
 
   docstatus: number;
+
+  running_total?: number;
 
 }
 
@@ -111,6 +113,11 @@ function voucherRoute(v: Voucher): string | null {
 
   if (v.voucher_type === 'Journal') return `/finance/journals/${v.voucher_no}`;
 
+  if (v.voucher_type.startsWith('Stock')) {
+    const d = v.posting_date || '';
+    return `/inventory/movements?voucher_no=${encodeURIComponent(v.voucher_no)}${d ? `&from_date=${d}&to_date=${d}` : ''}`;
+  }
+
   return null;
 
 }
@@ -141,9 +148,13 @@ const ACTION_BUTTONS: { type: DayBookEntryType; label: string; icon: typeof Tren
 
 
 
+const DAY_BOOK_PAGE_SIZE = 50;
+
 export default function DayBookPage() {
 
   const navigate = useNavigate();
+
+  const [searchParams] = useSearchParams();
 
   const componentsEnabled = useCompanyStore((s) => s.componentsEnabled);
 
@@ -153,9 +164,11 @@ export default function DayBookPage() {
 
 
 
-  const [date, setDate] = useState(todayStr());
+  const [date, setDate] = useState(() => searchParams.get('date') || todayStr());
 
   const [page, setPage] = useState(1);
+
+  const [voucherTotal, setVoucherTotal] = useState(0);
 
   const [vouchers, setVouchers] = useState<Voucher[]>([]);
 
@@ -171,9 +184,11 @@ export default function DayBookPage() {
 
 
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (pageOverride?: number) => {
 
     if (!company) return;
+
+    const activePage = pageOverride ?? page;
 
     setLoading(true);
 
@@ -181,13 +196,15 @@ export default function DayBookPage() {
 
     try {
 
-      const res = await daybookApi.getDayBook({ date, page, page_size: 50 });
+      const res = await daybookApi.getDayBook({ date, page: activePage, page_size: DAY_BOOK_PAGE_SIZE });
 
       const msg = res.data.message as any;
 
       setVouchers(msg.data || []);
 
       setTotals(msg.totals || null);
+
+      setVoucherTotal(msg.total ?? 0);
 
     } catch (err: any) {
 
@@ -207,11 +224,17 @@ export default function DayBookPage() {
 
 
 
+  const voucherTotalPages = Math.max(1, Math.ceil(voucherTotal / DAY_BOOK_PAGE_SIZE));
+
+
+
   const handleEntrySuccess = (message: string) => {
 
     setSuccess(message);
 
     setPage(1);
+
+    void load(1);
 
   };
 
@@ -455,6 +478,8 @@ export default function DayBookPage() {
 
                   <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
 
+                  <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">Running</th>
+
                   <th className="px-4 py-2 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Outstanding</th>
 
                   <th className="px-4 py-2 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
@@ -523,6 +548,12 @@ export default function DayBookPage() {
 
                       </td>
 
+                      <td className="px-4 py-2.5 text-right text-xs text-gray-500 hidden lg:table-cell">
+
+                        {v.running_total != null ? fmtAmt(v.running_total) : '—'}
+
+                      </td>
+
                       <td className="px-4 py-2.5 text-right text-gray-500">
 
                         {v.outstanding_amount > 0 ? fmtAmt(v.outstanding_amount) : '—'}
@@ -569,7 +600,7 @@ export default function DayBookPage() {
 
           <div className="px-4 py-3 border-t border-gray-100 dark:border-slate-700 flex items-center justify-between">
 
-            <span className="text-xs text-gray-400">Page {page}</span>
+            <span className="text-xs text-gray-400">Page {page} of {voucherTotalPages} · {voucherTotal} vouchers</span>
 
             <div className="flex gap-2">
 
@@ -591,7 +622,7 @@ export default function DayBookPage() {
 
                 onClick={() => setPage((p) => p + 1)}
 
-                disabled={vouchers.length < 50}
+                disabled={page >= voucherTotalPages}
 
                 className="p-1 rounded text-gray-400 hover:text-gray-700 disabled:opacity-40"
 

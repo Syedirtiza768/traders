@@ -12,6 +12,13 @@ from trader_app.api.company import resolve_active_company
 from frappe.utils import nowdate, flt, cint
 
 
+def _set_trader_party_fields(doc, short_code=None, opening_balance=None):
+    if short_code is not None and frappe.db.has_column(doc.doctype, "trader_short_code"):
+        doc.trader_short_code = (short_code or "").strip()
+    if opening_balance is not None and frappe.db.has_column(doc.doctype, "trader_opening_balance"):
+        doc.trader_opening_balance = flt(opening_balance)
+
+
 @frappe.whitelist()
 def get_customers(page=1, page_size=20, search=None, customer_group=None):
     """Paginated customer list with outstanding summary."""
@@ -39,6 +46,8 @@ def get_customers(page=1, page_size=20, search=None, customer_group=None):
     rows = frappe.db.sql(f"""
         SELECT c.name, c.customer_name, c.customer_group, c.territory,
                c.mobile_no, c.email_id,
+               COALESCE(c.trader_short_code, '') AS trader_short_code,
+               COALESCE(c.trader_opening_balance, 0) AS trader_opening_balance,
                COALESCE(outstanding.total, 0) AS outstanding_amount,
                COALESCE(revenue.total, 0) AS total_revenue
         FROM `tabCustomer` c
@@ -128,7 +137,8 @@ def get_customer_transactions(customer, company=None, page=1, page_size=20):
 
 
 @frappe.whitelist()
-def create_customer(customer_name, customer_group=None, territory=None, mobile_no=None, email_id=None):
+def create_customer(customer_name, customer_group=None, territory=None, mobile_no=None,
+                    email_id=None, short_code=None, opening_balance=None):
     """Create a minimal Customer record for the Trader UI."""
     doc = frappe.new_doc("Customer")
     doc.customer_name = customer_name
@@ -136,6 +146,7 @@ def create_customer(customer_name, customer_group=None, territory=None, mobile_n
     doc.territory = territory or _default_territory()
     doc.mobile_no = mobile_no
     doc.email_id = email_id
+    _set_trader_party_fields(doc, short_code=short_code, opening_balance=opening_balance)
     doc.insert(ignore_permissions=False)
     frappe.db.commit()
     return {"name": doc.name, "customer_name": doc.customer_name, "status": "Created"}
@@ -143,7 +154,7 @@ def create_customer(customer_name, customer_group=None, territory=None, mobile_n
 
 @frappe.whitelist()
 def update_customer(name, customer_name=None, customer_group=None, territory=None,
-                    mobile_no=None, email_id=None):
+                    mobile_no=None, email_id=None, short_code=None, opening_balance=None):
     """Update an existing Customer record."""
     doc = frappe.get_doc("Customer", name)
     doc.check_permission("write")
@@ -158,6 +169,7 @@ def update_customer(name, customer_name=None, customer_group=None, territory=Non
         doc.mobile_no = mobile_no
     if email_id is not None:
         doc.email_id = email_id
+    _set_trader_party_fields(doc, short_code=short_code, opening_balance=opening_balance)
 
     doc.save(ignore_permissions=False)
     frappe.db.commit()

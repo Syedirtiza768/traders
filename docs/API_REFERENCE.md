@@ -144,3 +144,76 @@ GET /api/method/trader_app.api.reports.get_accounts_payable
 ```
 GET /api/method/trader_app.api.reports.get_profit_and_loss
 ```
+
+## Components Trading — Day Book API
+
+Requires `trader_components_enabled = 1` on the active company.
+
+### Day Book (voucher list)
+```
+GET /api/method/trader_app.api.daybook.get_day_book?date=2026-07-03&page=1&page_size=50
+```
+
+### Day Close summary
+```
+GET /api/method/trader_app.api.daybook.get_day_close_summary?date=2026-07-03
+```
+
+### Receivables (AR party list)
+```
+GET /api/method/trader_app.api.daybook.get_incoming?page=1&page_size=20&search=
+```
+
+### Payables (AP party list)
+```
+GET /api/method/trader_app.api.daybook.get_outgoing?page=1&page_size=20&search=
+```
+
+### Settle party (create Payment Entry)
+```
+POST /api/method/trader_app.api.daybook.settle_party
+Content-Type: application/json
+
+{
+  "party_type": "Customer",
+  "party": "CUST-001",
+  "amount": 5000,
+  "mode_of_payment": "Cash",
+  "posting_date": "2026-07-03",
+  "settlement_account": "Cash - GTCL",
+  "allocations": [{"reference_name": "SINV-001", "allocated_amount": 5000}]
+}
+```
+
+### Post day-book transaction
+```
+POST /api/method/trader_app.api.daybook.post_day_transaction
+Content-Type: application/json
+
+{
+  "tx_type": "sale",
+  "party": "CUST-001",
+  "lines": [{"item_code": "ITEM-001", "qty": 1, "rate": 1000}],
+  "posting_date": "2026-07-03",
+  "record_payment": 1,
+  "payment_amount": 500,
+  "mode_of_payment": "Cash"
+}
+```
+
+### Party open invoices (allocation preview)
+```
+GET /api/method/trader_app.api.daybook.get_party_open_invoices?party_type=Customer&party=CUST-001
+```
+
+### Find or create party
+```
+POST /api/method/trader_app.api.daybook.find_or_create_party
+Content-Type: application/json
+
+{
+  "party_type": "Customer",
+  "party_name": "New Shop",
+  "short_code": "NSH"
+}
+```

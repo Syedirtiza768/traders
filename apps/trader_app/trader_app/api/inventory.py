@@ -77,7 +77,7 @@ def get_stock_balance(company=None, warehouse=None, item_group=None,
 
 @frappe.whitelist()
 def get_stock_ledger(company=None, item_code=None, warehouse=None,
-                     from_date=None, to_date=None,
+                     voucher_no=None, from_date=None, to_date=None,
                      page=1, page_size=20):
     """Paginated Stock Ledger Entries."""
     company = resolve_active_company(company)
@@ -94,6 +94,9 @@ def get_stock_ledger(company=None, item_code=None, warehouse=None,
     if warehouse:
         conditions.append("sle.warehouse = %(warehouse)s")
         params["warehouse"] = warehouse
+    if voucher_no:
+        conditions.append("sle.voucher_no = %(voucher_no)s")
+        params["voucher_no"] = voucher_no
     if from_date:
         conditions.append("sle.posting_date >= %(from_date)s")
         params["from_date"] = from_date

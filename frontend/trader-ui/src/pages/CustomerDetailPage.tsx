@@ -199,6 +199,8 @@ export default function CustomerDetailPage() {
             <InfoRow icon={MapPin} label="Territory" value={customer.territory || '—'} />
             <InfoRow icon={Phone} label="Mobile" value={customer.mobile_no || '—'} />
             <InfoRow icon={Mail} label="Email" value={customer.email_id || '—'} />
+            <InfoRow icon={ReceiptText} label="Short Code" value={customer.trader_short_code || '—'} />
+            <InfoRow icon={CreditCard} label="Opening Balance" value={formatCurrency(customer.trader_opening_balance)} />
             <InfoRow icon={ReceiptText} label="Primary Address" value={primaryAddress?.address_display || primaryAddress?.address || '—'} />
           </div>
         </div>
