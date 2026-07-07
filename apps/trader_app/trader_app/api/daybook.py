@@ -333,11 +333,15 @@ def _get_total_opening_balances(party_type):
     """Sum of trader_opening_balance across active parties."""
     if not frappe.db.has_column(party_type, "trader_opening_balance"):
         return 0.0
+    from trader_app.api.permissions import tenant_sql_filter
+    _tf, _tp = tenant_sql_filter("`tab{0}`".format(party_type))
+    _tenant_cond = f"AND {_tf}" if _tf else ""
     result = frappe.db.sql(f"""
         SELECT COALESCE(SUM(trader_opening_balance), 0)
         FROM `tab{party_type}`
         WHERE disabled = 0 AND COALESCE(trader_opening_balance, 0) > 0
-    """)
+          {_tenant_cond}
+    """, _tp)
     return flt(result[0][0]) if result else 0.0
 
 
@@ -398,7 +402,11 @@ def get_component_stock_valuation(company=None, as_of_date=None):
     _assert_enabled(company)
     as_of_date = as_of_date or today()
 
-    rows = frappe.db.sql("""
+    from trader_app.api.permissions import tenant_sql_filter
+    _tf, _tp = tenant_sql_filter("i")
+    _tenant_cond = f"AND {_tf}" if _tf else ""
+
+    rows = frappe.db.sql(f"""
         SELECT
             i.item_code, i.item_name,
             i.trader_component_category AS category,
@@ -416,9 +424,10 @@ def get_component_stock_valuation(company=None, as_of_date=None):
         LEFT JOIN `tabBin` b ON b.item_code = i.item_code
         LEFT JOIN `tabWarehouse` w ON w.name = b.warehouse AND w.company = %(company)s
         WHERE i.trader_component_item = 1 AND i.disabled = 0
+          {_tenant_cond}
         GROUP BY i.item_code
         ORDER BY i.trader_component_category, i.trader_component_capacity, i.trader_component_grade
-    """, {"company": company}, as_dict=True)
+    """, {"company": company, **_tp}, as_dict=True)
 
     # Group into notebook-style structure
     groups_map = {}
@@ -476,6 +485,11 @@ def get_incoming(company=None, page=1, page_size=20, search=None):
         )
         params["search"] = f"%{search}%"
 
+    from trader_app.api.permissions import tenant_sql_filter
+    _tf, _tp = tenant_sql_filter("c")
+    tenant_cond = f"AND {_tf}" if _tf else ""
+    params.update(_tp)
+
     having = (
         "COALESCE(SUM(si.outstanding_amount), 0) + COALESCE(c.trader_opening_balance, 0) > 0"
     )
@@ -491,6 +505,8 @@ def get_incoming(company=None, page=1, page_size=20, search=None):
              AND si.outstanding_amount > 0
             WHERE c.disabled = 0
               {search_cond}
+          {tenant_cond}
+              {tenant_cond}
             GROUP BY c.name, c.customer_name, c.trader_short_code, c.trader_opening_balance
             HAVING {having}
         ) parties
@@ -514,6 +530,7 @@ def get_incoming(company=None, page=1, page_size=20, search=None):
          AND si.outstanding_amount > 0
         WHERE c.disabled = 0
           {search_cond}
+          {tenant_cond}
         GROUP BY c.name, c.customer_name, c.trader_short_code, c.trader_opening_balance
         HAVING {having}
         ORDER BY total_outstanding DESC
@@ -533,6 +550,8 @@ def get_incoming(company=None, page=1, page_size=20, search=None):
              AND si.outstanding_amount > 0
             WHERE c.disabled = 0
               {search_cond}
+          {tenant_cond}
+              {tenant_cond}
             GROUP BY c.name, c.trader_opening_balance
             HAVING {having}
         ) totals
@@ -566,6 +585,11 @@ def get_outgoing(company=None, page=1, page_size=20, search=None):
         )
         params["search"] = f"%{search}%"
 
+    from trader_app.api.permissions import tenant_sql_filter
+    _tf, _tp = tenant_sql_filter("s")
+    tenant_cond = f"AND {_tf}" if _tf else ""
+    params.update(_tp)
+
     having = (
         "COALESCE(SUM(pi.outstanding_amount), 0) + COALESCE(s.trader_opening_balance, 0) > 0"
     )
@@ -581,6 +605,8 @@ def get_outgoing(company=None, page=1, page_size=20, search=None):
              AND pi.outstanding_amount > 0
             WHERE s.disabled = 0
               {search_cond}
+          {tenant_cond}
+              {tenant_cond}
             GROUP BY s.name, s.supplier_name, s.trader_short_code, s.trader_opening_balance
             HAVING {having}
         ) parties
@@ -604,6 +630,7 @@ def get_outgoing(company=None, page=1, page_size=20, search=None):
          AND pi.outstanding_amount > 0
         WHERE s.disabled = 0
           {search_cond}
+          {tenant_cond}
         GROUP BY s.name, s.supplier_name, s.trader_short_code, s.trader_opening_balance
         HAVING {having}
         ORDER BY total_outstanding DESC
@@ -623,6 +650,8 @@ def get_outgoing(company=None, page=1, page_size=20, search=None):
              AND pi.outstanding_amount > 0
             WHERE s.disabled = 0
               {search_cond}
+          {tenant_cond}
+              {tenant_cond}
             GROUP BY s.name, s.trader_opening_balance
             HAVING {having}
         ) totals
