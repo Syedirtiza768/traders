@@ -23,6 +23,14 @@ frontend/trader-ui/.vite/
 .env.local
 .env.*.local
 compose/.env
+# SSH keys / auth cookies — never commit
+*.pem
+cookies.txt
+auth_cookies.txt
+
+# ─── Local scratch / session artifacts ──────────────────────────────────────
+/screenshot*.png
+/tmp/
 
 # ─── Docker ─────────────────────────────────────────────────────────────────
 docker-compose.override.yml
