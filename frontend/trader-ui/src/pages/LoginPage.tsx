@@ -164,16 +164,7 @@ export default function LoginPage() {
             </form>
 
             {/* Dev credentials hint */}
-            <div className="mt-6 p-3 bg-blue-50 border border-blue-100 rounded-lg space-y-3">
-              <div>
-                <p className="text-xs font-medium text-blue-700 mb-1">Business user (demo)</p>
-                <p className="text-xs text-blue-600">
-                  Email: <code className="bg-blue-100 px-1 rounded">demo@globaltrading.pk</code>
-                </p>
-                <p className="text-xs text-blue-600">
-                  Password: <code className="bg-blue-100 px-1 rounded">Demo@12345</code>
-                </p>
-              </div>
+            <div className="mt-6 p-3 bg-blue-50 border border-blue-100 rounded-lg">
               <div>
                 <p className="text-xs font-medium text-blue-700 mb-1">Platform Super Admin (dev seed)</p>
                 <p className="text-xs text-blue-600">
