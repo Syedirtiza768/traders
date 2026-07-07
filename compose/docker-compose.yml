@@ -8,6 +8,11 @@ x-backend-defaults: &backend-defaults
   build:
     context: ..
     dockerfile: infra/docker/backend.Dockerfile
+    args:
+      # Pin frappe/erpnext so rebuilds are reproducible and don't drift to
+      # version-15 branch head (which would trigger unexpected core migrations).
+      FRAPPE_VERSION: ${FRAPPE_VERSION:-v15.113.1}
+      ERPNEXT_VERSION: ${ERPNEXT_VERSION:-v15.114.0}
   restart: unless-stopped
   env_file:
     - .env
