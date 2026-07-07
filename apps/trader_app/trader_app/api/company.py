@@ -18,14 +18,26 @@ from trader_app.api.tenant import (
 
 
 def get_active_company_name(user=None):
-    """User's active company (Frappe user default), without access validation."""
+    """User's active company. Prefers the Frappe user default / global default, but
+    never returns a company the user cannot access — a tenant-scoped user whose only
+    default is the platform's global company would otherwise be locked out of every
+    page that calls resolve_active_company."""
     user = user or frappe.session.user
-    companies = frappe.get_all("Company", limit=1, pluck="name")
-    return (
+    resolved = (
         frappe.defaults.get_user_default("Company", user)
         or frappe.db.get_single_value("Global Defaults", "default_company")
-        or (companies[0] if companies else None)
     )
+
+    if user == "Administrator":
+        if resolved:
+            return resolved
+        companies = frappe.get_all("Company", limit=1, pluck="name")
+        return companies[0] if companies else None
+
+    permitted = get_permitted_company_names(user)
+    if resolved and resolved in permitted:
+        return resolved
+    return permitted[0] if permitted else resolved
 
 
 def get_permitted_company_names(user=None):

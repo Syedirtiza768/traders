@@ -226,6 +226,10 @@ def create_tenant(data=None):
                 data.get("admin_last_name") or "",
                 data.get("admin_password"),
             )
+            # Pin the admin's active company to their tenant's company so the app
+            # is usable immediately (otherwise it falls back to the platform's
+            # global default company, which the tenant user cannot access).
+            frappe.defaults.set_user_default("Company", company.name, admin_user)
 
         # Audit log is handled by TraderTenant.after_insert() — no duplicate here.
         frappe.db.commit()
