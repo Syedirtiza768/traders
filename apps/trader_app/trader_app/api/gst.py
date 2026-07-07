@@ -128,27 +128,49 @@ def _group_templates(rows):
     return list(grouped.values())
 
 
-def _gst_config_key(company):
+# GST config now persists durably in a Trader Config Pack (pack_key="gst").
+# Previously it lived only in the Redis cache and was lost on a cache flush.
+GST_PACK_KEY = "gst"
+
+_DEFAULT_GST_CONFIG = {
+    "default_sales_tax_template": "",
+    "default_purchase_tax_template": "",
+    "auto_apply_tax": 1,
+    "region": "Punjab",
+    "country": "Pakistan",
+    "gst_registered": 1,
+    "ntn_number": "",
+    "strn_number": "",
+}
+
+
+def _legacy_gst_config_key(company):
     return f"trader_gst_config::{company}"
 
 
 def _read_gst_config(company):
-    cached = frappe.cache().get_value(_gst_config_key(company))
-    if cached:
-        if isinstance(cached, bytes):
-            cached = cached.decode("utf-8")
-        return json.loads(cached)
+    from trader_app.api import config_store
 
-    return {
-        "default_sales_tax_template": "",
-        "default_purchase_tax_template": "",
-        "auto_apply_tax": 1,
-        "region": "Punjab",
-        "country": "Pakistan",
-        "gst_registered": 1,
-        "ntn_number": "",
-        "strn_number": "",
-    }
+    # One-time lazy migration: if a durable pack does not exist yet but a value
+    # is still sitting in the old cache-only key, promote it to the DocType.
+    exists = frappe.db.exists(
+        "Trader Config Pack", {"company": company, "pack_key": GST_PACK_KEY}
+    )
+    if not exists:
+        legacy = frappe.cache().get_value(_legacy_gst_config_key(company))
+        if legacy:
+            if isinstance(legacy, bytes):
+                legacy = legacy.decode("utf-8")
+            try:
+                config_store.write_config(
+                    company, GST_PACK_KEY, json.loads(legacy), label="GST Settings"
+                )
+            except (TypeError, ValueError):
+                pass
+
+    return config_store.read_config(
+        company, GST_PACK_KEY, default=_DEFAULT_GST_CONFIG
+    )
 
 
 # ────────────────────────────────────────────────────────────────
@@ -179,7 +201,9 @@ def save_gst_settings(company=None, config=None):
         "strn_number": config.get("strn_number", ""),
     }
 
-    frappe.cache().set_value(_gst_config_key(company), json.dumps(cleaned))
+    from trader_app.api import config_store
+
+    config_store.write_config(company, GST_PACK_KEY, cleaned, label="GST Settings")
     return {"ok": True, "message": "GST settings saved.", "config": cleaned}
 
 

@@ -1,0 +1,163 @@
+{
+ "actions": [],
+ "autoname": "format:VRULE-{#####}",
+ "creation": "2026-07-07 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "description": "Declarative, company-scoped validation rule. The condition (JSON) describes a VIOLATION; when it evaluates true the rule fires with the given severity. Replaces hardcoded validation branches (PRD FR-4).",
+ "field_order": [
+  "rule_name",
+  "is_active",
+  "column_break_scope",
+  "company",
+  "target_doctype",
+  "event",
+  "section_logic",
+  "condition",
+  "section_action",
+  "severity",
+  "message",
+  "column_break_action",
+  "bypass_role",
+  "priority"
+ ],
+ "fields": [
+  {
+   "fieldname": "rule_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Rule Name",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Active"
+  },
+  {
+   "fieldname": "column_break_scope",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Company",
+   "options": "Company",
+   "description": "Leave blank to apply to every company.",
+   "reqd": 0
+  },
+  {
+   "fieldname": "target_doctype",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Target DocType",
+   "options": "DocType",
+   "reqd": 1
+  },
+  {
+   "default": "validate",
+   "fieldname": "event",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Event",
+   "options": "validate\nbefore_submit",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_logic",
+   "fieldtype": "Section Break",
+   "label": "Condition (fires when TRUE)"
+  },
+  {
+   "fieldname": "condition",
+   "fieldtype": "JSON",
+   "label": "Condition",
+   "description": "JSON rule. Leaf: {\"field\": \"grand_total\", \"op\": \"<=\", \"value\": 0}. Combine with {\"all\": [...]}, {\"any\": [...]}, {\"not\": {...}}. Dotted child paths (e.g. items.qty) match if ANY row satisfies.",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_action",
+   "fieldtype": "Section Break",
+   "label": "Action"
+  },
+  {
+   "default": "block",
+   "fieldname": "severity",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Severity",
+   "options": "block\nwarn"
+  },
+  {
+   "fieldname": "message",
+   "fieldtype": "Small Text",
+   "label": "Message",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_action",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "bypass_role",
+   "fieldtype": "Link",
+   "label": "Bypass Role",
+   "options": "Role",
+   "description": "Users with this role skip the rule (logged as skipped)."
+  },
+  {
+   "default": "100",
+   "fieldname": "priority",
+   "fieldtype": "Int",
+   "label": "Priority",
+   "description": "Lower runs first."
+  }
+ ],
+ "links": [],
+ "modified": "2026-07-07 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Trader",
+ "name": "Trader Validation Rule",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Trader Super Admin",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Trader Admin",
+   "write": 1
+  }
+ ],
+ "sort_field": "priority",
+ "sort_order": "ASC",
+ "title_field": "rule_name",
+ "track_changes": 1
+}

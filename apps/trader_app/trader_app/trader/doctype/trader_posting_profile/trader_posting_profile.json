@@ -1,0 +1,51 @@
+{
+ "actions": [],
+ "autoname": "format:POST-{#####}",
+ "creation": "2026-07-07 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "description": "Event-driven posting profile (PRD FR-8). Maps a finalization event to the accounts used when a Sales Invoice posts to the GL, so account mappings are configuration, not hardcoded handlers.",
+ "field_order": [
+  "profile_name",
+  "company",
+  "is_active",
+  "event",
+  "section_accounts",
+  "receivable_account",
+  "income_account",
+  "tax_account",
+  "column_break_acc",
+  "wht_account",
+  "cost_center",
+  "round_off_account"
+ ],
+ "fields": [
+  {"fieldname": "profile_name", "fieldtype": "Data", "in_list_view": 1, "label": "Profile Name", "reqd": 1},
+  {"fieldname": "company", "fieldtype": "Link", "in_list_view": 1, "in_standard_filter": 1, "label": "Company", "options": "Company", "reqd": 1},
+  {"default": "1", "fieldname": "is_active", "fieldtype": "Check", "in_list_view": 1, "label": "Active"},
+  {"default": "sales_invoice", "fieldname": "event", "fieldtype": "Select", "in_list_view": 1, "in_standard_filter": 1, "label": "Event", "options": "sales_invoice"},
+  {"fieldname": "section_accounts", "fieldtype": "Section Break", "label": "Account Mapping"},
+  {"fieldname": "receivable_account", "fieldtype": "Link", "label": "Receivable (Debit To)", "options": "Account"},
+  {"fieldname": "income_account", "fieldtype": "Link", "label": "Income Account", "options": "Account"},
+  {"fieldname": "tax_account", "fieldtype": "Link", "label": "Tax Account", "options": "Account"},
+  {"fieldname": "column_break_acc", "fieldtype": "Column Break"},
+  {"fieldname": "wht_account", "fieldtype": "Link", "label": "WHT Account", "options": "Account"},
+  {"fieldname": "cost_center", "fieldtype": "Link", "label": "Cost Center", "options": "Cost Center"},
+  {"fieldname": "round_off_account", "fieldtype": "Link", "label": "Round Off Account", "options": "Account"}
+ ],
+ "links": [],
+ "modified": "2026-07-07 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Trader",
+ "name": "Trader Posting Profile",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "write": 1},
+  {"create": 1, "delete": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Trader Super Admin", "share": 1, "write": 1},
+  {"create": 1, "delete": 1, "read": 1, "report": 1, "role": "Trader Finance Manager", "write": 1}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "title_field": "profile_name",
+ "track_changes": 1
+}

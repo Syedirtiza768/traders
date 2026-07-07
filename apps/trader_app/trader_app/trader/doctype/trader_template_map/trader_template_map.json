@@ -1,0 +1,43 @@
+{
+ "actions": [],
+ "autoname": "format:TMAP-{#####}",
+ "creation": "2026-07-07 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "description": "Maps a (company, doctype, customer profile) to a Frappe Print Format (PRD FR-9), so document output variants are configuration rather than static templates.",
+ "field_order": [
+  "map_name",
+  "company",
+  "is_active",
+  "priority",
+  "column_break_main",
+  "target_doctype",
+  "customer_profile",
+  "print_format"
+ ],
+ "fields": [
+  {"fieldname": "map_name", "fieldtype": "Data", "in_list_view": 1, "label": "Map Name", "reqd": 1},
+  {"fieldname": "company", "fieldtype": "Link", "in_list_view": 1, "in_standard_filter": 1, "label": "Company", "options": "Company", "reqd": 1},
+  {"default": "1", "fieldname": "is_active", "fieldtype": "Check", "in_list_view": 1, "label": "Active"},
+  {"default": "100", "fieldname": "priority", "fieldtype": "Int", "label": "Priority", "description": "Lower wins."},
+  {"fieldname": "column_break_main", "fieldtype": "Column Break"},
+  {"fieldname": "target_doctype", "fieldtype": "Link", "in_list_view": 1, "in_standard_filter": 1, "label": "Target DocType", "options": "DocType", "reqd": 1},
+  {"fieldname": "customer_profile", "fieldtype": "Data", "label": "Customer Profile", "description": "Matches Customer Group; blank = default for the doctype."},
+  {"fieldname": "print_format", "fieldtype": "Link", "in_list_view": 1, "label": "Print Format", "options": "Print Format", "reqd": 1}
+ ],
+ "links": [],
+ "modified": "2026-07-07 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Trader",
+ "name": "Trader Template Map",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "write": 1},
+  {"create": 1, "delete": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "Trader Super Admin", "share": 1, "write": 1},
+  {"create": 1, "delete": 1, "read": 1, "report": 1, "role": "Trader Admin", "write": 1}
+ ],
+ "sort_field": "priority",
+ "sort_order": "ASC",
+ "title_field": "map_name",
+ "track_changes": 1
+}

@@ -67,9 +67,22 @@ fixtures = [
 # ── DocType Events ─────────────────────────────────────────────────
 doc_events = {
     "Sales Invoice": {
-        "validate": "trader_app.api.sales.validate_sales_invoice",
+        "validate": [
+            "trader_app.api.tax_policy.apply_tax_policy",
+            "trader_app.api.posting.apply_posting_profile",
+            "trader_app.api.sales.validate_sales_invoice",
+            "trader_app.api.process.apply_initial_state",
+            "trader_app.api.fx_policy.snapshot_on_create",
+        ],
+        "before_submit": "trader_app.api.fx_policy.snapshot_on_finalize",
         "on_submit": "trader_app.api.sales.on_sales_invoice_submit",
         "on_cancel": "trader_app.api.sales.on_sales_invoice_cancel",
+    },
+    "Quotation": {
+        "validate": "trader_app.api.process.apply_initial_state",
+    },
+    "Delivery Note": {
+        "validate": "trader_app.api.process.apply_initial_state",
     },
     "Purchase Invoice": {
         "validate": "trader_app.api.purchases.validate_purchase_invoice",

@@ -1,0 +1,121 @@
+{
+ "actions": [],
+ "autoname": "format:PROC-{#####}",
+ "creation": "2026-07-07 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "description": "Company-scoped sales lifecycle state model (PRD FR-2). OPT-IN: states are only enforced when both is_active and enforce_states are checked, so companies without a profile are unaffected. Not a global ERPNext Workflow.",
+ "field_order": [
+  "profile_name",
+  "company",
+  "column_break_head",
+  "is_active",
+  "enforce_states",
+  "section_states",
+  "states",
+  "section_transitions",
+  "transitions"
+ ],
+ "fields": [
+  {
+   "fieldname": "profile_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Profile Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_head",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Active"
+  },
+  {
+   "default": "0",
+   "fieldname": "enforce_states",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Enforce States",
+   "description": "Feature flag. When off, this profile is documentation only and nothing is enforced."
+  },
+  {
+   "fieldname": "section_states",
+   "fieldtype": "Section Break",
+   "label": "States"
+  },
+  {
+   "fieldname": "states",
+   "fieldtype": "Table",
+   "label": "States",
+   "options": "Trader Process State"
+  },
+  {
+   "fieldname": "section_transitions",
+   "fieldtype": "Section Break",
+   "label": "Transitions"
+  },
+  {
+   "fieldname": "transitions",
+   "fieldtype": "Table",
+   "label": "Transitions",
+   "options": "Trader Process Transition"
+  }
+ ],
+ "links": [],
+ "modified": "2026-07-07 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Trader",
+ "name": "Trader Process Profile",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Trader Super Admin",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Trader Admin",
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "title_field": "profile_name",
+ "track_changes": 1
+}

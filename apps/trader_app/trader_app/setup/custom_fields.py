@@ -215,6 +215,108 @@ CUSTOM_FIELDS = [
         "description": "Opening payable balance imported when Components feature is first enabled.",
     },
 
+    # ── Sales lifecycle state (opt-in; enforced only via Trader Process Profile) ──
+    {
+        "dt": "Quotation",
+        "fieldname": "trader_workflow_state",
+        "label": "Trader Workflow State",
+        "fieldtype": "Data",
+        "insert_after": "trader_invoice_type",
+        "read_only": 1,
+        "allow_on_submit": 1,
+        "no_copy": 1,
+        "in_standard_filter": 1,
+        "description": "Lifecycle state; managed by the Trader Process Profile when enforced.",
+    },
+    {
+        "dt": "Delivery Note",
+        "fieldname": "trader_workflow_state",
+        "label": "Trader Workflow State",
+        "fieldtype": "Data",
+        "insert_after": "trader_invoice_type",
+        "read_only": 1,
+        "allow_on_submit": 1,
+        "no_copy": 1,
+        "in_standard_filter": 1,
+        "description": "Lifecycle state; managed by the Trader Process Profile when enforced.",
+    },
+    {
+        "dt": "Sales Invoice",
+        "fieldname": "trader_workflow_state",
+        "label": "Trader Workflow State",
+        "fieldtype": "Data",
+        "insert_after": "trader_invoice_type",
+        "read_only": 1,
+        "allow_on_submit": 1,
+        "no_copy": 1,
+        "in_standard_filter": 1,
+        "description": "Lifecycle state; managed by the Trader Process Profile when enforced.",
+    },
+
+    # ── Nested quotation options (PRD FR-3) ──────────────────────────
+    {
+        "dt": "Quotation",
+        "fieldname": "trader_options",
+        "label": "Trader Options",
+        "fieldtype": "Table",
+        "options": "Quotation Option",
+        "insert_after": "trader_workflow_state",
+        "description": "Alternative option/line groupings offered to the customer (line → option → item).",
+    },
+
+    # ── Grouped-invoice consumption counter (PRD FR-7) ───────────────
+    {
+        "dt": "Delivery Note Item",
+        "fieldname": "trader_qty_invoiced",
+        "label": "Qty Invoiced",
+        "fieldtype": "Float",
+        "default": "0",
+        "insert_after": "qty",
+        "read_only": 1,
+        "no_copy": 1,
+        "description": "Quantity from this challan line already pulled into a grouped invoice.",
+    },
+
+    # ── FX rate-clause snapshot (PRD FR-6) ───────────────────────────
+    {
+        "dt": "Sales Invoice",
+        "fieldname": "trader_fx_rate_snapshot",
+        "label": "FX Rate Snapshot",
+        "fieldtype": "Float",
+        "precision": "9",
+        "insert_after": "conversion_rate",
+        "read_only": 1,
+        "no_copy": 1,
+        "description": "Exchange rate captured under the FX policy's rate clause.",
+    },
+    {
+        "dt": "Sales Invoice",
+        "fieldname": "trader_fx_snapshot_date",
+        "label": "FX Snapshot Date",
+        "fieldtype": "Date",
+        "insert_after": "trader_fx_rate_snapshot",
+        "read_only": 1,
+        "no_copy": 1,
+    },
+    {
+        "dt": "Sales Invoice",
+        "fieldname": "trader_fx_clause_valid_until",
+        "label": "FX Clause Valid Until",
+        "fieldtype": "Date",
+        "insert_after": "trader_fx_snapshot_date",
+        "read_only": 1,
+        "no_copy": 1,
+    },
+    {
+        "dt": "Sales Invoice",
+        "fieldname": "trader_fx_print_mode",
+        "label": "FX Print Mode",
+        "fieldtype": "Data",
+        "insert_after": "trader_fx_clause_valid_until",
+        "read_only": 1,
+        "no_copy": 1,
+    },
+
     # ── Multi-tenant platform fields ─────────────────────────────────
     {
         "dt": "User",

@@ -1,0 +1,54 @@
+{
+ "actions": [],
+ "creation": "2026-07-07 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "istable": 1,
+ "field_order": [
+  "target_doctype",
+  "state",
+  "is_initial",
+  "is_final"
+ ],
+ "fields": [
+  {
+   "fieldname": "target_doctype",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Target DocType",
+   "options": "DocType",
+   "reqd": 1
+  },
+  {
+   "fieldname": "state",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "State",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "is_initial",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Initial"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_final",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Final"
+  }
+ ],
+ "links": [],
+ "modified": "2026-07-07 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Trader",
+ "name": "Trader Process State",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "creation",
+ "sort_order": "ASC",
+ "track_changes": 0
+}

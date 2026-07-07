@@ -794,8 +794,11 @@ def get_sales_summary(company=None):
 # ────────────────────────────────────────────────────────────────
 
 def validate_sales_invoice(doc, method):
-    """Runs on Sales Invoice validate — enforce credit limit."""
+    """Runs on Sales Invoice validate — declarative rules + credit limit."""
     if doc.docstatus == 0:
+        from trader_app.api.rules import run_rules
+
+        run_rules(doc, event="validate")
         _check_customer_credit_limit(doc)
 
 
