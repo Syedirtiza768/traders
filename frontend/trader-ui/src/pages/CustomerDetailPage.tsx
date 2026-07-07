@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Building2, CreditCard, Edit, FilePlus2, Mail, MapPin, Phone, Plus, ReceiptText, TrendingUp, User, Ban } from 'lucide-react';
 import { customersApi } from '../lib/api';
-import { appendPreservedListQuery, formatCurrency, formatDate, getStatusColor, isOperationsContext, isReportContext } from '../lib/utils';
+import { appendPreservedListQuery, formatCurrency, formatDate, getActiveCurrency, getStatusColor, isOperationsContext, isReportContext } from '../lib/utils';
 
 type CustomerDetail = Record<string, any>;
 
@@ -211,7 +211,7 @@ export default function CustomerDetailPage() {
             <p className="text-sm text-gray-500">High-level billing context</p>
           </div>
           <div className="card-body space-y-4">
-            <SummaryLine label="Default Currency" value={customer.default_currency || 'PKR'} />
+            <SummaryLine label="Default Currency" value={customer.default_currency || getActiveCurrency()} />
             <SummaryLine label="Credit Limit" value={formatCurrency(customer.credit_limit)} />
             <SummaryLine label="Payment Terms" value={customer.payment_terms || '—'} />
             <SummaryLine label="Tax ID" value={customer.tax_id || customer.tax_id_number || '—'} />

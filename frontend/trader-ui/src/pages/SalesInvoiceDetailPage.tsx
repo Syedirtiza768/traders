@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { salesApi } from '../lib/api';
 import RecordInvoicePaymentPanel from '../components/RecordInvoicePaymentPanel';
-import { appendPreservedListQuery, classNames, extractFrappeError, formatCurrency, formatDate, getStatusColor, isFilterListContext, isOperationsContext, isReportContext } from '../lib/utils';
+import { appendPreservedListQuery, classNames, extractFrappeError, formatCurrency, formatDate, getActiveCurrency, getStatusColor, isFilterListContext, isOperationsContext, isReportContext } from '../lib/utils';
 
 type SalesInvoiceDetail = Record<string, any>;
 
@@ -257,7 +257,7 @@ export default function SalesInvoiceDetailPage() {
         <DetailKPI icon={CreditCard} label="Grand Total" value={formatCurrency(invoice.grand_total, invoice.currency)} tone="green" />
         <DetailKPI icon={AlertCircle} label="Outstanding" value={formatCurrency(invoice.outstanding_amount, invoice.currency)} tone="red" />
         <DetailKPI icon={Package} label="Items" value={String(itemRows.length)} tone="blue" />
-        <DetailKPI icon={ReceiptText} label="Currency" value={invoice.currency || 'PKR'} tone="purple" />
+        <DetailKPI icon={ReceiptText} label="Currency" value={invoice.currency || getActiveCurrency()} tone="purple" />
       </div>
 
       {invoice.docstatus === 1 && (invoice.outstanding_amount ?? 0) > 0 && (

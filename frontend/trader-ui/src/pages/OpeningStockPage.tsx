@@ -5,9 +5,10 @@ import {
 } from 'lucide-react';
 import { catalogApi, inventoryApi } from '../lib/api';
 import { useCompanyStore } from '../stores/companyStore';
+import { formatAmount } from '../lib/utils';
 
 function fmtAmt(n: number) {
-  return new Intl.NumberFormat('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+  return formatAmount(n);
 }
 
 interface StockLine {

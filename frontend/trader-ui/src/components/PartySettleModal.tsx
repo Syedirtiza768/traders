@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import { daybookApi, financeApi } from '../lib/api';
+import { formatAmount } from '../lib/utils';
 import PaymentAllocationPanel, {
   type InvoiceAllocation,
   buildFifoAllocations,
@@ -11,7 +12,7 @@ function todayStr() {
 }
 
 function fmtAmt(n: number) {
-  return new Intl.NumberFormat('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+  return formatAmount(n);
 }
 
 export type PartySettleModalProps = {

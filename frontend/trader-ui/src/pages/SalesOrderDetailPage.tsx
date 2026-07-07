@@ -13,7 +13,7 @@ import {
   User,
 } from 'lucide-react';
 import { salesApi } from '../lib/api';
-import { appendPreservedListQuery, classNames, extractFrappeError, formatCurrency, formatDate, getStatusColor, isOperationsContext } from '../lib/utils';
+import { appendPreservedListQuery, classNames, extractFrappeError, formatCurrency, formatDate, getActiveCurrency, getStatusColor, isOperationsContext } from '../lib/utils';
 
 type SalesOrderDetail = Record<string, any>;
 
@@ -239,7 +239,7 @@ export default function SalesOrderDetailPage() {
         <DetailKPI icon={ReceiptText} label="Grand Total" value={formatCurrency(order.grand_total, order.currency)} tone="green" />
         <DetailKPI icon={Package} label="Items" value={String(itemRows.length)} tone="blue" />
         <DetailKPI icon={ClipboardCheck} label="Delivery Date" value={formatDate(order.delivery_date)} tone="purple" />
-        <DetailKPI icon={canCreateDispatch ? PackageOpen : FileText} label={canCreateDispatch ? 'Dispatch Ready' : 'Currency'} value={canCreateDispatch ? 'Create Stock Issue' : (order.currency || 'PKR')} tone="amber" />
+        <DetailKPI icon={canCreateDispatch ? PackageOpen : FileText} label={canCreateDispatch ? 'Dispatch Ready' : 'Currency'} value={canCreateDispatch ? 'Create Stock Issue' : (order.currency || getActiveCurrency())} tone="amber" />
       </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">

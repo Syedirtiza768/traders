@@ -3,10 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Calendar, RefreshCw, AlertTriangle, TrendingUp, TrendingDown, DollarSign, Package, ArrowDownLeft, ArrowUpRight, PrinterIcon, BookOpen } from 'lucide-react';
 import { daybookApi } from '../lib/api';
 import { useCompanyStore } from '../stores/companyStore';
+import { formatAmount } from '../lib/utils';
 
 function todayStr() { return new Date().toISOString().slice(0, 10); }
 function fmtAmt(n: number) {
-  return new Intl.NumberFormat('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+  return formatAmount(n);
 }
 
 interface Summary {

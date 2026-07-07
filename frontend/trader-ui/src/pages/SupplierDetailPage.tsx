@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Building2, CreditCard, Edit, FilePlus2, Globe, Ban, Mail, Package, Phone, Plus, ReceiptText, Truck } from 'lucide-react';
 import { suppliersApi } from '../lib/api';
-import { appendPreservedListQuery, formatCurrency, formatDate, getStatusColor, isOperationsContext, isReportContext } from '../lib/utils';
+import { appendPreservedListQuery, formatCurrency, formatDate, getActiveCurrency, getStatusColor, isOperationsContext, isReportContext } from '../lib/utils';
 
 type SupplierDetail = Record<string, any>;
 
@@ -203,7 +203,7 @@ export default function SupplierDetailPage() {
             <p className="text-sm text-gray-500">Payables and vendor context</p>
           </div>
           <div className="card-body space-y-4">
-            <SummaryLine label="Default Currency" value={supplier.default_currency || 'PKR'} />
+            <SummaryLine label="Default Currency" value={supplier.default_currency || getActiveCurrency()} />
             <SummaryLine label="Payment Terms" value={supplier.payment_terms || '—'} />
             <SummaryLine label="Supplier Type" value={supplier.supplier_type || '—'} />
             <SummaryLine label="Disabled" value={supplier.disabled ? 'Yes' : 'No'} />

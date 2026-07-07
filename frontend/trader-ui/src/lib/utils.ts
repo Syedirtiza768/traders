@@ -6,14 +6,47 @@
 
 // ─── Currency ────────────────────────────────────────────────────
 
-export function formatCurrency(value: number | undefined | null, currency = 'PKR'): string {
-  if (value == null) return `${currency} 0`;
+// Active company currency, kept in sync by the company store (see companyStore.ts).
+// Used as the default for all money formatting so amounts render in the company's
+// own currency (e.g. AED for CDC) instead of a hardcoded fallback.
+let activeCurrency = 'PKR';
+
+export function setActiveCurrency(currency: string | null | undefined): void {
+  if (currency) activeCurrency = currency;
+}
+
+export function getActiveCurrency(): string {
+  return activeCurrency;
+}
+
+export function formatCurrency(value: number | undefined | null, currency?: string): string {
+  const cur = currency || activeCurrency;
+  if (value == null) return `${cur} 0`;
   return new Intl.NumberFormat('en-PK', {
     style: 'currency',
-    currency,
+    currency: cur,
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(value);
+}
+
+/**
+ * Format a monetary amount with the active company's currency code prefixed,
+ * e.g. "AED 1,234.50". Used by pages that want fixed decimals and a currency
+ * label without the locale-specific currency symbol placement.
+ */
+export function formatAmount(
+  value: number | undefined | null,
+  opts: { decimals?: number; currency?: string } = {},
+): string {
+  const { decimals = 2, currency } = opts;
+  const cur = currency || activeCurrency;
+  const n = value == null ? 0 : value;
+  const grouped = new Intl.NumberFormat('en-PK', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(n);
+  return `${cur} ${grouped}`;
 }
 
 export function formatCompact(value: number | undefined | null): string {

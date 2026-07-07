@@ -17,6 +17,8 @@ import { useCompanyStore } from '../stores/companyStore';
 
 import DayBookEntryPanel, { type DayBookEntryType } from '../components/DayBookEntryPanel';
 
+import { formatAmount } from '../lib/utils';
+
 
 
 function todayStr() {
@@ -29,7 +31,7 @@ function todayStr() {
 
 function fmtAmt(n: number) {
 
-  return new Intl.NumberFormat('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+  return formatAmount(n);
 
 }
 

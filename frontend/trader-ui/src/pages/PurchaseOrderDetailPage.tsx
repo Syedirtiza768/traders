@@ -12,7 +12,7 @@ import {
   Truck,
 } from 'lucide-react';
 import { purchasesApi } from '../lib/api';
-import { appendPreservedListQuery, classNames, extractFrappeError, formatCurrency, formatDate, getStatusColor, isOperationsContext } from '../lib/utils';
+import { appendPreservedListQuery, classNames, extractFrappeError, formatCurrency, formatDate, getActiveCurrency, getStatusColor, isOperationsContext } from '../lib/utils';
 
 type PurchaseOrderDetail = Record<string, any>;
 
@@ -214,7 +214,7 @@ export default function PurchaseOrderDetailPage() {
         <DetailKPI icon={ReceiptText} label="Grand Total" value={formatCurrency(order.grand_total, order.currency)} tone="green" />
         <DetailKPI icon={Package} label="Items" value={String(itemRows.length)} tone="blue" />
         <DetailKPI icon={ClipboardCheck} label="Schedule Date" value={formatDate(order.schedule_date || order.transaction_date)} tone="purple" />
-        <DetailKPI icon={canCreateReceipt ? PackageCheck : FileText} label={canCreateReceipt ? 'Receipt Ready' : 'Currency'} value={canCreateReceipt ? 'Create Material Receipt' : (order.currency || 'PKR')} tone="amber" />
+        <DetailKPI icon={canCreateReceipt ? PackageCheck : FileText} label={canCreateReceipt ? 'Receipt Ready' : 'Currency'} value={canCreateReceipt ? 'Create Material Receipt' : (order.currency || getActiveCurrency())} tone="amber" />
       </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Calendar, FileText, GitCompareArrows, ShoppingCart, Truck } from 'lucide-react';
 import { purchasesApi } from '../lib/api';
-import { appendPreservedListQuery, classNames, extractFrappeError, formatCurrency, formatDate, getStatusColor, isOperationsContext } from '../lib/utils';
+import { appendPreservedListQuery, classNames, extractFrappeError, formatCurrency, formatDate, getActiveCurrency, getStatusColor, isOperationsContext } from '../lib/utils';
 
 type SupplierQuotationDetail = Record<string, any>;
 
@@ -177,7 +177,7 @@ export default function SupplierQuotationDetailPage() {
             <InfoRow icon={Calendar} label="RFQ Date" value={formatDate(quotation.transaction_date)} />
             <InfoRow icon={Calendar} label="Valid Till" value={formatDate(quotation.valid_till)} />
             <InfoRow icon={FileText} label="Material Request" value={quotation.material_request || '—'} />
-            <InfoRow icon={ShoppingCart} label="Currency" value={quotation.currency || 'PKR'} />
+            <InfoRow icon={ShoppingCart} label="Currency" value={quotation.currency || getActiveCurrency()} />
             <InfoRow icon={GitCompareArrows} label="Comparable Quotes" value={String(comparisonQuotes.length)} />
           </div>
         </div>

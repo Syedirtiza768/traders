@@ -6,9 +6,10 @@ import {
 } from 'lucide-react';
 import { catalogApi } from '../lib/api';
 import { useCompanyStore } from '../stores/companyStore';
+import { formatAmount } from '../lib/utils';
 
 function fmtAmt(n: number) {
-  return new Intl.NumberFormat('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+  return formatAmount(n);
 }
 function fmtQty(n: number) {
   return new Intl.NumberFormat('en-PK', { maximumFractionDigits: 0 }).format(n);
@@ -52,6 +53,7 @@ export default function ComponentCatalogPage() {
   const componentsEnabled = useCompanyStore((s) => s.componentsEnabled);
   const company = useCompanyStore((s) => s.company);
   const revision = useCompanyStore((s) => s.revision);
+  const currency = useCompanyStore((s) => s.currency) || 'PKR';
 
   const [taxonomy, setTaxonomy] = useState<Taxonomy | null>(null);
   const [filterCategory, setFilterCategory] = useState('');
@@ -313,7 +315,7 @@ export default function ComponentCatalogPage() {
             })}
 
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Standard Rate (PKR)</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Standard Rate ({currency})</label>
               <input
                 type="number"
                 value={createForm.standard_rate}

@@ -6,13 +6,13 @@ import {
 } from 'lucide-react';
 import { daybookApi } from '../lib/api';
 import { useCompanyStore } from '../stores/companyStore';
-import { debounce } from '../lib/utils';
+import { debounce, formatAmount } from '../lib/utils';
 import PartySettleModal from '../components/PartySettleModal';
 
 const PAGE_SIZE = 20;
 
 function fmtAmt(n: number) {
-  return new Intl.NumberFormat('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+  return formatAmount(n);
 }
 
 interface PartyRow {

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { companyApi, registerActiveCompanyGetter } from '../lib/api';
+import { setActiveCurrency } from '../lib/utils';
 
 export type CompanyOption = {
   name: string;
@@ -49,12 +50,14 @@ export const useCompanyStore = create<CompanyState>((set, get) => ({
       const companies = (companiesRes.data.message || []) as CompanyOption[];
       const active = activeRes.data.message || {};
       const company = active.company || companies[0]?.name || null;
+      const currency = active.default_currency || companies.find((c) => c.name === company)?.default_currency || null;
+      setActiveCurrency(currency);
 
       set({
         companies,
         company,
         abbr: active.abbr || companies.find((c) => c.name === company)?.abbr || null,
-        currency: active.default_currency || companies.find((c) => c.name === company)?.default_currency || null,
+        currency,
         multiCurrencyEnabled: Boolean(active.multi_currency_enabled),
         componentsEnabled: Boolean(active.components_enabled),
         initialized: true,
@@ -72,10 +75,12 @@ export const useCompanyStore = create<CompanyState>((set, get) => ({
     try {
       const res = await companyApi.setActive(company);
       const active = res.data.message?.active || {};
+      const currency = active.default_currency || get().companies.find((c) => c.name === company)?.default_currency || null;
+      setActiveCurrency(currency);
       set((state) => ({
         company: active.company || company,
         abbr: active.abbr || state.companies.find((c) => c.name === company)?.abbr || null,
-        currency: active.default_currency || state.companies.find((c) => c.name === company)?.default_currency || null,
+        currency,
         multiCurrencyEnabled: Boolean(active.multi_currency_enabled),
         componentsEnabled: Boolean(active.components_enabled),
         loading: false,

@@ -12,7 +12,7 @@ import {
   User,
 } from 'lucide-react';
 import { salesApi } from '../lib/api';
-import { appendPreservedListQuery, classNames, extractFrappeError, formatCurrency, formatDate, getStatusColor, isOperationsContext } from '../lib/utils';
+import { appendPreservedListQuery, classNames, extractFrappeError, formatCurrency, formatDate, getActiveCurrency, getStatusColor, isOperationsContext } from '../lib/utils';
 
 type QuotationDetail = Record<string, any>;
 
@@ -183,7 +183,7 @@ export default function QuotationDetailPage() {
         <DetailKPI icon={ReceiptText} label="Grand Total" value={formatCurrency(quotation.grand_total, quotation.currency)} tone="green" />
         <DetailKPI icon={Package} label="Items" value={String(itemRows.length)} tone="blue" />
         <DetailKPI icon={ClipboardCheck} label="Order Type" value={quotation.order_type || 'Sales'} tone="purple" />
-        <DetailKPI icon={FileText} label="Currency" value={quotation.currency || 'PKR'} tone="amber" />
+        <DetailKPI icon={FileText} label="Currency" value={quotation.currency || getActiveCurrency()} tone="amber" />
       </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
