@@ -116,7 +116,7 @@ export default function LoginPage() {
                   type="text"
                   value={username}
                   onChange={(e) => { setUsername(e.target.value); clearError(); }}
-                  placeholder="admin@globaltrading.pk"
+                  placeholder="you@company.com"
                   className="input-field"
                   required
                   autoFocus
@@ -162,19 +162,6 @@ export default function LoginPage() {
                 )}
               </button>
             </form>
-
-            {/* Dev credentials hint */}
-            <div className="mt-6 p-3 bg-blue-50 border border-blue-100 rounded-lg">
-              <div>
-                <p className="text-xs font-medium text-blue-700 mb-1">Platform Super Admin (dev seed)</p>
-                <p className="text-xs text-blue-600">
-                  Email: <code className="bg-blue-100 px-1 rounded">superadmin@traders.local</code>
-                </p>
-                <p className="text-xs text-blue-600">
-                  Password: <code className="bg-blue-100 px-1 rounded">SuperAdmin@2026</code>
-                </p>
-              </div>
-            </div>
           </div>
         </div>
       </div>
