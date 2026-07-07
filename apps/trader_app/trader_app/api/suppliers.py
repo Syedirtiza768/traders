@@ -37,6 +37,12 @@ def get_suppliers(page=1, page_size=20, search=None, supplier_group=None):
         conditions.append("s.supplier_group = %(supplier_group)s")
         params["supplier_group"] = supplier_group
 
+    from trader_app.api.permissions import tenant_sql_filter
+    tcond, tparams = tenant_sql_filter("s")
+    if tcond:
+        conditions.append(tcond)
+        params.update(tparams)
+
     where = " AND ".join(conditions)
 
     total = frappe.db.sql(

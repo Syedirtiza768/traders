@@ -37,6 +37,12 @@ def get_customers(page=1, page_size=20, search=None, customer_group=None):
         conditions.append("c.customer_group = %(customer_group)s")
         params["customer_group"] = customer_group
 
+    from trader_app.api.permissions import tenant_sql_filter
+    tcond, tparams = tenant_sql_filter("c")
+    if tcond:
+        conditions.append(tcond)
+        params.update(tparams)
+
     where = " AND ".join(conditions)
 
     total = frappe.db.sql(

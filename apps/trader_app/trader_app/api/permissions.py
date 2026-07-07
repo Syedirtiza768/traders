@@ -9,6 +9,11 @@ from __future__ import unicode_literals
 import frappe
 
 from trader_app.api.company import get_active_company_name, get_permitted_company_names
+from trader_app.api.tenant import (
+    get_user_tenant_name,
+    is_multitenant_enabled,
+    is_super_admin,
+)
 
 
 def _roles(user):
@@ -153,3 +158,79 @@ def has_delivery_note_permission(doc, ptype, user):
 
 def has_quotation_permission(doc, ptype, user):
     return _has_doc_permission(doc, user, ("Trader Admin", "Trader Sales Manager"))
+
+
+# ────────────────────────────────────────────────────────────────
+# Tenant scoping for SHARED master data (Customer / Supplier / Item)
+#
+# These doctypes have no `company` field and are global across a Frappe site,
+# so without an explicit `trader_tenant` filter a tenant would see every other
+# tenant's masters. Platform admins (Administrator / System Manager / Trader
+# Super Admin) are intentionally unrestricted.
+# ────────────────────────────────────────────────────────────────
+
+_SCOPE_NONE = "__none__"  # user may see no shared masters at all
+
+
+def _master_scope(user):
+    """Resolve how master data should be scoped for a user:
+      * None            → unrestricted (Administrator / tenant-less platform admin)
+      * "__none__"      → see nothing (a business user with no tenant)
+      * "TNT-xxxx"      → confined to that tenant (any tenant-assigned user, even
+                          a System Manager — isolation must hold in both directions)
+    """
+    if user == "Administrator" or not is_multitenant_enabled():
+        return None
+    tenant = get_user_tenant_name(user)
+    if tenant:
+        return tenant
+    if is_super_admin(user):
+        return None
+    return _SCOPE_NONE
+
+
+def master_tenant_clause(doctype, user):
+    """permission_query_conditions body for a tenant-scoped master doctype."""
+    scope = _master_scope(user)
+    if scope is None:
+        return ""
+    if scope == _SCOPE_NONE:
+        return "1=0"
+    return "`tab{0}`.trader_tenant = {1}".format(doctype, frappe.db.escape(scope))
+
+
+def customer_query(user):
+    return master_tenant_clause("Customer", user)
+
+
+def supplier_query(user):
+    return master_tenant_clause("Supplier", user)
+
+
+def item_query(user):
+    return master_tenant_clause("Item", user)
+
+
+def tenant_sql_filter(alias, user=None):
+    """(condition, params) injecting a tenant filter into a raw-SQL master query.
+
+    Returns ("", {}) for platform admins so they are unrestricted. Non-admin
+    users without a tenant get "1=0" (no cross-tenant leakage)."""
+    user = user or frappe.session.user
+    scope = _master_scope(user)
+    if scope is None:
+        return "", {}
+    if scope == _SCOPE_NONE:
+        return "1=0", {}
+    return "{0}.trader_tenant = %(trader_scope_tenant)s".format(alias), {"trader_scope_tenant": scope}
+
+
+def stamp_master_tenant(doc, method=None):
+    """before_insert hook — stamp the creating user's tenant on a new master."""
+    if getattr(doc, "trader_tenant", None):
+        return
+    if frappe.flags.in_install or frappe.flags.in_migrate or getattr(doc.flags, "in_import", False):
+        return
+    tenant = get_user_tenant_name(frappe.session.user)
+    if tenant:
+        doc.trader_tenant = tenant

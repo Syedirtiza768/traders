@@ -84,6 +84,16 @@ doc_events = {
     "Delivery Note": {
         "validate": "trader_app.api.process.apply_initial_state",
     },
+    # Tenant-stamp shared master data on creation so it is scoped to its owner.
+    "Customer": {
+        "before_insert": "trader_app.api.permissions.stamp_master_tenant",
+    },
+    "Supplier": {
+        "before_insert": "trader_app.api.permissions.stamp_master_tenant",
+    },
+    "Item": {
+        "before_insert": "trader_app.api.permissions.stamp_master_tenant",
+    },
     "Purchase Invoice": {
         "validate": "trader_app.api.purchases.validate_purchase_invoice",
         "on_submit": "trader_app.api.purchases.on_purchase_invoice_submit",
@@ -128,6 +138,9 @@ permission_query_conditions = {
     "Payment Entry": "trader_app.api.permissions.payment_entry_query",
     "Delivery Note": "trader_app.api.permissions.delivery_note_query",
     "Quotation": "trader_app.api.permissions.quotation_query",
+    "Customer": "trader_app.api.permissions.customer_query",
+    "Supplier": "trader_app.api.permissions.supplier_query",
+    "Item": "trader_app.api.permissions.item_query",
 }
 
 has_permission = {

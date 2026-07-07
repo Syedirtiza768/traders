@@ -538,6 +538,12 @@ def get_catalog_items(company=None, category=None, form_factor=None,
         )
         params["search"] = f"%{search}%"
 
+    from trader_app.api.permissions import tenant_sql_filter
+    tcond, tparams = tenant_sql_filter("i")
+    if tcond:
+        conditions.append(tcond)
+        params.update(tparams)
+
     where = " AND ".join(conditions)
 
     total = frappe.db.sql(

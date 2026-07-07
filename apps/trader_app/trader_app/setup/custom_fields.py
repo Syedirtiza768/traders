@@ -317,6 +317,45 @@ CUSTOM_FIELDS = [
         "no_copy": 1,
     },
 
+    # ── Tenant scoping on shared master data (Customer/Supplier/Item are
+    #    global in ERPNext; without this a tenant would see other tenants' masters) ──
+    {
+        "dt": "Customer",
+        "fieldname": "trader_tenant",
+        "label": "Trader Tenant",
+        "fieldtype": "Link",
+        "options": "Trader Tenant",
+        "insert_after": "trader_opening_balance",
+        "read_only": 1,
+        "no_copy": 1,
+        "in_standard_filter": 1,
+        "description": "Business account that owns this customer. Enforces tenant isolation.",
+    },
+    {
+        "dt": "Supplier",
+        "fieldname": "trader_tenant",
+        "label": "Trader Tenant",
+        "fieldtype": "Link",
+        "options": "Trader Tenant",
+        "insert_after": "trader_opening_balance",
+        "read_only": 1,
+        "no_copy": 1,
+        "in_standard_filter": 1,
+        "description": "Business account that owns this supplier. Enforces tenant isolation.",
+    },
+    {
+        "dt": "Item",
+        "fieldname": "trader_tenant",
+        "label": "Trader Tenant",
+        "fieldtype": "Link",
+        "options": "Trader Tenant",
+        "insert_after": "item_group",
+        "read_only": 1,
+        "no_copy": 1,
+        "in_standard_filter": 1,
+        "description": "Business account that owns this item. Enforces tenant isolation.",
+    },
+
     # ── Multi-tenant platform fields ─────────────────────────────────
     {
         "dt": "User",
@@ -359,3 +398,22 @@ def ensure_custom_fields():
         doc.module = "Trader"
         doc.insert(ignore_permissions=True)
     frappe.db.commit()
+
+
+def backfill_master_tenants(tenant):
+    """One-time: assign existing untenanted Customer/Supplier/Item to ``tenant``.
+
+    Master data (Customer/Supplier/Item) is global in ERPNext; when tenant
+    isolation is introduced, existing records must be attributed to the tenant
+    that already owns them (a single pre-existing business)."""
+    if not frappe.db.exists("Trader Tenant", tenant):
+        frappe.throw("Trader Tenant {0} does not exist.".format(tenant))
+    result = {}
+    for dt in ("Customer", "Supplier", "Item"):
+        updated = frappe.db.sql(
+            "UPDATE `tab{0}` SET trader_tenant=%s WHERE COALESCE(trader_tenant, '')=''".format(dt),
+            tenant,
+        )
+        result[dt] = frappe.db.get_value(dt, {"trader_tenant": tenant}, "count(name)")
+    frappe.db.commit()
+    return {"tenant": tenant, "tagged": result}
