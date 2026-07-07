@@ -86,6 +86,16 @@ export default function ItemLineEntry({
   const quickAdd = useQuickAdd();
   const quickAddLineId = useRef<number | null>(null);
 
+  // Async callbacks (stock refresh, serial validation) resolve after the
+  // line data has already moved on — reading `lines` from their original
+  // closure would clobber newer edits with a stale snapshot. Route all
+  // mutations through this ref so they always merge onto the latest state.
+  const linesRef = useRef(lines);
+  linesRef.current = lines;
+
+  const lineRowRefs = useRef<Record<number, HTMLDivElement | null>>({});
+  const prevLineCount = useRef(lines.length);
+
   const [skuOpen, setSkuOpen] = useState(false);
   const [lineConfig, setLineConfig] = useState<LineConfig | null>(null);
   const [activeTemplateId, setActiveTemplateId] = useState('components');
@@ -231,7 +241,7 @@ export default function ItemLineEntry({
 
   const addLine = (patch: Omit<ItemLineEntryLine, 'id'>) => {
     onChange([
-      ...lines,
+      ...linesRef.current,
       {
         id: _lineId++,
         warehouse: patch.warehouse || defaultWarehouse,
@@ -243,12 +253,12 @@ export default function ItemLineEntry({
   };
 
   const updateLine = (id: number, patch: Partial<ItemLineEntryLine>) => {
-    onChange(lines.map((line) => (line.id === id ? { ...line, ...patch } : line)));
+    onChange(linesRef.current.map((line) => (line.id === id ? { ...line, ...patch } : line)));
   };
 
   const removeLine = (id: number) => {
-    if (lines.length <= minLines) return;
-    onChange(lines.filter((l) => l.id !== id));
+    if (linesRef.current.length <= minLines) return;
+    onChange(linesRef.current.filter((l) => l.id !== id));
   };
 
   const refreshLineStock = async (lineId: number, itemCode: string, warehouse: string) => {
@@ -265,7 +275,7 @@ export default function ItemLineEntry({
   };
 
   const validateSerial = async (lineId: number) => {
-    const line = lines.find((l) => l.id === lineId);
+    const line = linesRef.current.find((l) => l.id === lineId);
     if (!line?.item_code || !line.serial_no?.trim()) {
       updateLine(lineId, { serial_error: null });
       return true;
@@ -303,7 +313,7 @@ export default function ItemLineEntry({
 
   const handleItemPick = (lineId: number, itemCode: string, lineIndex?: number) => {
     const selected = items.find((row) => (row.item_code || row.name) === itemCode);
-    const existing = lines.find((l) => l.id === lineId);
+    const existing = linesRef.current.find((l) => l.id === lineId);
     const wh = existing?.warehouse || defaultWarehouse;
     updateLine(lineId, {
       item_code: itemCode,
@@ -446,6 +456,17 @@ export default function ItemLineEntry({
   };
 
   const lineTotal = lines.reduce((sum, l) => sum + l.qty * l.rate, 0);
+
+  // Scroll a newly-added line into view — without this, appending a line to
+  // a panel that's already scrolled (or taller than the visible area) leaves
+  // the new row off-screen with no indication it was added.
+  useEffect(() => {
+    if (lines.length > prevLineCount.current) {
+      const last = lines[lines.length - 1];
+      lineRowRefs.current[last.id]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    prevLineCount.current = lines.length;
+  }, [lines]);
 
   return (
     <>
@@ -615,6 +636,7 @@ export default function ItemLineEntry({
             return (
               <div
                 key={line.id}
+                ref={(el) => { lineRowRefs.current[line.id] = el; }}
                 className={`rounded-lg border space-y-3 ${invoiceLayout ? 'p-4 hover:border-gray-300 transition-colors' : 'p-3'} ${lineBorder}`}
               >
                 {invoiceLayout ? (

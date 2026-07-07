@@ -181,6 +181,7 @@ export default function DayBookPage() {
   const [entryType, setEntryType] = useState<DayBookEntryType | null>(null);
 
   const [success, setSuccess] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
 
 
@@ -216,7 +217,7 @@ export default function DayBookPage() {
 
     }
 
-  }, [company, date, page, revision]);
+  }, [company, date, page, revision, refreshKey]);
 
 
 
@@ -234,7 +235,7 @@ export default function DayBookPage() {
 
     setPage(1);
 
-    void load(1);
+    setRefreshKey((k) => k + 1);
 
   };
 
