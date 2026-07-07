@@ -106,7 +106,7 @@ append-only for non-admins.
 
 | ID | Severity | Finding | Evidence |
 |---|---|---|---|
-| SA-01 | **High (ops)** | Phases 0–5 (30 files: 10 API modules, 13 DocTypes, hooks, custom fields, design doc) are **uncommitted** and the container copy lives in an **ephemeral image layer**. A `git clean`/checkout or image rebuild-from-repo loses or desyncs it. | `git status --porcelain` = 30 entries |
+| SA-01 | ~~High (ops)~~ **FIXED 2026-07-07** | Phases 0–5 were uncommitted with the container copy in an ephemeral layer. **Fix:** committed to `feature/sales-lifecycle-extension` (fc9f65d + tests + hardening); snapshotted the running container into `traders-backend:latest` so a recreate keeps the extension; recreated the stack and re-ran the integration suite (6/6) to prove container == git == image. Also pinned frappe/erpnext build args (43f1742) so a clean rebuild is reproducible. Backup image `traders-backend:pre-extension-backup` retained. | `git status` + image snapshot |
 | SA-02 | ~~Medium~~ **FIXED 2026-07-07** | `compose/auth_cookies.txt` was **tracked in git with a session `sid`** despite a matching `.gitignore` rule (it predated the rule). **Fix:** `git rm --cached compose/auth_cookies.txt` (file kept on disk, now ignored). Root `cookies.txt` was already untracked. Rotate the demo session for good measure. | `git ls-files` + file contents |
 | SA-03 | ~~Medium~~ **FIXED 2026-07-07** | `decision_log.get_decision_trace` queried via `frappe.get_all` (bypasses user permissions) **without a company/tenant check** → cross-tenant read of decision traces. **Fix:** now asserts access to the referenced document's company and filters returned rows to the user's permitted companies. | [api/decision_log.py](../../apps/trader_app/trader_app/api/decision_log.py) |
 | SA-04 | ~~Medium~~ **FIXED 2026-07-07** | `process.get_state_model` accepted any company without an access check; `process.transition_state` never asserted company scope. **Fix:** `get_state_model` now calls `user_can_access_company`; `transition_state` calls `assert_document_company_access`. | [api/process.py](../../apps/trader_app/trader_app/api/process.py) |
@@ -192,9 +192,9 @@ inert migrated config packs, admin `bilal@electrance.local` (Trader Admin).
 
 | # | Risk | Likelihood | Impact | Action |
 |---|---|---|---|---|
-| 1 | Uncommitted Phases 0–5 lost or image rebuilt without them (schema/code desync) | High | Severe | **Commit to branch now**, then rebuild image from repo |
+| 1 | ~~Uncommitted Phases 0–5 lost or image rebuilt without them~~ **FIXED 2026-07-07** | — | — | Committed + snapshotted into image + recreated + reverified (6/6); build args pinned |
 | 2 | ~~SA-03/SA-04 cross-tenant reads via new endpoints~~ **FIXED 2026-07-07** | — | — | Company guards added on the three endpoints |
-| 3 | No regression suite over 230 endpoints + new engines | High | High | Convert phase self-tests into permanent `tests/`; golden documents per PRD §11 |
+| 3 | No regression suite over 230 endpoints + new engines | Medium | High | **Largely addressed 2026-07-07:** `tests/test_sales_lifecycle.py` (19 pure-logic) + `tests/test_sales_lifecycle_integration.py` (6 site-backed E2E: grouped invoicing, rule enforcement, FX snapshot, posting dry-run, config durability — verified with full fixture cleanup). Still owed: PRD §11 golden-document fixtures and broader coverage of the ~200 pre-existing endpoints. |
 | 4 | Tracked session-cookie file (SA-02) | Low (stale) | Medium | `git rm --cached compose/auth_cookies.txt cookies.txt`, extend .gitignore |
 | 5 | Role-based UI visibility absent (FIND-06) | High | Medium | Gate sidebar/routes on `get_current_user_roles` |
 | 6 | `reports.py` monolith + 199 raw SQL sites | Medium | Medium | Incremental review; extract query builders |
