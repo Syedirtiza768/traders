@@ -139,6 +139,12 @@ def get_items(item_group=None, page=1, page_size=20, search=None):
     conditions = ["i.disabled = 0"]
     params = {}
 
+    from trader_app.api.permissions import tenant_sql_filter
+    tcond, tparams = tenant_sql_filter("i")
+    if tcond:
+        conditions.append(tcond)
+        params.update(tparams)
+
     if item_group:
         conditions.append("i.item_group = %(item_group)s")
         params["item_group"] = item_group
