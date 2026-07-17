@@ -6,13 +6,11 @@ Traders — Architecture Audit Findings and Risk Register
 ## Purpose
 Central register of all architectural issues, gaps, risks, and their resolution status.
 
-**Referenced by:** [[SALES_LIFECYCLE_EXTENSION_DESIGN]] — cross-check before marking a phase shipped
-
 ## Generated From
 Full architecture audit reconciliation of all layers.
 
 ## Last Audit Basis
-Complete audit — 2026-07-07
+Complete audit — 2026-07-17
 
 ---
 
