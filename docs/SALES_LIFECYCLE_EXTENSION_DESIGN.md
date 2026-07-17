@@ -6,6 +6,17 @@
 **Author:** Engineering
 **Companion to:** the product PRD "Configurable Sales Lifecycle Extension"
 
+## Related docs (vault)
+
+- [[ARCHITECTURE]] — system topology this extension layers onto (Frappe/ERPNext + trader-ui)
+- [[repository-architecture]] — repo zones and tech stack referenced throughout §2–4
+- [[database-entity-map]] — existing DocTypes the new config packs (§2) extend
+- [[module-traceability]] — Sales module nav→API→DB chain that FR-1/FR-7 hook into
+- [[architecture-findings]] — live findings register; cross-check before marking a phase shipped
+- [[full-system-analysis-2026-07-07]] — full-system audit covering Phases 0–5 of this design
+- [[IMPLEMENTATION_PROGRESS]] — tracker to update as phases in §6 land
+- [[RISK_REGISTER]] — financial/posting risks relevant to Phase 4 (posting profiles)
+
 ---
 
 ## 0. The one decision this document exists to make

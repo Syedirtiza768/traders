@@ -1,6 +1,15 @@
 import { create } from 'zustand';
 import { tenantApi } from '../lib/api';
 import { applyTenantBranding, clearTenantBranding, isTenantBlocked } from '../lib/tenantBranding';
+import {
+  isNavFeatureHidden,
+  navFeatureForPath,
+  parseWorkflowPrefs,
+  resolveNavProfile,
+  type NavFeatureKey,
+  type NavProfileId,
+  type WorkflowPrefs,
+} from '../lib/navProfile';
 
 export type TenantConfig = {
   tenant_id: string;
@@ -15,6 +24,8 @@ export type TenantConfig = {
   logo?: string;
   branding?: Record<string, unknown>;
   enabled_modules?: string[];
+  workflow_prefs?: WorkflowPrefs | Record<string, unknown>;
+  nav_profile?: string;
 };
 
 interface TenantState {
@@ -28,6 +39,10 @@ interface TenantState {
   load: () => Promise<void>;
   hydrateFromSettings: (tenant: TenantConfig | null | undefined, multitenantEnabled?: boolean) => void;
   isModuleEnabled: (moduleKey: string) => boolean;
+  getWorkflowPrefs: () => WorkflowPrefs;
+  getNavProfile: () => NavProfileId;
+  isNavFeatureVisible: (feature?: NavFeatureKey | string) => boolean;
+  isPathAllowedByNavProfile: (path: string) => boolean;
   reset: () => void;
 }
 
@@ -125,6 +140,36 @@ export const useTenantStore = create<TenantState>((set, get) => ({
     const modules = state.tenant?.enabled_modules;
     if (!modules || modules.length === 0) return DEFAULT_MODULES.includes(moduleKey);
     return modules.includes(moduleKey);
+  },
+
+  getWorkflowPrefs: () => {
+    const tenant = get().tenant;
+    if (!tenant) return {};
+    if (tenant.workflow_prefs) return parseWorkflowPrefs(tenant.workflow_prefs);
+    if (tenant.nav_profile) return { nav_profile: tenant.nav_profile };
+    return {};
+  },
+
+  getNavProfile: () => resolveNavProfile(get().getWorkflowPrefs()),
+
+  isNavFeatureVisible: (feature?: NavFeatureKey | string) => {
+    if (!feature) return true;
+    const state = get();
+    if (!state.enabled) return true;
+    return !isNavFeatureHidden(feature, state.getWorkflowPrefs());
+  },
+
+  isPathAllowedByNavProfile: (path: string) => {
+    const state = get();
+    if (!state.enabled) return true;
+    const feature = navFeatureForPath(path);
+    if (!feature) return true;
+    // Voucher detail deep-links from Day Book stay reachable even when list UIs are hidden.
+    const clean = (path.split('?')[0] || path).replace(/\/$/, '');
+    if (/^\/sales\/[^/]+$/.test(clean) && clean !== '/sales/new') return true;
+    if (/^\/purchases\/[^/]+$/.test(clean) && clean !== '/purchases/new') return true;
+    if (/^\/finance\/payments\/[^/]+$/.test(clean) && clean !== '/finance/payments/new') return true;
+    return state.isNavFeatureVisible(feature);
   },
 
   reset: () => {

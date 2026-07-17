@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Building2, CreditCard, Edit, FilePlus2, Globe, Ban, Mail, Package, Phone, Plus, ReceiptText, Truck } from 'lucide-react';
+import { ArrowLeft, Building2, CreditCard, Edit, FilePlus2, Globe, Ban, Mail, Package, Phone, Plus, ReceiptText, Truck, BookOpen } from 'lucide-react';
 import { suppliersApi } from '../lib/api';
 import { appendPreservedListQuery, formatCurrency, formatDate, getActiveCurrency, getStatusColor, isOperationsContext, isReportContext } from '../lib/utils';
+import { useTenantStore } from '../stores/tenantStore';
+import PartySettleModal from '../components/PartySettleModal';
 
 type SupplierDetail = Record<string, any>;
 
@@ -10,12 +12,14 @@ export default function SupplierDetailPage() {
   const navigate = useNavigate();
   const { supplierId } = useParams();
   const [searchParams] = useSearchParams();
+  const daybookShell = useTenantStore((s) => s.getNavProfile()) === 'components_daybook';
   const [supplier, setSupplier] = useState<SupplierDetail | null>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toggling, setToggling] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [settleOpen, setSettleOpen] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -131,38 +135,62 @@ export default function SupplierDetailPage() {
       </div>
 
       <div className="flex flex-wrap justify-end gap-2">
-        <button
-          onClick={() => navigate(`/purchases/new?supplier=${encodeURIComponent(supplier.name)}`)}
-          className="btn-secondary inline-flex items-center gap-2"
-        >
-          <FilePlus2 className="w-4 h-4" /> New Purchase Invoice
-        </button>
-        <button
-          onClick={() => navigate(`/purchases/orders/new?supplier=${encodeURIComponent(supplier.name)}`)}
-          className="btn-secondary inline-flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" /> New Purchase Order
-        </button>
-        <button
-          onClick={() => navigate(appendPreservedListQuery(`/suppliers/${encodeURIComponent(supplier.name)}/edit`, listSearch))}
-          className="btn-secondary inline-flex items-center gap-2"
-        >
-          <Edit className="w-4 h-4" /> Edit
-        </button>
-        <button
-          onClick={handleToggleDisable}
-          disabled={toggling}
-          className="btn-secondary inline-flex items-center gap-2 text-amber-700 hover:text-amber-800 disabled:opacity-60"
-        >
-          <Ban className="w-4 h-4" /> {supplier.disabled ? (toggling ? 'Enabling…' : 'Enable') : (toggling ? 'Disabling…' : 'Disable')}
-        </button>
-        {(supplier.outstanding_amount || 0) > 0 && (
-          <button
-            onClick={() => navigate(appendPreservedListQuery(`/finance/payments/new?paymentType=Pay&partyType=Supplier&party=${encodeURIComponent(supplier.name)}&amount=${encodeURIComponent(String(supplier.outstanding_amount || 0))}`, listSearch))}
-            className="btn-primary"
-          >
-            Pay Supplier Balance
-          </button>
+        {daybookShell ? (
+          <>
+            <button
+              onClick={() => navigate('/finance/day-book')}
+              className="btn-secondary inline-flex items-center gap-2"
+            >
+              <BookOpen className="w-4 h-4" /> Day Book
+            </button>
+            <button
+              onClick={() => navigate(appendPreservedListQuery(`/suppliers/${encodeURIComponent(supplier.name)}/edit`, listSearch))}
+              className="btn-secondary inline-flex items-center gap-2"
+            >
+              <Edit className="w-4 h-4" /> Edit
+            </button>
+            {(supplier.outstanding_amount || 0) > 0 && (
+              <button onClick={() => setSettleOpen(true)} className="btn-primary">
+                Pay / Settle
+              </button>
+            )}
+          </>
+        ) : (
+          <>
+            <button
+              onClick={() => navigate(`/purchases/new?supplier=${encodeURIComponent(supplier.name)}`)}
+              className="btn-secondary inline-flex items-center gap-2"
+            >
+              <FilePlus2 className="w-4 h-4" /> New Purchase Invoice
+            </button>
+            <button
+              onClick={() => navigate(`/purchases/orders/new?supplier=${encodeURIComponent(supplier.name)}`)}
+              className="btn-secondary inline-flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" /> New Purchase Order
+            </button>
+            <button
+              onClick={() => navigate(appendPreservedListQuery(`/suppliers/${encodeURIComponent(supplier.name)}/edit`, listSearch))}
+              className="btn-secondary inline-flex items-center gap-2"
+            >
+              <Edit className="w-4 h-4" /> Edit
+            </button>
+            <button
+              onClick={handleToggleDisable}
+              disabled={toggling}
+              className="btn-secondary inline-flex items-center gap-2 text-amber-700 hover:text-amber-800 disabled:opacity-60"
+            >
+              <Ban className="w-4 h-4" /> {supplier.disabled ? (toggling ? 'Enabling…' : 'Enable') : (toggling ? 'Disabling…' : 'Disable')}
+            </button>
+            {(supplier.outstanding_amount || 0) > 0 && (
+              <button
+                onClick={() => navigate(appendPreservedListQuery(`/finance/payments/new?paymentType=Pay&partyType=Supplier&party=${encodeURIComponent(supplier.name)}&amount=${encodeURIComponent(String(supplier.outstanding_amount || 0))}`, listSearch))}
+                className="btn-primary"
+              >
+                Pay Supplier Balance
+              </button>
+            )}
+          </>
         )}
       </div>
 
@@ -257,7 +285,13 @@ export default function SupplierDetailPage() {
                       <td className="px-6 py-3 text-right">
                         {(tx.outstanding_amount || 0) > 0 ? (
                           <button
-                            onClick={() => navigate(`/finance/payments/new?paymentType=Pay&partyType=Supplier&party=${encodeURIComponent(supplier.name)}&amount=${encodeURIComponent(String(tx.outstanding_amount || 0))}&referenceName=${encodeURIComponent(tx.name)}${listSearch ? `&list=${encodeURIComponent(listSearch)}` : ''}`)}
+                            onClick={() => {
+                              if (daybookShell) {
+                                setSettleOpen(true);
+                                return;
+                              }
+                              navigate(`/finance/payments/new?paymentType=Pay&partyType=Supplier&party=${encodeURIComponent(supplier.name)}&amount=${encodeURIComponent(String(tx.outstanding_amount || 0))}&referenceName=${encodeURIComponent(tx.name)}${listSearch ? `&list=${encodeURIComponent(listSearch)}` : ''}`);
+                            }}
                             className="btn-secondary text-xs"
                           >
                             Pay Now
@@ -299,7 +333,13 @@ export default function SupplierDetailPage() {
                   <div className="flex justify-between items-center mt-1">
                     <span className="text-xs text-red-600">Outstanding: {formatCurrency(tx.outstanding_amount)}</span>
                     <button
-                      onClick={() => navigate(`/finance/payments/new?paymentType=Pay&partyType=Supplier&party=${encodeURIComponent(supplier.name)}&amount=${encodeURIComponent(String(tx.outstanding_amount || 0))}&referenceName=${encodeURIComponent(tx.name)}${listSearch ? `&list=${encodeURIComponent(listSearch)}` : ''}`)}
+                      onClick={() => {
+                        if (daybookShell) {
+                          setSettleOpen(true);
+                          return;
+                        }
+                        navigate(`/finance/payments/new?paymentType=Pay&partyType=Supplier&party=${encodeURIComponent(supplier.name)}&amount=${encodeURIComponent(String(tx.outstanding_amount || 0))}&referenceName=${encodeURIComponent(tx.name)}${listSearch ? `&list=${encodeURIComponent(listSearch)}` : ''}`);
+                      }}
                       className="btn-secondary text-xs py-1 px-2"
                     >
                       Pay Now
@@ -311,6 +351,29 @@ export default function SupplierDetailPage() {
           )}
         </div>
       </div>
+      {settleOpen && (
+        <PartySettleModal
+          partyType="Supplier"
+          party={supplier.name}
+          partyName={supplier.supplier_name || supplier.name}
+          balance={Number(supplier.outstanding_amount) || 0}
+          variant="pay"
+          onClose={() => setSettleOpen(false)}
+          onSuccess={(message) => {
+            setFeedback({ type: 'success', message });
+            setSettleOpen(false);
+            void (async () => {
+              const decodedId = decodeURIComponent(supplierId!);
+              const [detailRes, txRes] = await Promise.all([
+                suppliersApi.getDetail(decodedId),
+                suppliersApi.getTransactions(decodedId, { page: 1, page_size: 8 }),
+              ]);
+              setSupplier(detailRes.data.message);
+              setTransactions(txRes.data.message?.data || []);
+            })();
+          }}
+        />
+      )}
     </div>
   );
 }

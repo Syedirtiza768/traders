@@ -41,14 +41,19 @@ def get_active_company_name(user=None):
 
 
 def get_permitted_company_names(user=None):
-    """Company names the user may access (tenant-scoped when multi-tenant is enabled)."""
+    """Company names the user may access (tenant-scoped when multi-tenant is enabled).
+
+    Any user with ``trader_tenant`` set is confined to that tenant's companies —
+    including System Manager / Trader Admin. Only Administrator and tenant-less
+    platform super-admins may see every company.
+    """
     user = user or frappe.session.user
     if user == "Administrator":
         return frappe.get_all("Company", pluck="name", order_by="name asc")
 
     companies = frappe.get_all("Company", pluck="name", order_by="name asc")
 
-    if is_multitenant_enabled() and not is_super_admin(user):
+    if is_multitenant_enabled():
         tenant = get_user_tenant_name(user)
         if tenant:
             allowed = set(get_tenant_companies(tenant))
@@ -77,11 +82,14 @@ def resolve_active_company(company=None, user=None):
     if not user_can_access_company(company, user):
         frappe.throw(_("You do not have permission to access company {0}.").format(company))
 
-    if is_multitenant_enabled() and not is_super_admin(user):
-        tenant = resolve_active_tenant(user=user)
+    if is_multitenant_enabled() and user != "Administrator":
+        # Tenant-assigned users (even System Manager) must stay inside their tenant.
+        tenant = get_user_tenant_name(user)
         if tenant:
             assert_tenant_active(tenant)
             assert_company_belongs_to_tenant(company, tenant, user=user)
+        elif not is_super_admin(user):
+            resolve_active_tenant(user=user)  # raises if tenant required
 
     return company
 

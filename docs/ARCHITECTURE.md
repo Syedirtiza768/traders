@@ -1,5 +1,7 @@
 # Traders — Architecture Blueprint
 
+**Referenced by:** [[SALES_LIFECYCLE_EXTENSION_DESIGN]] — config-pack extension layers onto this topology
+
 ## 1. System Architecture Overview
 
 ```

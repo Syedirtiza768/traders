@@ -6,6 +6,8 @@ Traders — Per-Module Traceability Chains
 ## Purpose
 Documents the complete traceability chain for each business module from navigation to database.
 
+**Referenced by:** [[SALES_LIFECYCLE_EXTENSION_DESIGN]] — FR-1/FR-7 hook into the Sales module chain below
+
 ## Generated From
 Full audit data combining routes, APIs, endpoints, services, and entities.
 

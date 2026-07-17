@@ -37,6 +37,108 @@ MODULE_COMPANY_FIELD_MAP = {
     "components": "trader_components_enabled",
 }
 
+# Nav profiles live in Trader Tenant.workflow_prefs JSON.
+NAV_PROFILE_STANDARD = "standard"
+NAV_PROFILE_COMPONENTS_DAYBOOK = "components_daybook"
+
+COMPONENTS_DAYBOOK_MODULES = (
+    "dashboard",
+    "sales",
+    "purchases",
+    "inventory",
+    "finance",
+    "customers",
+    "suppliers",
+    "components",
+    "settings",
+)
+
+# Child-level nav features hidden for wholesale daybook tenants.
+COMPONENTS_DAYBOOK_HIDE_NAV = (
+    "sales_invoices",
+    "pos",
+    "delivery_challans",
+    "sales_orders",
+    "quotations",
+    "purchase_invoices",
+    "purchase_orders",
+    "requisitions",
+    "rfqs",
+    "inventory_items",
+    "bundles",
+    "warehouse_stock",
+    "stock_movements",
+    "finance_overview",
+    "payments",
+    "journals",
+    "operations",
+    "reports",
+)
+
+
+def parse_workflow_prefs(raw):
+    """Normalize workflow_prefs JSON from Trader Tenant."""
+    if not raw:
+        return {}
+    if isinstance(raw, dict):
+        return dict(raw)
+    if isinstance(raw, str):
+        try:
+            parsed = json.loads(raw)
+            return parsed if isinstance(parsed, dict) else {}
+        except Exception:
+            return {}
+    return {}
+
+
+def get_workflow_prefs(tenant):
+    if not tenant:
+        return {}
+    raw = frappe.db.get_value("Trader Tenant", tenant, "workflow_prefs")
+    return parse_workflow_prefs(raw)
+
+
+def get_nav_profile(tenant):
+    prefs = get_workflow_prefs(tenant)
+    profile = (prefs.get("nav_profile") or NAV_PROFILE_STANDARD).strip()
+    if profile == NAV_PROFILE_COMPONENTS_DAYBOOK:
+        return NAV_PROFILE_COMPONENTS_DAYBOOK
+    return NAV_PROFILE_STANDARD
+
+
+def build_daybook_workflow_prefs(existing=None):
+    prefs = parse_workflow_prefs(existing)
+    prefs["nav_profile"] = NAV_PROFILE_COMPONENTS_DAYBOOK
+    prefs["hide_nav"] = list(COMPONENTS_DAYBOOK_HIDE_NAV)
+    return prefs
+
+
+def apply_components_daybook_profile(tenant):
+    """Enable daybook modules + workflow prefs for a wholesale components tenant."""
+    if not tenant or not frappe.db.exists("Trader Tenant", tenant):
+        frappe.throw(_("Tenant {0} does not exist.").format(tenant))
+
+    enabled_set = set(COMPONENTS_DAYBOOK_MODULES)
+    doc = frappe.get_doc("Trader Tenant", tenant)
+    doc.enabled_modules = []
+    for row in DEFAULT_MODULE_ROWS:
+        doc.append(
+            "enabled_modules",
+            {
+                "module_key": row["module_key"],
+                "enabled": 1 if row["module_key"] in enabled_set else 0,
+            },
+        )
+    doc.workflow_prefs = build_daybook_workflow_prefs(doc.workflow_prefs)
+    doc.save(ignore_permissions=True)
+    sync_tenant_modules_to_company(tenant)
+    return {
+        "ok": True,
+        "tenant": tenant,
+        "enabled_modules": get_enabled_module_keys(tenant),
+        "workflow_prefs": parse_workflow_prefs(doc.workflow_prefs),
+    }
+
 
 def is_multitenant_enabled():
     """Feature flag — set trader_multitenant_enabled=1 in site_config.json."""
@@ -72,9 +174,13 @@ def user_can_access_tenant(tenant, user=None):
     if not tenant:
         return False
     user = user or frappe.session.user
-    if user == "Administrator" or is_super_admin(user):
+    if user == "Administrator":
         return True
-    return get_user_tenant_name(user) == tenant
+    assigned = get_user_tenant_name(user)
+    if assigned:
+        # Tenant-assigned users (incl. System Manager) may only touch their own tenant.
+        return assigned == tenant
+    return is_super_admin(user)
 
 
 def get_tenant_companies(tenant):
@@ -101,33 +207,39 @@ def assert_tenant_active(tenant):
 def resolve_active_tenant(tenant=None, user=None):
     """Resolve tenant for the current request.
 
-    Business users always use User.trader_tenant (request param ignored).
-    Super Admins may pass tenant explicitly for platform operations.
+    Business users (anyone with User.trader_tenant, including System Manager)
+    always use their assigned tenant — request param cannot escalate.
+    Tenant-less platform super-admins may pass tenant explicitly.
     """
     if not is_multitenant_enabled():
         return None
 
     user = user or frappe.session.user
+    if user == "Administrator":
+        if tenant:
+            if not frappe.db.exists("Trader Tenant", tenant):
+                frappe.throw(_("Tenant {0} does not exist.").format(tenant))
+            return tenant
+        return None
+
+    assigned = get_user_tenant_name(user)
+    if assigned:
+        if tenant and tenant != assigned:
+            frappe.throw(_("You cannot access another business account."), frappe.PermissionError)
+        assert_tenant_active(assigned)
+        return assigned
 
     if is_super_admin(user):
         if tenant:
             if not frappe.db.exists("Trader Tenant", tenant):
                 frappe.throw(_("Tenant {0} does not exist.").format(tenant))
             return tenant
-        return get_user_tenant_name(user)
+        return None
 
-    assigned = get_user_tenant_name(user)
-    if not assigned:
-        frappe.throw(
-            _("Your account is not assigned to a business. Contact the platform administrator."),
-            frappe.PermissionError,
-        )
-
-    if tenant and tenant != assigned:
-        frappe.throw(_("You cannot access another business account."), frappe.PermissionError)
-
-    assert_tenant_active(assigned)
-    return assigned
+    frappe.throw(
+        _("Your account is not assigned to a business. Contact the platform administrator."),
+        frappe.PermissionError,
+    )
 
 
 def assert_company_belongs_to_tenant(company, tenant, user=None):
@@ -203,6 +315,8 @@ def _tenant_payload(tenant_name):
         except Exception:
             branding = {}
 
+    workflow_prefs = parse_workflow_prefs(doc.workflow_prefs)
+
     return {
         "tenant_id": doc.name,
         "tenant_name": doc.tenant_name,
@@ -215,6 +329,8 @@ def _tenant_payload(tenant_name):
         "logo": doc.logo,
         "branding": branding or {},
         "enabled_modules": get_enabled_module_keys(doc.name),
+        "workflow_prefs": workflow_prefs,
+        "nav_profile": (workflow_prefs.get("nav_profile") or NAV_PROFILE_STANDARD),
     }
 
 

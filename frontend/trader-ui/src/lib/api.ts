@@ -199,6 +199,9 @@ export const superAdminApi = {
   setTenantBranding: (tenant: string, branding: Record<string, unknown>, logo?: string) =>
     call('trader_app.api.super_admin.set_tenant_branding', { tenant, branding, logo }),
 
+  setTenantNavProfile: (tenant: string, profile: 'standard' | 'components_daybook') =>
+    call('trader_app.api.super_admin.set_tenant_nav_profile', { tenant, profile }),
+
   getTenantAuditLog: (tenant: string, params?: { page?: number; page_size?: number }) =>
     get('trader_app.api.super_admin.get_tenant_audit_log', { tenant, ...params }),
 };

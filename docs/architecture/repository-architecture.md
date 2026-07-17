@@ -6,6 +6,8 @@ Traders — Repository Architecture Overview
 ## Purpose
 High-level description of the repository structure, major architectural zones, technology stack, and deployment topology.
 
+**Referenced by:** [[SALES_LIFECYCLE_EXTENSION_DESIGN]]
+
 ## Generated From
 Full repository scan of `d:\apps\Traders\`
 

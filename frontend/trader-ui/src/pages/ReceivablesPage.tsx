@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowDownLeft, RefreshCw, Search, AlertTriangle,
   ChevronLeft, ChevronRight, CheckCircle, X,
@@ -150,7 +150,14 @@ export default function ReceivablesPage() {
               <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
                 {rows.map((r) => (
                   <tr key={r.party} className="hover:bg-gray-50 dark:hover:bg-slate-900/30">
-                    <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">{r.customer_name}</td>
+                    <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">
+                      <Link
+                        to={`/customers/${encodeURIComponent(r.party)}`}
+                        className="text-brand-700 dark:text-brand-300 hover:underline"
+                      >
+                        {r.customer_name}
+                      </Link>
+                    </td>
                     <td className="px-4 py-2.5 text-gray-500 font-mono text-xs">{r.short_code || '—'}</td>
                     <td className="px-4 py-2.5 text-center text-gray-600 dark:text-gray-400">{r.open_invoices}</td>
                     <td className="px-4 py-2.5 text-right font-bold text-emerald-600 dark:text-emerald-400">
@@ -163,12 +170,20 @@ export default function ReceivablesPage() {
                     </td>
                     <td className="px-4 py-2.5 text-center text-xs text-gray-500">{r.oldest_invoice_date || '—'}</td>
                     <td className="px-4 py-2.5 text-center">
-                      <button
-                        onClick={() => setSettle({ party: r.party, name: r.customer_name, balance: r.total_outstanding })}
-                        className="text-xs bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-700 rounded px-2 py-1 hover:bg-emerald-100 transition-colors"
-                      >
-                        Settle
-                      </button>
+                      <div className="inline-flex items-center gap-1.5">
+                        <Link
+                          to={`/customers/${encodeURIComponent(r.party)}`}
+                          className="text-xs text-gray-500 hover:text-brand-600 px-1.5 py-1"
+                        >
+                          Ledger
+                        </Link>
+                        <button
+                          onClick={() => setSettle({ party: r.party, name: r.customer_name, balance: r.total_outstanding })}
+                          className="text-xs bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-700 rounded px-2 py-1 hover:bg-emerald-100 transition-colors"
+                        >
+                          Settle
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

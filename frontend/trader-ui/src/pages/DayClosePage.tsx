@@ -1,11 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Calendar, RefreshCw, AlertTriangle, TrendingUp, TrendingDown, DollarSign, Package, ArrowDownLeft, ArrowUpRight, PrinterIcon, BookOpen } from 'lucide-react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  Calendar, RefreshCw, AlertTriangle, TrendingUp, TrendingDown, DollarSign, Package,
+  ArrowDownLeft, ArrowUpRight, PrinterIcon, BookOpen,
+} from 'lucide-react';
 import { daybookApi } from '../lib/api';
 import { useCompanyStore } from '../stores/companyStore';
 import { formatAmount } from '../lib/utils';
+import { localTodayStr } from '../lib/navProfile';
 
-function todayStr() { return new Date().toISOString().slice(0, 10); }
 function fmtAmt(n: number) {
   return formatAmount(n);
 }
@@ -23,16 +26,37 @@ interface Summary {
   total_ap: number;
 }
 
+type Tile = {
+  label: string;
+  value: number;
+  icon: React.ComponentType<{ className?: string }>;
+  color: string;
+  bg: string;
+  border: string;
+  to?: string;
+};
+
 export default function DayClosePage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const componentsEnabled = useCompanyStore((s) => s.componentsEnabled);
   const company = useCompanyStore((s) => s.company);
   const revision = useCompanyStore((s) => s.revision);
 
-  const [date, setDate] = useState(todayStr());
+  const [date, setDate] = useState(() => searchParams.get('date') || localTodayStr());
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fromUrl = searchParams.get('date');
+    if (fromUrl && fromUrl !== date) setDate(fromUrl);
+  }, [searchParams]);
+
+  const onDateChange = (next: string) => {
+    setDate(next);
+    setSearchParams(next ? { date: next } : {}, { replace: true });
+  };
 
   const load = useCallback(async () => {
     if (!company) return;
@@ -60,15 +84,78 @@ export default function DayClosePage() {
     );
   }
 
-  const tiles = summary ? [
-    { label: 'Total Sales', value: summary.total_sales, icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20', border: 'border-emerald-200 dark:border-emerald-800' },
-    { label: 'Total Purchases', value: summary.total_purchases, icon: TrendingDown, color: 'text-rose-600', bg: 'bg-rose-50 dark:bg-rose-900/20', border: 'border-rose-200 dark:border-rose-800' },
-    { label: 'Cash In', value: summary.cash_in, icon: ArrowDownLeft, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/20', border: 'border-blue-200 dark:border-blue-800' },
-    { label: 'Cash Out', value: summary.cash_out, icon: ArrowUpRight, color: 'text-orange-600', bg: 'bg-orange-50 dark:bg-orange-900/20', border: 'border-orange-200 dark:border-orange-800' },
-    { label: 'Closing Cash', value: summary.closing_cash, icon: DollarSign, color: summary.closing_cash >= 0 ? 'text-emerald-700' : 'text-rose-700', bg: 'bg-gray-50 dark:bg-slate-900', border: 'border-gray-200 dark:border-slate-700' },
-    { label: 'Stock Value', value: summary.component_stock_value, icon: Package, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-900/20', border: 'border-purple-200 dark:border-purple-800' },
-    { label: 'In-Coming (AR)', value: summary.total_ar, icon: ArrowDownLeft, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20', border: 'border-emerald-200 dark:border-emerald-800' },
-    { label: 'Out-Going (AP)', value: summary.total_ap, icon: ArrowUpRight, color: 'text-rose-600', bg: 'bg-rose-50 dark:bg-rose-900/20', border: 'border-rose-200 dark:border-rose-800' },
+  const tiles: Tile[] = summary ? [
+    {
+      label: 'Total Sales',
+      value: summary.total_sales,
+      icon: TrendingUp,
+      color: 'text-emerald-600',
+      bg: 'bg-emerald-50 dark:bg-emerald-900/20',
+      border: 'border-emerald-200 dark:border-emerald-800',
+      to: `/finance/day-book?date=${summary.date}`,
+    },
+    {
+      label: 'Total Purchases',
+      value: summary.total_purchases,
+      icon: TrendingDown,
+      color: 'text-rose-600',
+      bg: 'bg-rose-50 dark:bg-rose-900/20',
+      border: 'border-rose-200 dark:border-rose-800',
+      to: `/finance/day-book?date=${summary.date}`,
+    },
+    {
+      label: 'Cash In',
+      value: summary.cash_in,
+      icon: ArrowDownLeft,
+      color: 'text-blue-600',
+      bg: 'bg-blue-50 dark:bg-blue-900/20',
+      border: 'border-blue-200 dark:border-blue-800',
+      to: `/finance/day-book?date=${summary.date}`,
+    },
+    {
+      label: 'Cash Out',
+      value: summary.cash_out,
+      icon: ArrowUpRight,
+      color: 'text-orange-600',
+      bg: 'bg-orange-50 dark:bg-orange-900/20',
+      border: 'border-orange-200 dark:border-orange-800',
+      to: `/finance/day-book?date=${summary.date}`,
+    },
+    {
+      label: 'Closing Cash',
+      value: summary.closing_cash,
+      icon: DollarSign,
+      color: summary.closing_cash >= 0 ? 'text-emerald-700' : 'text-rose-700',
+      bg: 'bg-gray-50 dark:bg-slate-900',
+      border: 'border-gray-200 dark:border-slate-700',
+    },
+    {
+      label: 'Stock Value',
+      value: summary.component_stock_value,
+      icon: Package,
+      color: 'text-purple-600',
+      bg: 'bg-purple-50 dark:bg-purple-900/20',
+      border: 'border-purple-200 dark:border-purple-800',
+      to: `/inventory/stock-valuation?date=${summary.date}`,
+    },
+    {
+      label: 'In-Coming (AR)',
+      value: summary.total_ar,
+      icon: ArrowDownLeft,
+      color: 'text-emerald-600',
+      bg: 'bg-emerald-50 dark:bg-emerald-900/20',
+      border: 'border-emerald-200 dark:border-emerald-800',
+      to: '/finance/receivables',
+    },
+    {
+      label: 'Out-Going (AP)',
+      value: summary.total_ap,
+      icon: ArrowUpRight,
+      color: 'text-rose-600',
+      bg: 'bg-rose-50 dark:bg-rose-900/20',
+      border: 'border-rose-200 dark:border-rose-800',
+      to: '/finance/payables',
+    },
   ] : [];
 
   return (
@@ -82,7 +169,7 @@ export default function DayClosePage() {
           <input
             type="date"
             value={date}
-            onChange={(e) => setDate(e.target.value)}
+            onChange={(e) => onDateChange(e.target.value)}
             className="input-field text-sm"
           />
           <button onClick={() => void load()} className="p-2 rounded-lg border border-gray-200 dark:border-slate-700 text-gray-500 hover:text-brand-600">
@@ -116,15 +203,33 @@ export default function DayClosePage() {
             </Link>
           </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {tiles.map(({ label, value, icon: Icon, color, bg, border }) => (
-              <div key={label} className={`rounded-xl border ${border} ${bg} p-4`}>
-                <div className="flex items-center gap-2 mb-1">
-                  <Icon className={`w-4 h-4 ${color}`} />
-                  <span className="text-xs text-gray-500 dark:text-slate-400">{label}</span>
+            {tiles.map(({ label, value, icon: Icon, color, bg, border, to }) => {
+              const body = (
+                <>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Icon className={`w-4 h-4 ${color}`} />
+                    <span className="text-xs text-gray-500 dark:text-slate-400">{label}</span>
+                  </div>
+                  <p className={`text-lg font-bold ${color}`}>{fmtAmt(value)}</p>
+                </>
+              );
+              if (to) {
+                return (
+                  <Link
+                    key={label}
+                    to={to}
+                    className={`rounded-xl border ${border} ${bg} p-4 block hover:ring-2 hover:ring-brand-300 dark:hover:ring-brand-700 transition-shadow`}
+                  >
+                    {body}
+                  </Link>
+                );
+              }
+              return (
+                <div key={label} className={`rounded-xl border ${border} ${bg} p-4`}>
+                  {body}
                 </div>
-                <p className={`text-lg font-bold ${color}`}>{fmtAmt(value)}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-4 space-y-2">
@@ -138,6 +243,11 @@ export default function DayClosePage() {
               <span className={`font-bold ${summary.total_ar - summary.total_ap >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                 {fmtAmt(summary.total_ar - summary.total_ap)}
               </span>
+            </div>
+            <div className="pt-2 flex flex-wrap gap-2 text-xs">
+              <Link to="/finance/receivables" className="text-brand-600 hover:underline">Open customer ledgers →</Link>
+              <Link to="/finance/payables" className="text-brand-600 hover:underline">Open supplier ledgers →</Link>
+              <Link to={`/inventory/stock-valuation?date=${summary.date}`} className="text-brand-600 hover:underline">Stock valuation →</Link>
             </div>
           </div>
         </>

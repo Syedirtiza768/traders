@@ -13,18 +13,24 @@ import {
   Activity,
   X,
   ChevronDown,
+  BookOpen,
+  CalendarCheck,
+  ArrowDownLeft,
+  ArrowUpRight,
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { useCompanyStore } from '../stores/companyStore';
 import { useTenantStore } from '../stores/tenantStore';
 import { hasCapability, type AppCapability } from '../lib/permissions';
 import { type TenantModuleKey } from '../lib/tenantModules';
+import { type NavFeatureKey } from '../lib/navProfile';
 
 interface NavChild {
   to: string;
   label: string;
   module?: TenantModuleKey;
   requiresComponents?: boolean;
+  feature?: NavFeatureKey;
 }
 
 interface NavItem {
@@ -35,41 +41,42 @@ interface NavItem {
   capability?: AppCapability;
   module?: TenantModuleKey;
   requiresComponents?: boolean;
+  feature?: NavFeatureKey;
   children?: NavChild[];
 }
 
-const navItems: NavItem[] = [
+const standardNavItems: NavItem[] = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, exact: true, capability: 'dashboard:view', module: 'dashboard' },
   {
     to: '/sales', label: 'Sales', icon: TrendingUp, capability: 'sales:view', module: 'sales',
     children: [
-      { to: '/sales', label: 'Invoices', module: 'sales' },
-      { to: '/sales/pos', label: 'POS Checkout', module: 'pos' },
-      { to: '/sales/challans', label: 'Delivery Challans', module: 'sales' },
-      { to: '/sales/orders', label: 'Sales Orders', module: 'sales' },
-      { to: '/sales/quotations', label: 'Quotations', module: 'sales' },
+      { to: '/sales', label: 'Invoices', module: 'sales', feature: 'sales_invoices' },
+      { to: '/sales/pos', label: 'POS Checkout', module: 'pos', feature: 'pos' },
+      { to: '/sales/challans', label: 'Delivery Challans', module: 'sales', feature: 'delivery_challans' },
+      { to: '/sales/orders', label: 'Sales Orders', module: 'sales', feature: 'sales_orders' },
+      { to: '/sales/quotations', label: 'Quotations', module: 'sales', feature: 'quotations' },
     ],
   },
   {
     to: '/purchases', label: 'Purchases', icon: TrendingDown, capability: 'purchases:view', module: 'purchases',
     children: [
-      { to: '/purchases', label: 'Invoices', module: 'purchases' },
-      { to: '/purchases/orders', label: 'Purchase Orders', module: 'purchases' },
-      { to: '/purchases/requisitions', label: 'Requisitions', module: 'purchases' },
-      { to: '/purchases/rfqs', label: 'Supplier Quotations', module: 'purchases' },
+      { to: '/purchases', label: 'Invoices', module: 'purchases', feature: 'purchase_invoices' },
+      { to: '/purchases/orders', label: 'Purchase Orders', module: 'purchases', feature: 'purchase_orders' },
+      { to: '/purchases/requisitions', label: 'Requisitions', module: 'purchases', feature: 'requisitions' },
+      { to: '/purchases/rfqs', label: 'Supplier Quotations', module: 'purchases', feature: 'rfqs' },
     ],
   },
   {
     to: '/inventory', label: 'Inventory', icon: Warehouse, capability: 'inventory:view', module: 'inventory',
     children: [
-      { to: '/inventory', label: 'Items & Stock', module: 'inventory' },
-      { to: '/inventory/bundles', label: 'Bundles', module: 'inventory' },
-      { to: '/inventory/warehouse', label: 'Warehouse Stock', module: 'inventory' },
-      { to: '/inventory/movements', label: 'Stock Movements', module: 'inventory' },
-      { to: '/inventory/catalog', label: 'SKU Catalog', module: 'components', requiresComponents: true },
-      { to: '/inventory/opening-stock', label: 'Opening Stock', module: 'components', requiresComponents: true },
-      { to: '/inventory/stock-valuation', label: 'Stock Valuation', module: 'components', requiresComponents: true },
-      { to: '/inventory/stock-take', label: 'Stock Take', module: 'components', requiresComponents: true },
+      { to: '/inventory', label: 'Items & Stock', module: 'inventory', feature: 'inventory_items' },
+      { to: '/inventory/bundles', label: 'Bundles', module: 'inventory', feature: 'bundles' },
+      { to: '/inventory/warehouse', label: 'Warehouse Stock', module: 'inventory', feature: 'warehouse_stock' },
+      { to: '/inventory/movements', label: 'Stock Movements', module: 'inventory', feature: 'stock_movements' },
+      { to: '/inventory/catalog', label: 'SKU Catalog', module: 'components', requiresComponents: true, feature: 'sku_catalog' },
+      { to: '/inventory/opening-stock', label: 'Opening Stock', module: 'components', requiresComponents: true, feature: 'opening_stock' },
+      { to: '/inventory/stock-valuation', label: 'Stock Valuation', module: 'components', requiresComponents: true, feature: 'stock_valuation' },
+      { to: '/inventory/stock-take', label: 'Stock Take', module: 'components', requiresComponents: true, feature: 'stock_take' },
     ],
   },
   { to: '/customers', label: 'Customers', icon: Users, capability: 'customers:view', module: 'customers' },
@@ -77,17 +84,97 @@ const navItems: NavItem[] = [
   {
     to: '/finance', label: 'Finance', icon: DollarSign, capability: 'finance:view', module: 'finance',
     children: [
-      { to: '/finance', label: 'Overview', module: 'finance' },
-      { to: '/finance/payments', label: 'Payments', module: 'finance' },
-      { to: '/finance/journals', label: 'Journal Entries', module: 'finance' },
-      { to: '/finance/day-book', label: 'Day Book', module: 'components', requiresComponents: true },
-      { to: '/finance/receivables', label: 'In-Coming (AR)', module: 'components', requiresComponents: true },
-      { to: '/finance/payables', label: 'Out-Going (AP)', module: 'components', requiresComponents: true },
-      { to: '/finance/day-close', label: 'Day Close', module: 'components', requiresComponents: true },
+      { to: '/finance', label: 'Overview', module: 'finance', feature: 'finance_overview' },
+      { to: '/finance/payments', label: 'Payments', module: 'finance', feature: 'payments' },
+      { to: '/finance/journals', label: 'Journal Entries', module: 'finance', feature: 'journals' },
+      { to: '/finance/day-book', label: 'Day Book', module: 'components', requiresComponents: true, feature: 'day_book' },
+      { to: '/finance/receivables', label: 'In-Coming (AR)', module: 'components', requiresComponents: true, feature: 'receivables' },
+      { to: '/finance/payables', label: 'Out-Going (AP)', module: 'components', requiresComponents: true, feature: 'payables' },
+      { to: '/finance/day-close', label: 'Day Close', module: 'components', requiresComponents: true, feature: 'day_close' },
     ],
   },
-  { to: '/operations', label: 'Operations', icon: Activity, capability: 'operations:view', module: 'operations' },
-  { to: '/reports', label: 'Reports', icon: BarChart2, capability: 'reports:view', module: 'reports' },
+  { to: '/operations', label: 'Operations', icon: Activity, capability: 'operations:view', module: 'operations', feature: 'operations' },
+  { to: '/reports', label: 'Reports', icon: BarChart2, capability: 'reports:view', module: 'reports', feature: 'reports' },
+];
+
+/** Flattened daybook-first shell for components wholesale tenants. */
+const daybookNavItems: NavItem[] = [
+  { to: '/', label: 'Dashboard', icon: LayoutDashboard, exact: true, capability: 'dashboard:view', module: 'dashboard' },
+  {
+    to: '/finance/day-book',
+    label: 'Day Book',
+    icon: BookOpen,
+    capability: 'finance:view',
+    module: 'components',
+    requiresComponents: true,
+    feature: 'day_book',
+  },
+  {
+    to: '/finance/day-close',
+    label: 'Day Close',
+    icon: CalendarCheck,
+    capability: 'finance:view',
+    module: 'components',
+    requiresComponents: true,
+    feature: 'day_close',
+  },
+  {
+    to: '/finance/receivables',
+    label: 'In-Coming',
+    icon: ArrowDownLeft,
+    capability: 'finance:view',
+    module: 'components',
+    requiresComponents: true,
+    feature: 'receivables',
+  },
+  {
+    to: '/finance/payables',
+    label: 'Out-Going',
+    icon: ArrowUpRight,
+    capability: 'finance:view',
+    module: 'components',
+    requiresComponents: true,
+    feature: 'payables',
+  },
+  { to: '/customers', label: 'Customers', icon: Users, capability: 'customers:view', module: 'customers' },
+  { to: '/suppliers', label: 'Suppliers', icon: Truck, capability: 'suppliers:view', module: 'suppliers' },
+  {
+    to: '/inventory/stock-valuation',
+    label: 'Stock',
+    icon: Warehouse,
+    capability: 'inventory:view',
+    module: 'inventory',
+    children: [
+      {
+        to: '/inventory/stock-valuation',
+        label: 'Stock Valuation',
+        module: 'components',
+        requiresComponents: true,
+        feature: 'stock_valuation',
+      },
+      {
+        to: '/inventory/catalog',
+        label: 'SKU Catalog',
+        module: 'components',
+        requiresComponents: true,
+        feature: 'sku_catalog',
+      },
+      {
+        to: '/inventory/stock-take',
+        label: 'Stock Take',
+        module: 'components',
+        requiresComponents: true,
+        feature: 'stock_take',
+      },
+      {
+        to: '/inventory/opening-stock',
+        label: 'Opening Stock',
+        module: 'components',
+        requiresComponents: true,
+        feature: 'opening_stock',
+      },
+    ],
+  },
 ];
 
 const bottomItems: NavItem[] = [
@@ -105,15 +192,25 @@ export default function Sidebar({ mobile = false, onClose }: SidebarProps) {
   const componentsEnabled = useCompanyStore((s) => s.componentsEnabled);
   const multitenantEnabled = useTenantStore((s) => s.enabled);
   const isModuleEnabled = useTenantStore((s) => s.isModuleEnabled);
+  const isNavFeatureVisible = useTenantStore((s) => s.isNavFeatureVisible);
+  const getNavProfile = useTenantStore((s) => s.getNavProfile);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  const navItems = getNavProfile() === 'components_daybook' ? daybookNavItems : standardNavItems;
 
   const isModuleVisible = (module?: TenantModuleKey) => {
     if (!module || !multitenantEnabled) return true;
     return isModuleEnabled(module);
   };
 
+  const isFeatureVisible = (feature?: NavFeatureKey) => {
+    if (!feature || !multitenantEnabled) return true;
+    return isNavFeatureVisible(feature);
+  };
+
   const isChildVisible = (child: NavChild) => {
     if (child.requiresComponents && !componentsEnabled) return false;
+    if (!isFeatureVisible(child.feature)) return false;
     return isModuleVisible(child.module);
   };
 
@@ -122,6 +219,7 @@ export default function Sidebar({ mobile = false, onClose }: SidebarProps) {
       return false;
     }
     if (item.requiresComponents && !componentsEnabled) return false;
+    if (!isFeatureVisible(item.feature)) return false;
     if (!isModuleVisible(item.module)) return false;
     if (item.children) {
       return item.children.some(isChildVisible);
@@ -139,7 +237,6 @@ export default function Sidebar({ mobile = false, onClose }: SidebarProps) {
   };
 
   const isChildActive = (child: NavChild, parent: NavItem) => {
-    // For exact parent path children (e.g., /sales -> Invoices), match exactly
     if (child.to === parent.to) {
       return location.pathname === child.to;
     }
@@ -199,7 +296,7 @@ export default function Sidebar({ mobile = false, onClose }: SidebarProps) {
         key={item.to}
         to={item.to}
         end={item.exact}
-        className={`sidebar-link ${active ? 'active' : ''}`}
+        className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
         onClick={mobile ? onClose : undefined}
       >
         <item.icon className="w-5 h-5 flex-shrink-0" />
@@ -216,7 +313,6 @@ export default function Sidebar({ mobile = false, onClose }: SidebarProps) {
           : 'fixed left-0 top-16 bottom-0 w-[260px] bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-700 z-40 flex flex-col'
       }`}
     >
-      {/* Mobile header with close button */}
       {mobile && (
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-slate-700">
           <span className="text-lg font-bold text-gray-900 dark:text-gray-100">Menu</span>
@@ -230,7 +326,6 @@ export default function Sidebar({ mobile = false, onClose }: SidebarProps) {
         </div>
       )}
 
-      {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         <p className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
           Main Menu
@@ -245,7 +340,6 @@ export default function Sidebar({ mobile = false, onClose }: SidebarProps) {
         {bottomItems.map(renderItem)}
       </nav>
 
-      {/* Footer */}
       <div className="px-4 py-3 border-t border-gray-100 dark:border-slate-700 pb-safe">
         <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-slate-500">
           <div className="w-2 h-2 bg-green-500 rounded-full" />

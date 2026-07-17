@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Building2, CreditCard, Edit, FilePlus2, Mail, MapPin, Phone, Plus, ReceiptText, TrendingUp, User, Ban } from 'lucide-react';
+import { ArrowLeft, Building2, CreditCard, Edit, FilePlus2, Mail, MapPin, Phone, Plus, ReceiptText, TrendingUp, User, Ban, BookOpen } from 'lucide-react';
 import { customersApi } from '../lib/api';
 import { appendPreservedListQuery, formatCurrency, formatDate, getActiveCurrency, getStatusColor, isOperationsContext, isReportContext } from '../lib/utils';
+import { useTenantStore } from '../stores/tenantStore';
+import PartySettleModal from '../components/PartySettleModal';
 
 type CustomerDetail = Record<string, any>;
 
@@ -10,12 +12,14 @@ export default function CustomerDetailPage() {
   const navigate = useNavigate();
   const { customerId } = useParams();
   const [searchParams] = useSearchParams();
+  const daybookShell = useTenantStore((s) => s.getNavProfile()) === 'components_daybook';
   const [customer, setCustomer] = useState<CustomerDetail | null>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toggling, setToggling] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [settleOpen, setSettleOpen] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -139,38 +143,62 @@ export default function CustomerDetailPage() {
       </div>
 
       <div className="flex flex-wrap justify-end gap-2">
-        <button
-          onClick={() => navigate(`/sales/new?customer=${encodeURIComponent(customer.name)}`)}
-          className="btn-secondary flex items-center gap-2"
-        >
-          <FilePlus2 className="w-4 h-4" /> New Invoice
-        </button>
-        <button
-          onClick={() => navigate(`/sales/orders/new?customer=${encodeURIComponent(customer.name)}`)}
-          className="btn-secondary flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" /> New Order
-        </button>
-        <button
-          onClick={() => navigate(`/customers/${encodeURIComponent(customer.name)}/edit`)}
-          className="btn-secondary flex items-center gap-2"
-        >
-          <Edit className="w-4 h-4" /> Edit
-        </button>
-        <button
-          onClick={handleToggleDisable}
-          disabled={toggling}
-          className="btn-secondary flex items-center gap-2 text-amber-700 hover:text-amber-800 disabled:opacity-60"
-        >
-          <Ban className="w-4 h-4" /> {customer.disabled ? (toggling ? 'Enabling…' : 'Enable') : (toggling ? 'Disabling…' : 'Disable')}
-        </button>
-        {(customer.outstanding_amount || 0) > 0 && (
-          <button
-            onClick={() => navigate(appendPreservedListQuery(`/finance/payments/new?paymentType=Receive&partyType=Customer&party=${encodeURIComponent(customer.name)}&amount=${encodeURIComponent(String(customer.outstanding_amount || 0))}`, listSearch))}
-            className="btn-primary"
-          >
-            Collect Payment
-          </button>
+        {daybookShell ? (
+          <>
+            <button
+              onClick={() => navigate('/finance/day-book')}
+              className="btn-secondary flex items-center gap-2"
+            >
+              <BookOpen className="w-4 h-4" /> Day Book
+            </button>
+            <button
+              onClick={() => navigate(`/customers/${encodeURIComponent(customer.name)}/edit`)}
+              className="btn-secondary flex items-center gap-2"
+            >
+              <Edit className="w-4 h-4" /> Edit
+            </button>
+            {(customer.outstanding_amount || 0) > 0 && (
+              <button onClick={() => setSettleOpen(true)} className="btn-primary">
+                Receive / Settle
+              </button>
+            )}
+          </>
+        ) : (
+          <>
+            <button
+              onClick={() => navigate(`/sales/new?customer=${encodeURIComponent(customer.name)}`)}
+              className="btn-secondary flex items-center gap-2"
+            >
+              <FilePlus2 className="w-4 h-4" /> New Invoice
+            </button>
+            <button
+              onClick={() => navigate(`/sales/orders/new?customer=${encodeURIComponent(customer.name)}`)}
+              className="btn-secondary flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" /> New Order
+            </button>
+            <button
+              onClick={() => navigate(`/customers/${encodeURIComponent(customer.name)}/edit`)}
+              className="btn-secondary flex items-center gap-2"
+            >
+              <Edit className="w-4 h-4" /> Edit
+            </button>
+            <button
+              onClick={handleToggleDisable}
+              disabled={toggling}
+              className="btn-secondary flex items-center gap-2 text-amber-700 hover:text-amber-800 disabled:opacity-60"
+            >
+              <Ban className="w-4 h-4" /> {customer.disabled ? (toggling ? 'Enabling…' : 'Enable') : (toggling ? 'Disabling…' : 'Disable')}
+            </button>
+            {(customer.outstanding_amount || 0) > 0 && (
+              <button
+                onClick={() => navigate(appendPreservedListQuery(`/finance/payments/new?paymentType=Receive&partyType=Customer&party=${encodeURIComponent(customer.name)}&amount=${encodeURIComponent(String(customer.outstanding_amount || 0))}`, listSearch))}
+                className="btn-primary"
+              >
+                Collect Payment
+              </button>
+            )}
+          </>
         )}
       </div>
 
@@ -266,7 +294,13 @@ export default function CustomerDetailPage() {
                       <td className="px-6 py-3 text-right">
                         {(tx.outstanding_amount || 0) > 0 ? (
                           <button
-                            onClick={() => navigate(`/finance/payments/new?paymentType=Receive&partyType=Customer&party=${encodeURIComponent(customer.name)}&amount=${encodeURIComponent(String(tx.outstanding_amount || 0))}&referenceName=${encodeURIComponent(tx.name)}${listSearch ? `&list=${encodeURIComponent(listSearch)}` : ''}`)}
+                            onClick={() => {
+                              if (daybookShell) {
+                                setSettleOpen(true);
+                                return;
+                              }
+                              navigate(`/finance/payments/new?paymentType=Receive&partyType=Customer&party=${encodeURIComponent(customer.name)}&amount=${encodeURIComponent(String(tx.outstanding_amount || 0))}&referenceName=${encodeURIComponent(tx.name)}${listSearch ? `&list=${encodeURIComponent(listSearch)}` : ''}`);
+                            }}
                             className="btn-secondary text-xs"
                           >
                             Collect
@@ -308,7 +342,13 @@ export default function CustomerDetailPage() {
                   <div className="flex justify-between items-center mt-1">
                     <span className="text-xs text-red-600">Outstanding: {formatCurrency(tx.outstanding_amount)}</span>
                     <button
-                      onClick={() => navigate(`/finance/payments/new?paymentType=Receive&partyType=Customer&party=${encodeURIComponent(customer.name)}&amount=${encodeURIComponent(String(tx.outstanding_amount || 0))}&referenceName=${encodeURIComponent(tx.name)}${listSearch ? `&list=${encodeURIComponent(listSearch)}` : ''}`)}
+                      onClick={() => {
+                        if (daybookShell) {
+                          setSettleOpen(true);
+                          return;
+                        }
+                        navigate(`/finance/payments/new?paymentType=Receive&partyType=Customer&party=${encodeURIComponent(customer.name)}&amount=${encodeURIComponent(String(tx.outstanding_amount || 0))}&referenceName=${encodeURIComponent(tx.name)}${listSearch ? `&list=${encodeURIComponent(listSearch)}` : ''}`);
+                      }}
                       className="btn-secondary text-xs py-1 px-2"
                     >
                       Collect
@@ -320,6 +360,29 @@ export default function CustomerDetailPage() {
           )}
         </div>
       </div>
+      {settleOpen && (
+        <PartySettleModal
+          partyType="Customer"
+          party={customer.name}
+          partyName={customer.customer_name || customer.name}
+          balance={Number(customer.outstanding_amount) || 0}
+          variant="receive"
+          onClose={() => setSettleOpen(false)}
+          onSuccess={(message) => {
+            setFeedback({ type: 'success', message });
+            setSettleOpen(false);
+            void (async () => {
+              const decodedId = decodeURIComponent(customerId!);
+              const [detailRes, txRes] = await Promise.all([
+                customersApi.getDetail(decodedId),
+                customersApi.getTransactions(decodedId, { page: 1, page_size: 8 }),
+              ]);
+              setCustomer(detailRes.data.message);
+              setTransactions(txRes.data.message?.data || []);
+            })();
+          }}
+        />
+      )}
     </div>
   );
 }

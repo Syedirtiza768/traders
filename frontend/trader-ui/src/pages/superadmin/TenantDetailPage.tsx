@@ -19,6 +19,8 @@ type TenantDetail = {
   logo?: string;
   branding?: Record<string, unknown>;
   enabled_modules?: string[];
+  workflow_prefs?: { nav_profile?: string; hide_nav?: string[] };
+  nav_profile?: string;
 };
 
 const REQUIRED_MODULES: TenantModuleKey[] = ['dashboard', 'settings'];
@@ -35,6 +37,7 @@ export default function TenantDetailPage() {
 
   const [moduleDraft, setModuleDraft] = useState<TenantModuleKey[]>([]);
   const [modulesDirty, setModulesDirty] = useState(false);
+  const [navProfile, setNavProfile] = useState<'standard' | 'components_daybook'>('standard');
   const [brandingForm, setBrandingForm] = useState({
     appName: '',
     tagline: '',
@@ -54,6 +57,8 @@ export default function TenantDetailPage() {
       setTenant(data);
       setModuleDraft((data.enabled_modules || []) as TenantModuleKey[]);
       setModulesDirty(false);
+      const profile = (data.nav_profile || data.workflow_prefs?.nav_profile || 'standard') as 'standard' | 'components_daybook';
+      setNavProfile(profile === 'components_daybook' ? 'components_daybook' : 'standard');
       const branding = parseTenantBranding(data);
       setBrandingForm({
         appName: branding.appName || data.tenant_name || '',
@@ -113,6 +118,27 @@ export default function TenantDetailPage() {
       await loadAudit();
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to save modules');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const applyNavProfile = async (profile: 'standard' | 'components_daybook') => {
+    if (!tenantId) return;
+    setActionLoading(true);
+    setError(null);
+    try {
+      const res = await superAdminApi.setTenantNavProfile(tenantId, profile);
+      const updated = res.data.message?.tenant as TenantDetail | undefined;
+      if (updated) {
+        setTenant(updated);
+        setModuleDraft((updated.enabled_modules || []) as TenantModuleKey[]);
+        setModulesDirty(false);
+      }
+      setNavProfile(profile);
+      await loadAudit();
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to apply nav profile');
     } finally {
       setActionLoading(false);
     }
@@ -242,6 +268,44 @@ export default function TenantDetailPage() {
             );
           })}
         </div>
+      </div>
+
+      <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
+        <div>
+          <h3 className="font-semibold text-slate-900">Workspace profile</h3>
+          <p className="text-sm text-slate-500">
+            Daybook profile simplifies the sidebar for wholesale components trading (Day Book, Day Close, ledgers, stock).
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={actionLoading || navProfile === 'standard'}
+            onClick={() => void applyNavProfile('standard')}
+            className={`px-3 py-2 rounded-lg text-sm border ${
+              navProfile === 'standard'
+                ? 'bg-brand-50 border-brand-300 text-brand-800'
+                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+            } disabled:opacity-50`}
+          >
+            Standard ERP
+          </button>
+          <button
+            type="button"
+            disabled={actionLoading || navProfile === 'components_daybook'}
+            onClick={() => void applyNavProfile('components_daybook')}
+            className={`px-3 py-2 rounded-lg text-sm border ${
+              navProfile === 'components_daybook'
+                ? 'bg-brand-50 border-brand-300 text-brand-800'
+                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+            } disabled:opacity-50`}
+          >
+            Components Daybook
+          </button>
+        </div>
+        <p className="text-xs text-slate-500">
+          Current: <strong>{navProfile === 'components_daybook' ? 'Components Daybook' : 'Standard ERP'}</strong>
+        </p>
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">

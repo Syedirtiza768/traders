@@ -27,6 +27,7 @@ class CompanyGenerator(BaseGenerator):
         try:
             self._ensure_warehouse_types()
             self._create_company()
+            self._enable_components_module()
             self._create_fiscal_year()
             self._create_cost_centers()
             self._create_payment_terms()
@@ -113,6 +114,22 @@ class CompanyGenerator(BaseGenerator):
         company.insert(ignore_permissions=True)
         self.created_records.append(("Company", company_name))
         print(f"  ✅ Created company: {company_name}")
+
+    def _enable_components_module(self):
+        """Turn on the Day Book / Day Close feature flag for the demo company.
+
+        The demo dataset generates Sales/Purchase Invoices, Payment Entries,
+        and stock movements — exactly what Day Book/Day Close read — but
+        without this flag those screens stay hidden (trader_components_enabled
+        defaults to 0), so a fresh demo install can't exercise them.
+        """
+        company_name = self.config["company_name"]
+        if frappe.db.get_value("Company", company_name, "trader_components_enabled"):
+            return
+        frappe.db.set_value(
+            "Company", company_name, "trader_components_enabled", 1, update_modified=False,
+        )
+        print(f"  ✅ Enabled Components Trading (Day Book/Day Close) for {company_name}")
 
     def _create_fiscal_year(self):
         cfg = self.config

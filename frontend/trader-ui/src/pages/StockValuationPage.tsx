@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { BarChart2, RefreshCw, AlertTriangle, Calendar, DollarSign, Package, ArrowDownLeft, ArrowUpRight, ChevronDown, ChevronUp, PrinterIcon } from 'lucide-react';
 import { daybookApi } from '../lib/api';
 import { useCompanyStore } from '../stores/companyStore';
 import { formatAmount } from '../lib/utils';
+import { localTodayStr } from '../lib/navProfile';
 
-function todayStr() { return new Date().toISOString().slice(0, 10); }
+function todayStr() { return localTodayStr(); }
 function fmtAmt(n: number) {
   return formatAmount(n);
 }
@@ -51,15 +52,26 @@ interface ValuationReport {
 
 export default function StockValuationPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const componentsEnabled = useCompanyStore((s) => s.componentsEnabled);
   const company = useCompanyStore((s) => s.company);
   const revision = useCompanyStore((s) => s.revision);
 
-  const [asOfDate, setAsOfDate] = useState(todayStr());
+  const [asOfDate, setAsOfDate] = useState(() => searchParams.get('date') || todayStr());
   const [report, setReport] = useState<ValuationReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    const fromUrl = searchParams.get('date');
+    if (fromUrl && fromUrl !== asOfDate) setAsOfDate(fromUrl);
+  }, [searchParams]);
+
+  const onDateChange = (next: string) => {
+    setAsOfDate(next);
+    setSearchParams(next ? { date: next } : {}, { replace: true });
+  };
 
   const load = useCallback(async () => {
     if (!company) return;
@@ -96,7 +108,7 @@ export default function StockValuationPage() {
         </div>
         <div className="flex items-center gap-2">
           <Calendar className="w-4 h-4 text-gray-400" />
-          <input type="date" value={asOfDate} onChange={(e) => setAsOfDate(e.target.value)} className="input-field text-sm" />
+          <input type="date" value={asOfDate} onChange={(e) => onDateChange(e.target.value)} className="input-field text-sm" />
           <button onClick={() => void load()} className="p-2 rounded-lg border border-gray-200 dark:border-slate-700 text-gray-500 hover:text-brand-600">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
@@ -114,9 +126,18 @@ export default function StockValuationPage() {
           {[
             { label: 'In-Hand Cash', value: report.tiles.in_hand_cash, icon: DollarSign, color: 'text-blue-600' },
             { label: 'Total Stock', value: report.tiles.total_stock_value, icon: Package, color: 'text-purple-600' },
-            { label: 'In-Coming (AR)', value: report.tiles.total_ar, icon: ArrowDownLeft, color: 'text-emerald-600' },
-            { label: 'Out-Going (AP)', value: report.tiles.total_ap, icon: ArrowUpRight, color: 'text-rose-600' },
-          ].map(({ label, value, icon: Icon, color }) => (
+            { label: 'In-Coming (AR)', value: report.tiles.total_ar, icon: ArrowDownLeft, color: 'text-emerald-600', to: '/finance/receivables' },
+            { label: 'Out-Going (AP)', value: report.tiles.total_ap, icon: ArrowUpRight, color: 'text-rose-600', to: '/finance/payables' },
+          ].map(({ label, value, icon: Icon, color, to }) => (
+            to ? (
+              <Link key={label} to={to} className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-4 hover:ring-2 hover:ring-brand-300 transition-shadow">
+                <div className="flex items-center gap-2 mb-1">
+                  <Icon className={`w-4 h-4 ${color}`} />
+                  <span className="text-xs text-gray-500">{label}</span>
+                </div>
+                <p className={`text-lg font-bold ${color}`}>{fmtAmt(value)}</p>
+              </Link>
+            ) : (
             <div key={label} className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-4">
               <div className="flex items-center gap-2 mb-1">
                 <Icon className={`w-4 h-4 ${color}`} />
@@ -124,6 +145,7 @@ export default function StockValuationPage() {
               </div>
               <p className={`text-xl font-bold ${color}`}>{fmtAmt(value)}</p>
             </div>
+            )
           ))}
         </div>
       )}

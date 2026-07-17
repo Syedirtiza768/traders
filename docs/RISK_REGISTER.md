@@ -1,5 +1,7 @@
 # Risk Register
 
+**Referenced by:** [[SALES_LIFECYCLE_EXTENSION_DESIGN]] — Phase 4 posting-profile risks relate to R003/R005 below
+
 ## R001 — Seed Data Inconsistency
 - **Severity**: High
 - **Description**: Generated seed data may have broken references (e.g., invoice referencing non-existent customer)

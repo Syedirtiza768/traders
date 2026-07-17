@@ -1,5 +1,7 @@
 # Traders — Full-System Analysis
 
+**Referenced by / references:** [[SALES_LIFECYCLE_EXTENSION_DESIGN]] — this analysis covers Phases 0–5 of that design
+
 **Date:** 2026-07-07 · **Scope:** entire monorepo + running local stack + Sales Lifecycle Extension (Phases 0–5)
 **Method:** direct code inspection, live-container queries, security greps, cross-reference with the repo's own audit register.
 

@@ -161,6 +161,35 @@ class ModuleIsolationTests(unittest.TestCase):
             self.assertIn("sales", enabled_keys)
             self.assertIn("dashboard", result["enabled_modules"])
 
+    def test_apply_components_daybook_profile_sets_modules_and_prefs(self):
+        class TenantDoc:
+            def __init__(self):
+                self.enabled_modules = []
+                self.workflow_prefs = {}
+
+            def append(self, field, row):
+                self.enabled_modules.append(row)
+
+            def save(self, ignore_permissions=False):
+                pass
+
+        doc = TenantDoc()
+
+        with patch.object(tenant_api.frappe.db, "exists", return_value=True), patch(
+            "trader_app.api.tenant.frappe.get_doc", return_value=doc
+        ), patch.object(tenant_api, "sync_tenant_modules_to_company"), patch.object(
+            tenant_api, "get_enabled_module_keys", return_value=list(tenant_api.COMPONENTS_DAYBOOK_MODULES)
+        ):
+            result = tenant_api.apply_components_daybook_profile("TNT-0001")
+            enabled_keys = {row["module_key"] for row in doc.enabled_modules if row.get("enabled")}
+            self.assertIn("components", enabled_keys)
+            self.assertIn("customers", enabled_keys)
+            self.assertNotIn("pos", enabled_keys)
+            self.assertNotIn("operations", enabled_keys)
+            self.assertEqual(doc.workflow_prefs.get("nav_profile"), "components_daybook")
+            self.assertIn("quotations", doc.workflow_prefs.get("hide_nav") or [])
+            self.assertTrue(result["ok"])
+
 
 class AuditLogIsolationTests(unittest.TestCase):
     def test_business_audit_log_scoped_to_active_tenant(self):

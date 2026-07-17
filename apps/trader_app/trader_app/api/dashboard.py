@@ -20,7 +20,7 @@ DASHBOARD_KPI_CACHE_TTL = 300
 
 
 def _dashboard_kpi_cache_key(company):
-    return "trader_app:dashboard_kpis:v1:{0}".format(company or "_")
+    return "trader_app:dashboard_kpis:v2:{0}".format(company or "_")
 
 
 def _compute_dashboard_kpis(company):
@@ -55,12 +55,31 @@ def _compute_dashboard_kpis(company):
         WHERE company = %s AND docstatus = 1 AND outstanding_amount > 0
     """, (company,))[0][0])
 
-    stock_value = flt(frappe.db.sql("""
-        SELECT COALESCE(SUM(stock_value), 0)
-        FROM `tabBin` b
-        INNER JOIN `tabWarehouse` w ON w.name = b.warehouse
-        WHERE w.company = %s
-    """, (company,))[0][0])
+    # Components tenants: match day-close / workbook baseline (component stock only,
+    # plus party opening balances folded into AR/AP).
+    components_enabled = cint(
+        frappe.db.get_value("Company", company, "trader_components_enabled") or 0
+    )
+    if components_enabled:
+        from trader_app.api.daybook import (
+            _get_component_stock_value,
+            _get_total_opening_balances,
+        )
+
+        stock_value = flt(_get_component_stock_value(company, today))
+        outstanding_receivables = flt(outstanding_receivables) + flt(
+            _get_total_opening_balances("Customer")
+        )
+        outstanding_payables = flt(outstanding_payables) + flt(
+            _get_total_opening_balances("Supplier")
+        )
+    else:
+        stock_value = flt(frappe.db.sql("""
+            SELECT COALESCE(SUM(stock_value), 0)
+            FROM `tabBin` b
+            INNER JOIN `tabWarehouse` w ON w.name = b.warehouse
+            WHERE w.company = %s
+        """, (company,))[0][0])
 
     # Below item reorder level when set, else default threshold of 10 units (per-bin view).
     # ERPNext v15+: reorder targets live on `tabItem Reorder` per warehouse, not `tabItem.reorder_level`.

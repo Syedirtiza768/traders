@@ -362,14 +362,16 @@ def _create_tenant():
         {"module_key": "purchases", "enabled": 1},
         {"module_key": "inventory", "enabled": 1},
         {"module_key": "finance", "enabled": 1},
-        {"module_key": "reports", "enabled": 1},
+        {"module_key": "reports", "enabled": 0},
         {"module_key": "customers", "enabled": 1},
         {"module_key": "suppliers", "enabled": 1},
-        {"module_key": "operations", "enabled": 1},
+        {"module_key": "operations", "enabled": 0},
         {"module_key": "components", "enabled": 1},
-        {"module_key": "pos", "enabled": 1},
+        {"module_key": "pos", "enabled": 0},
         {"module_key": "settings", "enabled": 1},
     ]
+
+    from trader_app.api.tenant import build_daybook_workflow_prefs
 
     tenant = frappe.get_doc({
         "doctype": "Trader Tenant",
@@ -387,6 +389,7 @@ def _create_tenant():
             "appName": "CDC Trading",
             "tagline": "Computer Components & Storage Solutions",
         },
+        "workflow_prefs": build_daybook_workflow_prefs(),
         "created_by_admin": "Administrator",
         "enabled_modules": module_rows,
     })
@@ -400,7 +403,7 @@ def _create_tenant():
     sync_tenant_modules_to_company(tenant.name)
 
     print(f"  Created tenant: {tenant.name} ({TENANT_NAME})")
-    print(f"  All 12 modules enabled (including components)")
+    print(f"  Daybook profile applied (components wholesale shell)")
 
 
 # ──────────────────────────────────────────────────────────────────────────────

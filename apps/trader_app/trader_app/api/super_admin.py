@@ -332,6 +332,58 @@ def set_tenant_modules(tenant, modules=None):
 
 
 @frappe.whitelist()
+def set_tenant_nav_profile(tenant, profile="standard"):
+    """Apply a nav profile (standard | components_daybook) onto Trader Tenant."""
+    from trader_app.api.tenant import (
+        NAV_PROFILE_COMPONENTS_DAYBOOK,
+        NAV_PROFILE_STANDARD,
+        apply_components_daybook_profile,
+        parse_workflow_prefs,
+    )
+
+    _require_super_admin()
+    _ensure_multitenant()
+
+    profile = (profile or NAV_PROFILE_STANDARD).strip()
+    if profile not in (NAV_PROFILE_STANDARD, NAV_PROFILE_COMPONENTS_DAYBOOK):
+        frappe.throw(_("Unknown nav profile {0}.").format(profile))
+
+    if not frappe.db.exists("Trader Tenant", tenant):
+        frappe.throw(_("Tenant {0} does not exist.").format(tenant))
+
+    if profile == NAV_PROFILE_COMPONENTS_DAYBOOK:
+        result = apply_components_daybook_profile(tenant)
+        log_tenant_action(
+            tenant,
+            "config_changed",
+            {"nav_profile": profile, "modules": result.get("enabled_modules")},
+        )
+        frappe.db.commit()
+        return {
+            "ok": True,
+            "nav_profile": profile,
+            "enabled_modules": result.get("enabled_modules"),
+            "workflow_prefs": result.get("workflow_prefs"),
+            "tenant": _tenant_payload(tenant),
+        }
+
+    doc = frappe.get_doc("Trader Tenant", tenant)
+    prefs = parse_workflow_prefs(doc.workflow_prefs)
+    prefs["nav_profile"] = NAV_PROFILE_STANDARD
+    prefs.pop("hide_nav", None)
+    doc.workflow_prefs = prefs
+    doc.save(ignore_permissions=True)
+    log_tenant_action(tenant, "config_changed", {"nav_profile": profile})
+    frappe.db.commit()
+    return {
+        "ok": True,
+        "nav_profile": profile,
+        "workflow_prefs": prefs,
+        "tenant": _tenant_payload(tenant),
+    }
+
+
+@frappe.whitelist()
 def set_tenant_branding(tenant, branding=None, logo=None):
     """Update tenant branding JSON and optional logo on Trader Tenant."""
     _require_super_admin()

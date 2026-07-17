@@ -6,6 +6,8 @@ Traders — Database Entity / DocType Map
 ## Purpose
 Documents all database entities (ERPNext DocTypes and tables) accessed by the Traders application, where they are used, and through which layer.
 
+**Referenced by:** [[SALES_LIFECYCLE_EXTENSION_DESIGN]] — new config-pack DocTypes (§2) extend this entity set
+
 ## Generated From
 - `apps/trader_app/trader_app/api/dashboard.py` — SQL queries with `tab` prefixed tables
 - `apps/trader_app/trader_app/api/inventory.py` — SQL queries

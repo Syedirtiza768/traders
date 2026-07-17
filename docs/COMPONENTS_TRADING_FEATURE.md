@@ -188,6 +188,21 @@ All endpoints in `trader_app.api.catalog` and `trader_app.api.daybook` require `
 
 ---
 
+## Daybook workspace profile (`components_daybook`)
+
+Wholesale tenants (e.g. CDC) use a simplified shell driven by `Trader Tenant.workflow_prefs`:
+
+```json
+{ "nav_profile": "components_daybook", "hide_nav": ["quotations", "sales_orders", "journals", ...] }
+```
+
+- **Sidebar / mobile:** Day Book, Day Close, In-Coming, Out-Going, Customers, Suppliers, Stock (valuation/catalog/take), Settings
+- **Hidden:** POS, quotations, SO/PO, journals, operations, reports, generic inventory lists
+- **On-the-go:** customers, suppliers, and SKUs still create inline from Day Book
+- **Apply:** Super Admin → Tenant → “Components Daybook”, or `apply_components_daybook_profile(tenant)` / `trader_app.scripts.apply_daybook_profile.apply`
+
+---
+
 ## Regression Contract (OFF-path parity)
 
 When `trader_components_enabled = 0`:
