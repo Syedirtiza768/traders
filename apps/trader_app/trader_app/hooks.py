@@ -29,6 +29,9 @@ required_apps = ["frappe", "erpnext"]
 
 # ── Installation ───────────────────────────────────────────────────
 after_install = "trader_app.setup.install.after_install"
+after_migrate = [
+    "trader_app.setup.custom_fields.ensure_custom_fields",
+]
 # after_uninstall = ""
 
 # ── Fixtures — export roles, custom fields, workflows, etc. ──────
