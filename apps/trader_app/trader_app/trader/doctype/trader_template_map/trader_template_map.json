@@ -4,7 +4,7 @@
  "creation": "2026-07-07 12:00:00.000000",
  "doctype": "DocType",
  "engine": "InnoDB",
- "description": "Maps a (company, doctype, customer profile) to a Frappe Print Format (PRD FR-9), so document output variants are configuration rather than static templates.",
+ "description": "Maps a (company, doctype, customer profile, print persona) to a Frappe Print Format (PRD FR-9 / AR-DOC). Personas: internal | external | commercial | tax.",
  "field_order": [
   "map_name",
   "company",
@@ -13,6 +13,7 @@
   "column_break_main",
   "target_doctype",
   "customer_profile",
+  "persona",
   "print_format"
  ],
  "fields": [
@@ -23,10 +24,19 @@
   {"fieldname": "column_break_main", "fieldtype": "Column Break"},
   {"fieldname": "target_doctype", "fieldtype": "Link", "in_list_view": 1, "in_standard_filter": 1, "label": "Target DocType", "options": "DocType", "reqd": 1},
   {"fieldname": "customer_profile", "fieldtype": "Data", "label": "Customer Profile", "description": "Matches Customer Group; blank = default for the doctype."},
+  {
+   "fieldname": "persona",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Print Persona",
+   "options": "\ninternal\nexternal\ncommercial\ntax",
+   "description": "AR-DOC print persona. Blank = legacy default map (no persona)."
+  },
   {"fieldname": "print_format", "fieldtype": "Link", "in_list_view": 1, "label": "Print Format", "options": "Print Format", "reqd": 1}
  ],
  "links": [],
- "modified": "2026-07-07 12:00:00.000000",
+ "modified": "2026-07-21 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Trader",
  "name": "Trader Template Map",

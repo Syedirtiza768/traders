@@ -100,12 +100,40 @@ CUSTOM_FIELDS = [
             "Disabling hides the UI but preserves all data."
         ),
     },
+    # ── Commercial Opportunity module flag (OPP PRD) ───────────────
+    {
+        "dt": "Company",
+        "fieldname": "trader_opportunity_enabled",
+        "label": "Commercial Opportunity Module",
+        "fieldtype": "Check",
+        "default": "0",
+        "insert_after": "trader_components_enabled",
+        "description": (
+            "When ON: Opportunity hub (enquiry → quotation → OC → delivery → invoice) "
+            "and related APIs become active for this company. Default OFF — other tenants "
+            "are unaffected. Behaviour is driven by Trader Opportunity Profile, not company name."
+        ),
+    },
+    # ── Customer AR & Document Prints (AR-DOC PRD) ────────────────
+    {
+        "dt": "Company",
+        "fieldname": "trader_ar_enabled",
+        "label": "Customer AR & Document Prints",
+        "fieldtype": "Check",
+        "default": "0",
+        "insert_after": "trader_opportunity_enabled",
+        "description": (
+            "When ON: multi-invoice payment allocation, settle tolerance, print personas, "
+            "and withhold reporting adjustments become active for this company. Default OFF. "
+            "Behaviour is driven by Trader AR Profile, not company name."
+        ),
+    },
     {
         "dt": "Company",
         "fieldname": "trader_sku_taxonomy",
         "label": "SKU Attribute Taxonomy (JSON)",
         "fieldtype": "Long Text",
-        "insert_after": "trader_components_enabled",
+        "insert_after": "trader_ar_enabled",
         "description": (
             "Company-specific SKU attribute templates (category → form factors, capacities, grades). "
             "Merged with system seed and values from existing items."
@@ -262,6 +290,92 @@ CUSTOM_FIELDS = [
         "options": "Quotation Option",
         "insert_after": "trader_workflow_state",
         "description": "Alternative option/line groupings offered to the customer (line → option → item).",
+    },
+
+    # ── Commercial Opportunity links (OPP PRD) ───────────────────────
+    {
+        "dt": "Quotation",
+        "fieldname": "trader_opportunity",
+        "label": "Commercial Opportunity",
+        "fieldtype": "Link",
+        "options": "Trader Opportunity",
+        "insert_after": "trader_options",
+        "in_standard_filter": 1,
+        "description": "Parent Opportunity when Commercial Opportunity module is enabled.",
+    },
+    {
+        "dt": "Sales Order",
+        "fieldname": "trader_opportunity",
+        "label": "Commercial Opportunity",
+        "fieldtype": "Link",
+        "options": "Trader Opportunity",
+        "insert_after": "customer",
+        "in_standard_filter": 1,
+        "description": "Parent Opportunity (Order Confirmation stage).",
+    },
+    {
+        "dt": "Delivery Note",
+        "fieldname": "trader_opportunity",
+        "label": "Commercial Opportunity",
+        "fieldtype": "Link",
+        "options": "Trader Opportunity",
+        "insert_after": "customer",
+        "in_standard_filter": 1,
+    },
+    {
+        "dt": "Sales Invoice",
+        "fieldname": "trader_opportunity",
+        "label": "Commercial Opportunity",
+        "fieldtype": "Link",
+        "options": "Trader Opportunity",
+        "insert_after": "customer",
+        "in_standard_filter": 1,
+        "allow_on_submit": 1,
+    },
+
+    # ── Commercial Line→Option→Item hierarchy (OPP PRD) ────────────
+    {
+        "dt": "Quotation",
+        "fieldname": "trader_commercial_options",
+        "label": "Commercial Hierarchy",
+        "fieldtype": "Table",
+        "options": "Trader Commercial Option",
+        "insert_after": "trader_opportunity",
+        "description": "Line → Option → Item (effective qty = unit_qty × package_qty).",
+    },
+    {
+        "dt": "Sales Order",
+        "fieldname": "trader_commercial_options",
+        "label": "Commercial Hierarchy",
+        "fieldtype": "Table",
+        "options": "Trader Commercial Option",
+        "insert_after": "trader_opportunity",
+    },
+    {
+        "dt": "Sales Order",
+        "fieldname": "trader_source_quotation",
+        "label": "Source Quotation",
+        "fieldtype": "Link",
+        "options": "Quotation",
+        "insert_after": "trader_commercial_options",
+        "description": "Quotation hierarchy was copied from when creating Order Confirmation.",
+    },
+    {
+        "dt": "Delivery Note",
+        "fieldname": "trader_commercial_options",
+        "label": "Commercial Hierarchy",
+        "fieldtype": "Table",
+        "options": "Trader Commercial Option",
+        "insert_after": "trader_opportunity",
+    },
+    {
+        "dt": "Sales Invoice",
+        "fieldname": "trader_commercial_options",
+        "label": "Commercial Hierarchy",
+        "fieldtype": "Table",
+        "options": "Trader Commercial Option",
+        "insert_after": "trader_opportunity",
+        "allow_on_submit": 1,
     },
 
     # ── Grouped-invoice consumption counter (PRD FR-7) ───────────────

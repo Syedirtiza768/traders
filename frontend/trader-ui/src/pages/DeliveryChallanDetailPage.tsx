@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Printer, Truck } from 'lucide-react';
 import { salesApi } from '../lib/api';
 import { formatDate } from '../lib/utils';
+import CommercialHierarchyEditor from '../components/CommercialHierarchyEditor';
 
 export default function DeliveryChallanDetailPage() {
   const navigate = useNavigate();
@@ -99,6 +100,14 @@ export default function DeliveryChallanDetailPage() {
           </tbody>
         </table>
       </div>
+
+      <CommercialHierarchyEditor
+        doctype="Delivery Note"
+        name={doc.name}
+        initialOptions={doc.trader_commercial_options}
+        readOnly={doc.docstatus !== 0}
+        onSaved={() => { void load(); }}
+      />
     </div>
   );
 }

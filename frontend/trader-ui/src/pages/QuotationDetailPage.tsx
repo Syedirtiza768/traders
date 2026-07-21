@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { salesApi } from '../lib/api';
 import { appendPreservedListQuery, classNames, extractFrappeError, formatCurrency, formatDate, getActiveCurrency, getStatusColor, isOperationsContext } from '../lib/utils';
+import CommercialHierarchyEditor from '../components/CommercialHierarchyEditor';
 
 type QuotationDetail = Record<string, any>;
 
@@ -288,6 +289,15 @@ export default function QuotationDetailPage() {
           )}
         </div>
       </div>
+
+      <CommercialHierarchyEditor
+        doctype="Quotation"
+        name={quotation.name}
+        initialOptions={quotation.trader_commercial_options}
+        readOnly={quotation.docstatus !== 0}
+        currency={quotation.currency}
+        onSaved={() => { void reloadQuotation(); }}
+      />
 
       {linkedOrders.length > 0 && (
         <LinkedDocumentsCard

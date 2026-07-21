@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { salesApi } from '../lib/api';
 import { appendPreservedListQuery, classNames, extractFrappeError, formatCurrency, formatDate, getActiveCurrency, getStatusColor, isOperationsContext } from '../lib/utils';
+import CommercialHierarchyEditor from '../components/CommercialHierarchyEditor';
 
 type SalesOrderDetail = Record<string, any>;
 
@@ -344,6 +345,15 @@ export default function SalesOrderDetailPage() {
           )}
         </div>
       </div>
+
+      <CommercialHierarchyEditor
+        doctype="Sales Order"
+        name={order.name}
+        initialOptions={order.trader_commercial_options}
+        readOnly={order.docstatus !== 0}
+        currency={order.currency}
+        onSaved={() => { void reloadOrder(); }}
+      />
 
       {linkedInvoices.length > 0 && (
         <LinkedDocumentsCard

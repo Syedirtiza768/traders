@@ -322,6 +322,89 @@ export const salesApi = {
     get('trader_app.api.sales.get_sales_summary', { company }),
 };
 
+// ─── Commercial Opportunity API (OPP) ────────────────────────────
+
+export const opportunityApi = {
+  getSettings: (company?: string) =>
+    get('trader_app.api.opportunity.get_opportunity_settings', { company }),
+
+  list: (params?: Record<string, any>) =>
+    get('trader_app.api.opportunity.list_opportunities', params),
+
+  get: (name: string, company?: string) =>
+    get('trader_app.api.opportunity.get_opportunity', { name, company }),
+
+  create: (data: Record<string, any>) =>
+    call('trader_app.api.opportunity.create_opportunity', { data }),
+
+  update: (name: string, data: Record<string, any>) =>
+    call('trader_app.api.opportunity.update_opportunity', { name, data }),
+
+  close: (name: string, close_stage: string) =>
+    call('trader_app.api.opportunity.close_opportunity', { name, close_stage }),
+
+  reopen: (name: string) =>
+    call('trader_app.api.opportunity.reopen_opportunity', { name }),
+
+  addComment: (name: string, comment: string) =>
+    call('trader_app.api.opportunity.add_opportunity_comment', { name, comment }),
+
+  addCustomerPo: (name: string, data: Record<string, any>) =>
+    call('trader_app.api.opportunity.add_customer_po', { name, data }),
+
+  linkDocument: (opportunity: string, doctype: string, document_name: string) =>
+    call('trader_app.api.opportunity.link_document', { opportunity, doctype, document_name }),
+
+  listSourceQuotations: (opportunity: string) =>
+    get('trader_app.api.opportunity.list_source_quotations', { opportunity }),
+
+  createQuotation: (opportunity: string, data?: Record<string, any>) =>
+    call('trader_app.api.opportunity.create_quotation_for_opportunity', { opportunity, data }),
+
+  createOrderConfirmation: (params: {
+    opportunity: string;
+    source_quotation?: string;
+    customer_po_no?: string;
+  }) => call('trader_app.api.opportunity.create_order_confirmation', params),
+
+  createDeliveryNote: (opportunity: string, source_oc?: string) =>
+    call('trader_app.api.opportunity.create_delivery_note_for_opportunity', {
+      opportunity,
+      source_oc,
+    }),
+
+  saveCommercialOptions: (doctype: string, name: string, commercial_options: unknown) =>
+    call('trader_app.api.opportunity.save_commercial_options', {
+      doctype,
+      name,
+      commercial_options,
+    }),
+
+  toggleFeature: (enabled: boolean, company?: string) =>
+    call('trader_app.api.settings.toggle_opportunity_feature', { enabled: enabled ? 1 : 0, company }),
+};
+
+// ─── Customer AR API (AR-DOC) ────────────────────────────────────
+
+export const arApi = {
+  getSettings: (company?: string) =>
+    get('trader_app.api.ar.get_ar_settings', { company }),
+
+  listPrintPersonas: (doctype: string, company?: string) =>
+    get('trader_app.api.ar.list_print_personas', { doctype, company }),
+
+  resolvePrintPersona: (params: {
+    doctype: string;
+    persona?: string;
+    company?: string;
+    customer?: string;
+    name?: string;
+  }) => get('trader_app.api.ar.resolve_print_persona', params),
+
+  toggleFeature: (enabled: boolean, company?: string) =>
+    call('trader_app.api.settings.toggle_ar_feature', { enabled: enabled ? 1 : 0, company }),
+};
+
 // ─── Purchases API ───────────────────────────────────────────────
 
 export const purchasesApi = {
@@ -519,6 +602,9 @@ export const financeApi = {
 
   createPaymentEntry: (data: Record<string, any>) =>
     call('trader_app.api.finance.create_payment_entry', data),
+
+  getOpenInvoicesForPayment: (party_type: string, party: string, company?: string) =>
+    get('trader_app.api.finance.get_open_invoices_for_payment', { party_type, party, company }),
 
   recordInvoicePayment: (data: Record<string, any>) =>
     call('trader_app.api.finance.record_invoice_payment', data),

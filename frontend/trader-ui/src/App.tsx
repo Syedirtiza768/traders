@@ -83,6 +83,8 @@ const AccountingSettingsPage = lazy(() => import('./pages/AccountingSettingsPage
 const PosCheckoutPage = lazy(() => import('./pages/PosCheckoutPage'));
 
 /* ---------- components-trading feature pages (flag-gated) ---------- */
+const OpportunitiesPage = lazy(() => import('./pages/OpportunitiesPage'));
+const OpportunityDetailPage = lazy(() => import('./pages/OpportunityDetailPage'));
 const DayBookPage = lazy(() => import('./pages/DayBookPage'));
 const ReceivablesPage = lazy(() => import('./pages/ReceivablesPage'));
 const PayablesPage = lazy(() => import('./pages/PayablesPage'));
@@ -176,6 +178,8 @@ export default function App() {
         <Route path="sales/orders" element={<GatedRoute capability="sales:view" module="sales"><SalesOrdersPage /></GatedRoute>} />
         <Route path="sales/orders/new" element={<GatedRoute capability="sales:view" module="sales"><CreateSalesOrderPage /></GatedRoute>} />
         <Route path="sales/orders/:orderId" element={<GatedRoute capability="sales:view" module="sales"><SalesOrderDetailPage /></GatedRoute>} />
+        <Route path="sales/opportunities" element={<GatedRoute capability="sales:view" module="opportunity" requiresOpportunity navFeature="opportunities"><OpportunitiesPage /></GatedRoute>} />
+        <Route path="sales/opportunities/:opportunityId" element={<GatedRoute capability="sales:view" module="opportunity" requiresOpportunity navFeature="opportunities"><OpportunityDetailPage /></GatedRoute>} />
         <Route path="sales/quotations" element={<GatedRoute capability="sales:view" module="sales"><QuotationsPage /></GatedRoute>} />
         <Route path="sales/quotations/new" element={<GatedRoute capability="sales:view" module="sales"><CreateQuotationPage /></GatedRoute>} />
         <Route path="sales/quotations/:quotationId" element={<GatedRoute capability="sales:view" module="sales"><QuotationDetailPage /></GatedRoute>} />

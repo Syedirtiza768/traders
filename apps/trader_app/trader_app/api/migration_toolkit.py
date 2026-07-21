@@ -128,6 +128,196 @@ def provision_config_packs(company=None, activate=0):
     return {"company": company, "created": created, "activated": bool(activate)}
 
 
+@frappe.whitelist()
+def provision_opportunity_pack(company=None, template="minimal", activate=0):
+    """Idempotently create a Trader Opportunity Profile for ``company``.
+
+    Defaults to inactive + master switch OFF so other tenants stay unchanged.
+    Pass ``activate=1`` to turn on the company flag and activate the profile
+    (used for Electrance go-live or any new client opt-in).
+
+    ``template`` is a pack name (``electrance`` / ``minimal``), not a company
+    identity — never branches on tenant name.
+    """
+    from trader_app.api.opportunity import build_profile_defaults
+
+    company = resolve_active_company(company)
+    activate = cint(activate)
+    template = (template or "minimal").strip().lower()
+    defaults = build_profile_defaults(template)
+
+    created = None
+    existing = frappe.db.get_value(
+        "Trader Opportunity Profile", {"company": company}, "name"
+    )
+    if not existing:
+        doc = frappe.get_doc({
+            "doctype": "Trader Opportunity Profile",
+            "profile_name": "{0} — Opportunity ({1})".format(company, template),
+            "company": company,
+            "is_active": 1 if activate else 0,
+            **defaults,
+        }).insert(ignore_permissions=True)
+        created = doc.name
+        existing = doc.name
+    elif activate:
+        frappe.db.set_value(
+            "Trader Opportunity Profile", existing, "is_active", 1, update_modified=False
+        )
+
+    if activate:
+        frappe.db.set_value(
+            "Company", company, "trader_opportunity_enabled", 1, update_modified=False
+        )
+        # Keep tenant module flag in sync when multi-tenant is wired.
+        tenant = frappe.db.get_value("Company", company, "trader_tenant")
+        if tenant and frappe.db.exists("Trader Tenant", tenant):
+            rows = frappe.get_all(
+                "Trader Tenant Module",
+                filters={"parent": tenant, "parenttype": "Trader Tenant", "module_key": "opportunity"},
+                fields=["name", "enabled"],
+            )
+            if rows:
+                for row in rows:
+                    if not cint(row.enabled):
+                        frappe.db.set_value(
+                            "Trader Tenant Module", row.name, "enabled", 1, update_modified=False
+                        )
+            else:
+                tdoc = frappe.get_doc("Trader Tenant", tenant)
+                tdoc.append("enabled_modules", {"module_key": "opportunity", "enabled": 1})
+                tdoc.save(ignore_permissions=True)
+    # When not activating, leave the company flag untouched (never force OFF).
+
+    # Ensure grouping policy exists for partial invoicing (inert if not activated).
+    grouping_created = None
+    if defaults.get("partial_invoicing") and not frappe.db.exists(
+        "Trader Grouping Policy", {"company": company}
+    ):
+        gdoc = frappe.get_doc({
+            "doctype": "Trader Grouping Policy",
+            "policy_name": "{0} — Default Grouping (opportunity)".format(company),
+            "company": company,
+            "is_active": 1 if activate else 0,
+            "same_debtor_required": 1,
+            "max_docs_per_group": 0,
+            "allow_partial_delivery": 1,
+            "auto_submit_invoice": 0,
+        }).insert(ignore_permissions=True)
+        grouping_created = gdoc.name
+
+    log_decision(
+        "other",
+        company=company,
+        outcome="applied",
+        message="Provisioned opportunity pack template={0} activate={1}".format(
+            template, activate
+        ),
+        output={
+            "profile": existing,
+            "created": created,
+            "grouping_created": grouping_created,
+            "template": template,
+            "activated": bool(activate),
+        },
+        policy="opportunity_provision",
+    )
+    frappe.db.commit()
+    return {
+        "company": company,
+        "profile": existing,
+        "created": created,
+        "grouping_created": grouping_created,
+        "template": template,
+        "activated": bool(activate),
+        "opportunity_enabled": bool(
+            cint(frappe.db.get_value("Company", company, "trader_opportunity_enabled") or 0)
+        ),
+    }
+
+
+@frappe.whitelist()
+def provision_ar_pack(company=None, template="minimal", activate=0):
+    """Idempotently create a Trader AR Profile for ``company``.
+
+    Defaults to inactive + master switch OFF. Pass ``activate=1`` to turn on
+    ``Company.trader_ar_enabled`` and activate the profile.
+
+    ``template`` is a pack name (``electrance`` / ``minimal``), not a company
+    identity — never branches on tenant name.
+    """
+    from trader_app.api.ar import build_profile_defaults
+
+    company = resolve_active_company(company)
+    activate = cint(activate)
+    template = (template or "minimal").strip().lower()
+    defaults = build_profile_defaults(template)
+
+    created = None
+    existing = frappe.db.get_value("Trader AR Profile", {"company": company}, "name")
+    if not existing:
+        doc = frappe.get_doc({
+            "doctype": "Trader AR Profile",
+            "profile_name": "{0} — AR ({1})".format(company, template),
+            "company": company,
+            "is_active": 1 if activate else 0,
+            **defaults,
+        }).insert(ignore_permissions=True)
+        created = doc.name
+        existing = doc.name
+    elif activate:
+        frappe.db.set_value(
+            "Trader AR Profile", existing, "is_active", 1, update_modified=False
+        )
+
+    if activate:
+        frappe.db.set_value(
+            "Company", company, "trader_ar_enabled", 1, update_modified=False
+        )
+        tenant = frappe.db.get_value("Company", company, "trader_tenant")
+        if tenant and frappe.db.exists("Trader Tenant", tenant):
+            rows = frappe.get_all(
+                "Trader Tenant Module",
+                filters={"parent": tenant, "parenttype": "Trader Tenant", "module_key": "ar"},
+                fields=["name", "enabled"],
+            )
+            if rows:
+                for row in rows:
+                    if not cint(row.enabled):
+                        frappe.db.set_value(
+                            "Trader Tenant Module", row.name, "enabled", 1, update_modified=False
+                        )
+            else:
+                tdoc = frappe.get_doc("Trader Tenant", tenant)
+                tdoc.append("enabled_modules", {"module_key": "ar", "enabled": 1})
+                tdoc.save(ignore_permissions=True)
+
+    log_decision(
+        "other",
+        company=company,
+        outcome="applied",
+        message="Provisioned AR pack template={0} activate={1}".format(template, activate),
+        output={
+            "profile": existing,
+            "created": created,
+            "template": template,
+            "activated": bool(activate),
+        },
+        policy="ar_provision",
+    )
+    frappe.db.commit()
+    return {
+        "company": company,
+        "profile": existing,
+        "created": created,
+        "template": template,
+        "activated": bool(activate),
+        "ar_enabled": bool(
+            cint(frappe.db.get_value("Company", company, "trader_ar_enabled") or 0)
+        ),
+    }
+
+
 # ────────────────────────────────────────────────────────────────
 # Status & parity
 # ────────────────────────────────────────────────────────────────
@@ -144,6 +334,7 @@ def migration_status(company=None):
         ("grouping", "Trader Grouping Policy", "is_active"),
         ("posting", "Trader Posting Profile", "is_active"),
         ("process", "Trader Process Profile", "enforce_states"),
+        ("opportunity", "Trader Opportunity Profile", "is_active"),
     ]
     for label, dt, flag in specs:
         rows = frappe.get_all(dt, filters={"company": company}, fields=["name", flag])

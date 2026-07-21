@@ -12,6 +12,7 @@ export type TenantModuleKey =
   | 'suppliers'
   | 'operations'
   | 'components'
+  | 'opportunity'
   | 'pos'
   | 'settings';
 
@@ -26,6 +27,7 @@ export const TENANT_MODULE_KEYS: TenantModuleKey[] = [
   'suppliers',
   'operations',
   'components',
+  'opportunity',
   'pos',
   'settings',
 ];
@@ -41,6 +43,7 @@ export const MODULE_LABELS: Record<TenantModuleKey, string> = {
   suppliers: 'Suppliers',
   operations: 'Operations',
   components: 'Components Trading',
+  opportunity: 'Commercial Opportunity',
   pos: 'POS',
   settings: 'Settings',
 };
@@ -63,6 +66,7 @@ export function isComponentsPath(path: string): boolean {
 /** Primary tenant module for a route path (used by route guards). */
 export function moduleForPath(path: string): TenantModuleKey | undefined {
   if (path === '/' || path === '') return 'dashboard';
+  if (path.startsWith('/sales/opportunities')) return 'opportunity';
   if (path.startsWith('/sales/pos')) return 'pos';
   if (path.startsWith('/sales')) return 'sales';
   if (path.startsWith('/purchases')) return 'purchases';

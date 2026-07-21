@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Building2, Users, Shield, Globe, RefreshCw, SlidersHorizontal, Save, ScrollText, Layers, Percent, Calendar, Warehouse, BookOpen } from 'lucide-react';
+import { Building2, Users, Shield, Globe, RefreshCw, SlidersHorizontal, Save, ScrollText, Layers, Percent, Calendar, Warehouse, BookOpen, Briefcase, Receipt } from 'lucide-react';
 import CurrencySettingsPanel from '../components/CurrencySettingsPanel';
 import SkuConfigEditor from '../components/SkuConfigEditor';
-import { settingsApi, catalogApi } from '../lib/api';
+import { settingsApi, catalogApi, opportunityApi, arApi } from '../lib/api';
 import { applyTraderUiTheme, normaliseUiPrefs, type TraderUiPrefs } from '../lib/traderUiTheme';
 import { useCompanyStore } from '../stores/companyStore';
 import { useAuthStore } from '../stores/authStore';
@@ -46,12 +46,14 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  const { componentsEnabled, setComponentsEnabled } = useCompanyStore();
+  const { componentsEnabled, setComponentsEnabled, opportunityEnabled, setOpportunityEnabled, arEnabled, setArEnabled } = useCompanyStore();
   const roles_ = useAuthStore((s) => s.roles);
   const tenant = useTenantStore((s) => s.tenant);
   const multitenantEnabled = useTenantStore((s) => s.enabled);
   const isAdmin = roles_.includes('Trader Admin') || roles_.includes('System Manager');
   const [togglingComponents, setTogglingComponents] = useState(false);
+  const [togglingOpportunity, setTogglingOpportunity] = useState(false);
+  const [togglingAr, setTogglingAr] = useState(false);
   const [skuCategoryCount, setSkuCategoryCount] = useState<number | null>(null);
 
   useEffect(() => {
@@ -82,6 +84,42 @@ export default function SettingsPage() {
       setFeedback({ type: 'error', message: err?.response?.data?.exception || 'Failed to toggle feature.' });
     } finally {
       setTogglingComponents(false);
+    }
+  };
+
+  const handleToggleOpportunity = async (enabled: boolean) => {
+    setTogglingOpportunity(true);
+    try {
+      await opportunityApi.toggleFeature(enabled);
+      setOpportunityEnabled(enabled);
+      setFeedback({
+        type: 'success',
+        message: enabled
+          ? 'Commercial Opportunity enabled. Reload the page to see Sales → Opportunities.'
+          : 'Commercial Opportunity disabled. Data and profile are preserved.',
+      });
+    } catch (err: any) {
+      setFeedback({ type: 'error', message: err?.response?.data?.exception || 'Failed to toggle opportunity feature.' });
+    } finally {
+      setTogglingOpportunity(false);
+    }
+  };
+
+  const handleToggleAr = async (enabled: boolean) => {
+    setTogglingAr(true);
+    try {
+      await arApi.toggleFeature(enabled);
+      setArEnabled(enabled);
+      setFeedback({
+        type: 'success',
+        message: enabled
+          ? 'Customer AR enabled. Multi-invoice allocation is available on New Payment Entry when the AR profile requires it.'
+          : 'Customer AR disabled. Profile and template maps are preserved.',
+      });
+    } catch (err: any) {
+      setFeedback({ type: 'error', message: err?.response?.data?.exception || 'Failed to toggle AR feature.' });
+    } finally {
+      setTogglingAr(false);
     }
   };
 
@@ -527,6 +565,99 @@ export default function SettingsPage() {
               <SkuConfigEditor isAdmin={isAdmin} />
             </div>
           )}
+
+          <div className="flex items-start justify-between gap-4 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/40 p-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <Briefcase size={16} className="text-brand-600 dark:text-brand-400" />
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Commercial Opportunity Module</h3>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-slate-400 leading-relaxed">
+                Enables the Opportunity hub (enquiry → quotation → order confirmation → delivery → invoice)
+                for project/tender sales. Behaviour is driven by Trader Opportunity Profile — not company name.
+                Default off so other tenants stay unchanged. Provision a pack for full Electrance-shaped defaults.
+                <br />
+                <span className="text-brand-600 dark:text-brand-400 font-medium">
+                  Disabling hides Sales → Opportunities but preserves opportunities and profiles.
+                </span>
+              </p>
+            </div>
+            <div className="flex-shrink-0">
+              {isAdmin ? (
+                <button
+                  onClick={() => handleToggleOpportunity(!opportunityEnabled)}
+                  disabled={togglingOpportunity}
+                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 disabled:opacity-60 ${
+                    opportunityEnabled ? 'bg-brand-600' : 'bg-gray-200 dark:bg-slate-700'
+                  }`}
+                  role="switch"
+                  aria-checked={opportunityEnabled}
+                  title={opportunityEnabled ? 'Disable Commercial Opportunity' : 'Enable Commercial Opportunity'}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      opportunityEnabled ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              ) : (
+                <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${
+                  opportunityEnabled
+                    ? 'bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400'
+                    : 'bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-slate-300'
+                }`}>
+                  {opportunityEnabled ? 'Enabled' : 'Disabled'}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-start justify-between gap-4 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/40 p-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <Receipt size={16} className="text-brand-600 dark:text-brand-400" />
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Customer AR &amp; Document Prints</h3>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-slate-400 leading-relaxed">
+                Enables multi-invoice payment allocation, settle tolerance, print personas
+                (Internal / External / Commercial / Tax), and withhold reporting adjustments.
+                Behaviour is driven by Trader AR Profile — not company name.
+                Provision a pack for Electrance-shaped defaults.
+                <br />
+                <span className="text-brand-600 dark:text-brand-400 font-medium">
+                  Disabling hides AR allocation UI extras but preserves profiles and template maps.
+                </span>
+              </p>
+            </div>
+            <div className="flex-shrink-0">
+              {isAdmin ? (
+                <button
+                  onClick={() => handleToggleAr(!arEnabled)}
+                  disabled={togglingAr}
+                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 disabled:opacity-60 ${
+                    arEnabled ? 'bg-brand-600' : 'bg-gray-200 dark:bg-slate-700'
+                  }`}
+                  role="switch"
+                  aria-checked={arEnabled}
+                  title={arEnabled ? 'Disable Customer AR' : 'Enable Customer AR'}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      arEnabled ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              ) : (
+                <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${
+                  arEnabled
+                    ? 'bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400'
+                    : 'bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-slate-300'
+                }`}>
+                  {arEnabled ? 'Enabled' : 'Disabled'}
+                </span>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 

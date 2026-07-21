@@ -14,7 +14,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Module",
-   "options": "dashboard\nsales\npurchases\ninventory\nfinance\nreports\ncustomers\nsuppliers\noperations\ncomponents\npos\nsettings",
+   "options": "dashboard\nsales\npurchases\ninventory\nfinance\nreports\ncustomers\nsuppliers\noperations\ncomponents\nopportunity\nar\npos\nsettings",
    "reqd": 1
   },
   {

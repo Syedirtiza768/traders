@@ -94,6 +94,26 @@ from trader_app.api.rules import evaluate_condition
 from trader_app.api.tax_policy import match_tax_policies, _service_matches
 from trader_app.api.grouped_invoicing import validate_group, DEFAULT_GROUPING
 from trader_app.api.posting import build_posting_preview
+from trader_app.api.opportunity import (
+    PROFILE_TEMPLATES,
+    DEFAULT_INACTIVE_PROFILE,
+    build_profile_defaults,
+    infer_display_stage,
+)
+from trader_app.api.ar import (
+    PROFILE_TEMPLATES as AR_PROFILE_TEMPLATES,
+    DEFAULT_INACTIVE_PROFILE as AR_DEFAULT_INACTIVE,
+    build_profile_defaults as build_ar_profile_defaults,
+    is_within_settle_tolerance,
+    reported_outstanding,
+    can_access_internal_print,
+)
+from trader_app.api.hierarchy import (
+    effective_item_qty,
+    remaining_package_qty,
+    copy_commercial_options,
+    flatten_commercial_options,
+)
 
 
 # ────────────────────────────────────────────────────────────────
@@ -236,6 +256,166 @@ class PostingPreviewTests(unittest.TestCase):
         credits = {e["account"]: e["credit"] for e in p["entries"] if e["credit"]}
         self.assertEqual(credits["Sales A"], 300)
         self.assertTrue(p["balanced"])
+
+
+class OpportunityProfileTemplateTests(unittest.TestCase):
+    def test_electrance_template_is_full_lifecycle(self):
+        d = build_profile_defaults("electrance")
+        self.assertEqual(d["template_key"], "electrance")
+        self.assertEqual(d["require_opportunity_for_quotation"], 1)
+        self.assertEqual(d["enable_order_confirmation"], 1)
+        self.assertEqual(d["hierarchy_on_oc"], 1)
+        self.assertEqual(d["hierarchy_on_dn"], 1)
+        self.assertEqual(d["invoice_from_dn_only"], 1)
+        self.assertEqual(d["stock_posting_moment"], "delivery_note")
+        self.assertEqual(d["cogs_model"], "A")
+
+    def test_minimal_template_skips_oc_and_full_hierarchy(self):
+        d = build_profile_defaults("minimal")
+        self.assertEqual(d["template_key"], "minimal")
+        self.assertEqual(d["require_opportunity_for_quotation"], 0)
+        self.assertEqual(d["enable_order_confirmation"], 0)
+        self.assertEqual(d["hierarchy_on_dn"], 0)
+
+    def test_unknown_template_raises(self):
+        with self.assertRaises(ValueError):
+            build_profile_defaults("not-a-pack")
+
+    def test_inactive_defaults_are_safe_noops(self):
+        self.assertEqual(DEFAULT_INACTIVE_PROFILE["require_opportunity_for_quotation"], 0)
+        self.assertEqual(DEFAULT_INACTIVE_PROFILE["hierarchy_on_quotation"], 0)
+        self.assertIn("electrance", PROFILE_TEMPLATES)
+        self.assertIn("minimal", PROFILE_TEMPLATES)
+
+
+class OpportunityStageInferenceTests(unittest.TestCase):
+    def test_enquiry_when_empty(self):
+        self.assertEqual(infer_display_stage({}), "Enquiry")
+        self.assertEqual(infer_display_stage({"quotations": 0, "customer_pos": 0, "delivery_notes": 0}), "Enquiry")
+
+    def test_quotation_stage(self):
+        self.assertEqual(infer_display_stage({"quotations": 2}), "Quotation")
+
+    def test_po_beats_quotation(self):
+        self.assertEqual(
+            infer_display_stage({"quotations": 2, "customer_pos": 1}),
+            "Customer PO",
+        )
+
+    def test_delivery_beats_all(self):
+        self.assertEqual(
+            infer_display_stage({"quotations": 2, "customer_pos": 1, "delivery_notes": 1}),
+            "Delivery",
+        )
+
+
+class CommercialHierarchyTests(unittest.TestCase):
+    def _sample_options(self):
+        return [
+            {
+                "line_no": 1,
+                "client_requirements": "UPS panel",
+                "option_no": 1,
+                "option_text": "Option A",
+                "package_qty": 2,
+                "qty_invoiced": 1,
+                "items": [
+                    {"item_code": "ITEM-A", "unit_qty": 3, "unit_price": 100, "discount_percent": 0},
+                    {"item_code": "ITEM-B", "unit_qty": 1, "unit_price": 50, "discount_percent": 10},
+                ],
+            }
+        ]
+
+    def test_effective_qty_rule(self):
+        self.assertEqual(effective_item_qty(3, 2), 6)
+        self.assertEqual(effective_item_qty(3, None), 3)
+
+    def test_remaining_package_qty(self):
+        self.assertEqual(remaining_package_qty(2, 1), 1)
+        self.assertEqual(remaining_package_qty(2, 2), 0)
+        self.assertEqual(remaining_package_qty(2, 5), 0)
+
+    def test_flatten_uses_package_multiplier(self):
+        flat = flatten_commercial_options(self._sample_options())
+        by_code = {r["item_code"]: r for r in flat}
+        self.assertEqual(by_code["ITEM-A"]["qty"], 6)
+        self.assertEqual(by_code["ITEM-A"]["rate"], 100)
+        self.assertEqual(by_code["ITEM-B"]["qty"], 2)
+        self.assertEqual(by_code["ITEM-B"]["rate"], 45)  # 50 * 0.9
+
+    def test_copy_remaining_only_reduces_package_qty(self):
+        copied = copy_commercial_options(self._sample_options(), remaining_only=True)
+        self.assertEqual(len(copied), 1)
+        self.assertEqual(copied[0]["package_qty"], 1)
+        self.assertEqual(copied[0]["qty_invoiced"], 0)
+        self.assertEqual(len(copied[0]["items"]), 2)
+
+    def test_copy_remaining_skips_fully_invoiced(self):
+        rows = self._sample_options()
+        rows[0]["qty_invoiced"] = 2
+        self.assertEqual(copy_commercial_options(rows, remaining_only=True), [])
+
+
+class ARProfileTemplateTests(unittest.TestCase):
+    def test_electrance_template_has_personas_and_tolerance(self):
+        d = build_ar_profile_defaults("electrance")
+        self.assertEqual(d["template_key"], "electrance")
+        self.assertEqual(d["settle_tolerance"], 5.0)
+        self.assertEqual(d["auto_allocate_on_receipt"], 0)
+        self.assertEqual(d["require_explicit_allocation"], 1)
+        self.assertEqual(d["print_personas_enabled"], 1)
+        self.assertEqual(d["withhold_reporting_enabled"], 1)
+        self.assertEqual(d["shop_sale_enabled"], 0)
+
+    def test_minimal_template_is_conservative(self):
+        d = build_ar_profile_defaults("minimal")
+        self.assertEqual(d["template_key"], "minimal")
+        self.assertEqual(d["print_personas_enabled"], 0)
+        self.assertEqual(d["withhold_reporting_enabled"], 0)
+        self.assertEqual(d["settle_tolerance"], 0.01)
+
+    def test_unknown_template_raises(self):
+        with self.assertRaises(ValueError):
+            build_ar_profile_defaults("not-a-pack")
+
+    def test_inactive_defaults_safe(self):
+        self.assertEqual(AR_DEFAULT_INACTIVE["require_explicit_allocation"], 1)
+        self.assertIn("electrance", AR_PROFILE_TEMPLATES)
+        self.assertIn("minimal", AR_PROFILE_TEMPLATES)
+
+
+class ARSettleToleranceTests(unittest.TestCase):
+    def test_within_tolerance(self):
+        self.assertTrue(is_within_settle_tolerance(4.99, 5.0))
+        self.assertTrue(is_within_settle_tolerance(-3.0, 5.0))
+        self.assertTrue(is_within_settle_tolerance(0, 5.0))
+
+    def test_outside_tolerance(self):
+        self.assertFalse(is_within_settle_tolerance(5.01, 5.0))
+        self.assertFalse(is_within_settle_tolerance(-6.0, 5.0))
+
+
+class ARReportedOutstandingTests(unittest.TestCase):
+    def test_without_withhold(self):
+        self.assertEqual(reported_outstanding(1000, 200), 800)
+        self.assertEqual(reported_outstanding(1000, 200, wht_amount=45, apply_withhold=False), 800)
+
+    def test_withhold_reduces_reported_only(self):
+        self.assertEqual(
+            reported_outstanding(1000, 200, wht_amount=45, gst_withhold_amount=10, apply_withhold=True),
+            745,
+        )
+
+    def test_never_negative(self):
+        self.assertEqual(reported_outstanding(100, 200), 0.0)
+
+
+class ARInternalPrintAccessTests(unittest.TestCase):
+    def test_finance_manager_allowed(self):
+        self.assertTrue(can_access_internal_print(["Trader Finance Manager"]))
+
+    def test_sales_user_denied(self):
+        self.assertFalse(can_access_internal_print(["Trader Sales User"]))
 
 
 if __name__ == "__main__":

@@ -9,6 +9,8 @@ export type CompanyOption = {
   country?: string;
   multi_currency_enabled?: boolean;
   components_enabled?: boolean;
+  opportunity_enabled?: boolean;
+  ar_enabled?: boolean;
 };
 
 interface CompanyState {
@@ -17,6 +19,8 @@ interface CompanyState {
   currency: string | null;
   multiCurrencyEnabled: boolean;
   componentsEnabled: boolean;
+  opportunityEnabled: boolean;
+  arEnabled: boolean;
   companies: CompanyOption[];
   initialized: boolean;
   loading: boolean;
@@ -25,6 +29,8 @@ interface CompanyState {
   load: () => Promise<void>;
   setCompany: (company: string) => Promise<void>;
   setComponentsEnabled: (enabled: boolean) => void;
+  setOpportunityEnabled: (enabled: boolean) => void;
+  setArEnabled: (enabled: boolean) => void;
 }
 
 registerActiveCompanyGetter(() => useCompanyStore.getState().company || undefined);
@@ -35,6 +41,8 @@ export const useCompanyStore = create<CompanyState>((set, get) => ({
   currency: null,
   multiCurrencyEnabled: false,
   componentsEnabled: false,
+  opportunityEnabled: false,
+  arEnabled: false,
   companies: [],
   initialized: false,
   loading: false,
@@ -60,6 +68,8 @@ export const useCompanyStore = create<CompanyState>((set, get) => ({
         currency,
         multiCurrencyEnabled: Boolean(active.multi_currency_enabled),
         componentsEnabled: Boolean(active.components_enabled),
+        opportunityEnabled: Boolean(active.opportunity_enabled),
+        arEnabled: Boolean(active.ar_enabled),
         initialized: true,
         loading: false,
       });
@@ -83,6 +93,8 @@ export const useCompanyStore = create<CompanyState>((set, get) => ({
         currency,
         multiCurrencyEnabled: Boolean(active.multi_currency_enabled),
         componentsEnabled: Boolean(active.components_enabled),
+        opportunityEnabled: Boolean(active.opportunity_enabled),
+        arEnabled: Boolean(active.ar_enabled),
         loading: false,
         revision: state.revision + 1,
       }));
@@ -96,5 +108,13 @@ export const useCompanyStore = create<CompanyState>((set, get) => ({
 
   setComponentsEnabled: (enabled: boolean) => {
     set({ componentsEnabled: enabled });
+  },
+
+  setOpportunityEnabled: (enabled: boolean) => {
+    set({ opportunityEnabled: enabled });
+  },
+
+  setArEnabled: (enabled: boolean) => {
+    set({ arEnabled: enabled });
   },
 }));

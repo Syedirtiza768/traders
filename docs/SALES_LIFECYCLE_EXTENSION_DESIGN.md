@@ -293,3 +293,50 @@ Backend complete: 10 new API modules, 13 new DocTypes, custom fields, and hook w
 behavior config-driven and opt-in, architecture audit clean. Remaining follow-ups are the
 frontend workstream (SPA config admin + decision-trace view + dual-control gate) and an image
 rebuild + git commit to persist the work.
+
+---
+
+## 10. Commercial Opportunity module (OPP) — foundation
+
+Companion PRD: SA Hamid `PRD-Commercial-Opportunity-Module.md` (Opportunity → Quote → OC → DN → Invoice).
+
+**Shipped foundation (2026-07-21):**
+
+- `Company.trader_opportunity_enabled` (default OFF) + tenant module key `opportunity`
+- `Trader Opportunity Profile` DocType (company-scoped gates, stages, hierarchy, COGS model)
+- [`api/opportunity.py`](apps/trader_app/trader_app/api/opportunity.py) — guard, settings resolver, templates
+- `provision_opportunity_pack(company, template, activate)` in [`migration_toolkit.py`](apps/trader_app/trader_app/api/migration_toolkit.py)
+  - `template="electrance"` = reference pack (not a company-name branch)
+  - `activate=0` (default) = inert profile; other tenants unchanged
+  - `activate=1` = turn on company flag + active profile (Electrance / new-client opt-in)
+
+**Hub shipped (2026-07-21 cont.):**
+
+- `Trader Opportunity` + Customer PO / Comment child tables
+- `trader_opportunity` Link custom field on Quotation / Sales Order / Delivery Note / Sales Invoice
+- Hub APIs: list/get/create/update/close/reopen/comment/PO/`link_document`
+- Stage inference (FR-OPP-02) via pure `infer_display_stage`
+
+**SPA hub shipped (2026-07-21 cont.):**
+
+- Routes `/sales/opportunities` + detail, gated by `requiresOpportunity` + module `opportunity`
+- Nav: Sales → Opportunities (hidden unless company flag on; hidden in daybook profile)
+- Pages: `OpportunitiesPage`, `OpportunityDetailPage`
+- Settings feature flag toggle + `opportunityApi` client
+
+**Hierarchy + create-from-hub shipped (2026-07-21 cont.):**
+
+- `Trader Commercial Option` + `Trader Commercial Option Item` (Line→Option→Item; qty = unit × package)
+- `trader_commercial_options` on Quotation / Sales Order / Delivery Note / Sales Invoice
+- `trader_source_quotation` on Sales Order; [`api/hierarchy.py`](apps/trader_app/trader_app/api/hierarchy.py)
+- Hub actions: `create_quotation_for_opportunity`, `create_order_confirmation` (explicit quote pick),
+  `create_delivery_note_for_opportunity` (FR-DN-02 gate), `save_commercial_options`
+- SPA: Make Quotation / Make OC / Make Delivery Note + source-quote / PO selectors
+
+**Hierarchy editor + grouped-invoice consume shipped (2026-07-21 cont.):**
+
+- `CommercialHierarchyEditor` on Quotation / Sales Order / Delivery Challan / Sales Invoice detail pages
+- Grouped invoicing copies remaining commercial hierarchy onto SI + advances DN option `qty_invoiced`
+- Provision helper: `trader_app.scripts.provision_opportunity.run`
+
+**Still owed:** site `bench migrate` + Electrance activate (`template=electrance`, `activate=1`).

@@ -24,17 +24,23 @@ STANDARD_MODULE_KEYS = (
     "suppliers",
     "operations",
     "components",
+    "opportunity",
+    "ar",
     "pos",
     "settings",
 )
 
+_DEFAULT_OFF_MODULES = frozenset({"components", "opportunity", "ar"})
+
 DEFAULT_MODULE_ROWS = [
-    {"module_key": key, "enabled": 1 if key != "components" else 0}
+    {"module_key": key, "enabled": 0 if key in _DEFAULT_OFF_MODULES else 1}
     for key in STANDARD_MODULE_KEYS
 ]
 
 MODULE_COMPANY_FIELD_MAP = {
     "components": "trader_components_enabled",
+    "opportunity": "trader_opportunity_enabled",
+    "ar": "trader_ar_enabled",
 }
 
 # Nav profiles live in Trader Tenant.workflow_prefs JSON.
@@ -60,6 +66,7 @@ COMPONENTS_DAYBOOK_HIDE_NAV = (
     "delivery_challans",
     "sales_orders",
     "quotations",
+    "opportunities",
     "purchase_invoices",
     "purchase_orders",
     "requisitions",

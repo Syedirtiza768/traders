@@ -156,6 +156,29 @@ def create_grouped_invoice(delivery_notes, company=None, posting_date=None, auto
     if not si.get("items"):
         frappe.throw(_("The selected delivery challans are already fully invoiced."))
 
+    # Copy remaining commercial hierarchy (OPP) onto the invoice without rebuilding flat lines.
+    from trader_app.api.hierarchy import (
+        apply_commercial_options,
+        copy_commercial_options,
+        remaining_package_qty,
+    )
+
+    remaining_hierarchy = []
+    opportunity = None
+    for dn in dns:
+        linked_opp = getattr(dn, "trader_opportunity", None)
+        if linked_opp:
+            opportunity = opportunity or linked_opp
+        if hasattr(dn, "trader_commercial_options") and dn.trader_commercial_options:
+            remaining_hierarchy.extend(
+                copy_commercial_options(dn.trader_commercial_options, remaining_only=True)
+            )
+
+    if opportunity and frappe.db.has_column("Sales Invoice", "trader_opportunity"):
+        si.trader_opportunity = opportunity
+    if remaining_hierarchy and frappe.db.has_column("Sales Invoice", "trader_commercial_options"):
+        apply_commercial_options(si, remaining_hierarchy)
+
     si.insert(ignore_permissions=False)
 
     do_submit = policy.get("auto_submit_invoice") if auto_submit is None else cint(auto_submit)
@@ -168,6 +191,39 @@ def create_grouped_invoice(delivery_notes, company=None, posting_date=None, auto
                 "Delivery Note Item", dn_item_name, "trader_qty_invoiced",
                 current + qty_added, update_modified=False,
             )
+        # Consume remaining package qty on DN commercial options.
+        for dn in dns:
+            if not frappe.db.has_column("Delivery Note", "trader_commercial_options"):
+                continue
+            opt_rows = frappe.get_all(
+                "Trader Commercial Option",
+                filters={"parent": dn.name, "parenttype": "Delivery Note"},
+                fields=["name", "package_qty", "qty_invoiced"],
+            )
+            for opt in opt_rows:
+                rem = remaining_package_qty(opt.package_qty, opt.qty_invoiced)
+                if rem <= 0:
+                    continue
+                frappe.db.set_value(
+                    "Trader Commercial Option",
+                    opt.name,
+                    "qty_invoiced",
+                    flt(opt.qty_invoiced) + rem,
+                    update_modified=False,
+                )
+                item_rows = frappe.get_all(
+                    "Trader Commercial Option Item",
+                    filters={"parent": opt.name, "parenttype": "Trader Commercial Option"},
+                    fields=["name", "unit_qty"],
+                )
+                for it in item_rows:
+                    frappe.db.set_value(
+                        "Trader Commercial Option Item",
+                        it.name,
+                        "qty_invoiced",
+                        flt(it.unit_qty),
+                        update_modified=False,
+                    )
 
     completed = []
     if do_submit:

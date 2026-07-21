@@ -12,6 +12,7 @@ export type NavFeatureKey =
   | 'delivery_challans'
   | 'sales_orders'
   | 'quotations'
+  | 'opportunities'
   | 'purchase_invoices'
   | 'purchase_orders'
   | 'requisitions'
@@ -46,6 +47,7 @@ export const COMPONENTS_DAYBOOK_HIDE: NavFeatureKey[] = [
   'delivery_challans',
   'sales_orders',
   'quotations',
+  'opportunities',
   'purchase_invoices',
   'purchase_orders',
   'requisitions',
@@ -76,6 +78,7 @@ export const COMPONENTS_DAYBOOK_MODULES = [
 
 const PATH_FEATURE_RULES: Array<{ prefix: string; feature: NavFeatureKey; exact?: boolean }> = [
   { prefix: '/sales/pos', feature: 'pos' },
+  { prefix: '/sales/opportunities', feature: 'opportunities' },
   { prefix: '/sales/challans', feature: 'delivery_challans' },
   { prefix: '/sales/orders', feature: 'sales_orders' },
   { prefix: '/sales/quotations', feature: 'quotations' },

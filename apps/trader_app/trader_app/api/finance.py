@@ -9,6 +9,8 @@ Whitelisted endpoints for the Finance module:
 
 from __future__ import unicode_literals
 
+import json
+
 import frappe
 from frappe import _
 from trader_app.api.company import resolve_active_company
@@ -119,7 +121,149 @@ def get_payment_entry_setup(company=None):
 
 
 # ────────────────────────────────────────────────────────────────
-# 2.  CREATE PAYMENT
+# 2.  OPEN INVOICES & ALLOCATION (shared with daybook)
+# ────────────────────────────────────────────────────────────────
+
+def get_open_invoices(party_type, party, company):
+    """Open submitted invoices for a party, oldest first."""
+    if party_type == "Customer":
+        return frappe.db.sql("""
+            SELECT name, outstanding_amount, posting_date
+            FROM `tabSales Invoice`
+            WHERE customer = %(party)s
+              AND company = %(company)s
+              AND docstatus = 1
+              AND outstanding_amount > 0
+            ORDER BY posting_date ASC, creation ASC
+        """, {"party": party, "company": company}, as_dict=True)
+
+    return frappe.db.sql("""
+        SELECT name, outstanding_amount, posting_date
+        FROM `tabPurchase Invoice`
+        WHERE supplier = %(party)s
+          AND company = %(company)s
+          AND docstatus = 1
+          AND outstanding_amount > 0
+        ORDER BY posting_date ASC, creation ASC
+    """, {"party": party, "company": company}, as_dict=True)
+
+
+def payment_reference_doctype(party_type):
+    return "Sales Invoice" if party_type == "Customer" else "Purchase Invoice"
+
+
+def parse_allocations(allocations):
+    if allocations is None:
+        return None
+    if isinstance(allocations, str):
+        allocations = json.loads(allocations)
+    if not isinstance(allocations, list):
+        return None
+    return allocations
+
+
+def allocate_payment_to_invoices(pe, party_type, party, company, amount):
+    """FIFO allocation across oldest open invoices. Returns unallocated remainder."""
+    ref_doctype = payment_reference_doctype(party_type)
+    remaining = flt(amount)
+
+    for inv in get_open_invoices(party_type, party, company):
+        if remaining <= 0:
+            break
+        alloc = min(remaining, flt(inv.outstanding_amount))
+        if alloc <= 0:
+            continue
+        pe.append("references", {
+            "reference_doctype": ref_doctype,
+            "reference_name": inv.name,
+            "allocated_amount": alloc,
+        })
+        remaining -= alloc
+
+    return remaining
+
+
+def allocate_payment_manual(pe, party_type, party, company, amount, allocations):
+    """Apply user-specified invoice allocations. Returns unallocated remainder."""
+    ref_doctype = payment_reference_doctype(party_type)
+    open_map = {
+        inv.name: inv for inv in get_open_invoices(party_type, party, company)
+    }
+    total_allocated = 0.0
+
+    for row in allocations:
+        ref_name = (row.get("reference_name") or row.get("name") or "").strip()
+        alloc = flt(row.get("allocated_amount", 0))
+        if alloc <= 0:
+            continue
+        if not ref_name:
+            frappe.throw(_("Each allocation row must include reference_name."))
+        if ref_name not in open_map:
+            frappe.throw(
+                _("Invoice {0} is not open for this party.").format(ref_name)
+            )
+        outstanding = flt(open_map[ref_name].outstanding_amount)
+        if alloc > outstanding + 0.005:
+            frappe.throw(
+                _("Allocation {0} exceeds outstanding {1} on {2}.").format(
+                    alloc, outstanding, ref_name
+                )
+            )
+        pe.append("references", {
+            "reference_doctype": ref_doctype,
+            "reference_name": ref_name,
+            "allocated_amount": alloc,
+        })
+        total_allocated += alloc
+
+    if total_allocated > flt(amount) + 0.005:
+        frappe.throw(_("Total allocated amount exceeds payment amount."))
+
+    return flt(amount) - total_allocated
+
+
+def allocate_payment(pe, party_type, party, company, amount, allocations=None):
+    """Allocate payment to invoices.
+
+    ``allocations=None`` — FIFO across open invoices.
+    ``allocations=[]`` — post full amount as party advance (no invoice refs).
+    ``allocations=[{...}]`` — apply explicit per-invoice rows.
+    """
+    if allocations is None:
+        return allocate_payment_to_invoices(pe, party_type, party, company, amount)
+
+    parsed = parse_allocations(allocations)
+    if parsed is not None and len(parsed) == 0:
+        return flt(amount)
+
+    if parsed:
+        return allocate_payment_manual(pe, party_type, party, company, amount, parsed)
+
+    return allocate_payment_to_invoices(pe, party_type, party, company, amount)
+
+
+@frappe.whitelist()
+def get_open_invoices_for_payment(party_type, party, company=None):
+    """Open invoices for finance payment allocation (no components-daybook guard)."""
+    company = resolve_active_company(company)
+
+    if party_type not in ("Customer", "Supplier"):
+        frappe.throw(_("party_type must be Customer or Supplier."))
+
+    party = _resolve_party(party_type, party)
+    rows = get_open_invoices(party_type, party, company)
+    total = sum(flt(row.outstanding_amount) for row in rows)
+
+    return {
+        "party": party,
+        "invoices": rows,
+        "invoice_outstanding": flt(total),
+        "total_outstanding": flt(total),
+    }
+
+
+# ────────────────────────────────────────────────────────────────
+# 3.  CREATE PAYMENT
 # ────────────────────────────────────────────────────────────────
 
 @frappe.whitelist()
@@ -127,11 +271,20 @@ def create_payment_entry(payment_type, party_type, party, amount,
                          company=None, posting_date=None,
                          reference_doctype=None, reference_name=None,
                          mode_of_payment=None, paid_to=None, paid_from=None,
-                         reference_no=None, reference_date=None):
-    """Create a Payment Entry from the UI."""
+                         reference_no=None, reference_date=None,
+                         allocations=None):
+    """Create a Payment Entry from the UI.
+
+    Allocation modes (AR-DOC):
+    - ``allocations`` list: explicit multi-invoice rows (empty list = on-account)
+    - else single ``reference_doctype`` + ``reference_name`` (legacy)
+    - else if AR profile ``auto_allocate_on_receipt``: FIFO
+    - else: unallocated receipt (on-account)
+    """
     company = resolve_active_company(company)
     mode_of_payment = _resolve_payment_mode(mode_of_payment)
     party = _resolve_party(party_type, party)
+    pay_amount = flt(amount)
 
     pe = frappe.new_doc("Payment Entry")
     pe.company = company
@@ -139,8 +292,8 @@ def create_payment_entry(payment_type, party_type, party, amount,
     pe.party_type = party_type
     pe.party = party
     pe.posting_date = posting_date or nowdate()
-    pe.paid_amount = flt(amount)
-    pe.received_amount = flt(amount)
+    pe.paid_amount = pay_amount
+    pe.received_amount = pay_amount
     if mode_of_payment:
         pe.mode_of_payment = mode_of_payment
 
@@ -149,18 +302,40 @@ def create_payment_entry(payment_type, party_type, party, amount,
         mode_of_payment, paid_to, paid_from,
     )
 
-    if reference_doctype and reference_name:
+    unallocated = pay_amount
+    parsed_alloc = parse_allocations(allocations)
+    if parsed_alloc is not None:
+        unallocated = allocate_payment(
+            pe, party_type, party, company, pay_amount, allocations=parsed_alloc
+        )
+    elif reference_doctype and reference_name:
         pe.append("references", {
             "reference_doctype": reference_doctype,
             "reference_name": reference_name,
-            "allocated_amount": flt(amount),
+            "allocated_amount": pay_amount,
         })
+        unallocated = 0.0
+    else:
+        try:
+            from trader_app.api.ar import resolve_ar_settings
+            profile = resolve_ar_settings(company).get("profile") or {}
+            if cint(profile.get("auto_allocate_on_receipt")):
+                unallocated = allocate_payment(
+                    pe, party_type, party, company, pay_amount, allocations=None
+                )
+        except Exception:
+            # AR module / profile optional — leave unallocated if unavailable.
+            pass
+
+    fallback_ref = reference_name
+    if not fallback_ref and pe.get("references"):
+        fallback_ref = pe.references[0].reference_name
 
     _apply_bank_reference_fields(
         pe,
         reference_no=reference_no,
         reference_date=reference_date,
-        fallback_reference=reference_name,
+        fallback_reference=fallback_ref,
     )
 
     pe.insert(ignore_permissions=False)
@@ -168,6 +343,8 @@ def create_payment_entry(payment_type, party_type, party, amount,
         "name": pe.name,
         "status": "Draft",
         "settlement_account": settlement_account,
+        "allocated_amount": flt(pay_amount) - flt(unallocated),
+        "unallocated_amount": flt(unallocated),
     }
 
 

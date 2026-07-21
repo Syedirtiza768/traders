@@ -24,6 +24,7 @@ describe('App route module gates', () => {
     expect(moduleSet.has('purchases')).toBe(true);
     expect(moduleSet.has('inventory')).toBe(true);
     expect(moduleSet.has('components')).toBe(true);
+    expect(moduleSet.has('opportunity')).toBe(true);
     expect(moduleSet.has('pos')).toBe(true);
     expect(moduleSet.has('settings')).toBe(true);
   });

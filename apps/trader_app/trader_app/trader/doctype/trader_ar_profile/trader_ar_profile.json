@@ -1,0 +1,210 @@
+{
+ "actions": [],
+ "autoname": "format:AR-{#####}",
+ "creation": "2026-07-21 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "description": "Company-scoped Customer AR & Document Prints pack (AR-DOC PRD). OPT-IN via Company.trader_ar_enabled + is_active. Electrance is a seed template, not a code branch.",
+ "field_order": [
+  "profile_name",
+  "company",
+  "column_break_head",
+  "is_active",
+  "template_key",
+  "section_allocation",
+  "settle_tolerance",
+  "auto_allocate_on_receipt",
+  "require_explicit_allocation",
+  "column_break_alloc",
+  "allow_unallocate",
+  "block_return_if_allocated",
+  "section_withhold",
+  "withhold_reporting_enabled",
+  "default_wht_percent",
+  "default_gst_withhold_percent",
+  "section_prints",
+  "print_personas_enabled",
+  "secure_internal_prints",
+  "section_shop",
+  "shop_sale_enabled"
+ ],
+ "fields": [
+  {
+   "fieldname": "profile_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Profile Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_head",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Active"
+  },
+  {
+   "fieldname": "template_key",
+   "fieldtype": "Data",
+   "label": "Template Key",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_allocation",
+   "fieldtype": "Section Break",
+   "label": "Receipt & Allocation"
+  },
+  {
+   "default": "5",
+   "fieldname": "settle_tolerance",
+   "fieldtype": "Currency",
+   "label": "Settle Tolerance",
+   "description": "Invoice settles when remaining absolute difference is below this amount (FR-ALC-03)."
+  },
+  {
+   "default": "0",
+   "fieldname": "auto_allocate_on_receipt",
+   "fieldtype": "Check",
+   "label": "Auto-Allocate on Receipt (FIFO)",
+   "description": "When off, receipts may remain on-account until explicitly allocated."
+  },
+  {
+   "default": "1",
+   "fieldname": "require_explicit_allocation",
+   "fieldtype": "Check",
+   "label": "Show Multi-Invoice Allocation UI"
+  },
+  {
+   "fieldname": "column_break_alloc",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "allow_unallocate",
+   "fieldtype": "Check",
+   "label": "Allow Unallocate / Reverse Allocation"
+  },
+  {
+   "default": "1",
+   "fieldname": "block_return_if_allocated",
+   "fieldtype": "Check",
+   "label": "Block Invoice Return if Allocated"
+  },
+  {
+   "fieldname": "section_withhold",
+   "fieldtype": "Section Break",
+   "label": "Withhold Reporting"
+  },
+  {
+   "default": "0",
+   "fieldname": "withhold_reporting_enabled",
+   "fieldtype": "Check",
+   "label": "Withhold Reporting Adjustments",
+   "description": "Adjusts reported aging outstanding only — does not change posted receivable."
+  },
+  {
+   "default": "4.5",
+   "fieldname": "default_wht_percent",
+   "fieldtype": "Percent",
+   "label": "Default WHT %"
+  },
+  {
+   "default": "20",
+   "fieldname": "default_gst_withhold_percent",
+   "fieldtype": "Percent",
+   "label": "Default GST Withhold % of Tax"
+  },
+  {
+   "fieldname": "section_prints",
+   "fieldtype": "Section Break",
+   "label": "Document Print Personas"
+  },
+  {
+   "default": "1",
+   "fieldname": "print_personas_enabled",
+   "fieldtype": "Check",
+   "label": "Enable Print Personas",
+   "description": "Internal / External / Commercial / Tax via Trader Template Map.persona"
+  },
+  {
+   "default": "1",
+   "fieldname": "secure_internal_prints",
+   "fieldtype": "Check",
+   "label": "Secure Internal Prints",
+   "description": "Internal persona requires Trader Admin / Finance / Sales Manager roles."
+  },
+  {
+   "fieldname": "section_shop",
+   "fieldtype": "Section Break",
+   "label": "Shop / POS"
+  },
+  {
+   "default": "0",
+   "fieldname": "shop_sale_enabled",
+   "fieldtype": "Check",
+   "label": "Shop Sale (SS) Path Enabled",
+   "description": "Optional POS cash/credit AR behaviour. Keep off for project-only Electrance."
+  }
+ ],
+ "links": [],
+ "modified": "2026-07-21 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Trader",
+ "name": "Trader AR Profile",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Trader Super Admin",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Trader Admin",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Trader Finance Manager"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "title_field": "profile_name",
+ "track_changes": 1
+}

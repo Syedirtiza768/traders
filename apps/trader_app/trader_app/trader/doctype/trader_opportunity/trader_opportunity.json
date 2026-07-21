@@ -1,0 +1,277 @@
+{
+ "actions": [],
+ "autoname": "field:opportunity_ref",
+ "creation": "2026-07-21 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "description": "Commercial Opportunity aggregate root (OPP PRD). Opt-in via Company.trader_opportunity_enabled + Trader Opportunity Profile.",
+ "field_order": [
+  "opportunity_ref",
+  "title",
+  "company",
+  "column_break_head",
+  "status",
+  "priority",
+  "watchlist",
+  "section_party",
+  "customer",
+  "customer_name",
+  "branch",
+  "column_break_party",
+  "owner_user",
+  "enquiry_date",
+  "enquiry_value",
+  "section_close",
+  "close_stage",
+  "closed_at",
+  "closed_by",
+  "section_notes",
+  "description",
+  "section_po",
+  "customer_pos",
+  "section_activity",
+  "comments",
+  "amended_from"
+ ],
+ "fields": [
+  {
+   "fieldname": "opportunity_ref",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Opportunity Ref",
+   "reqd": 1,
+   "unique": 1,
+   "bold": 1
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title",
+   "reqd": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_head",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Open",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Open\nClosed",
+   "reqd": 1
+  },
+  {
+   "default": "Normal",
+   "fieldname": "priority",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Priority",
+   "options": "Low\nNormal\nHigh\nUrgent"
+  },
+  {
+   "default": "0",
+   "fieldname": "watchlist",
+   "fieldtype": "Check",
+   "label": "Watchlist / Follow-up"
+  },
+  {
+   "fieldname": "section_party",
+   "fieldtype": "Section Break",
+   "label": "Customer"
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Customer",
+   "options": "Customer",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "customer.customer_name",
+   "fieldname": "customer_name",
+   "fieldtype": "Data",
+   "label": "Customer Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "branch",
+   "fieldtype": "Data",
+   "label": "Branch / Site",
+   "description": "Customer branch or site label (optional)."
+  },
+  {
+   "fieldname": "column_break_party",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "owner_user",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Owner (Salesperson)",
+   "options": "User"
+  },
+  {
+   "fieldname": "enquiry_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Enquiry Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "enquiry_value",
+   "fieldtype": "Currency",
+   "label": "Enquiry Value (Estimate)"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "section_close",
+   "fieldtype": "Section Break",
+   "label": "Close"
+  },
+  {
+   "depends_on": "eval:doc.status==\"Closed\"",
+   "fieldname": "close_stage",
+   "fieldtype": "Select",
+   "label": "Close Stage",
+   "options": "\nEnquiry\nQuotation\nCustomer PO\nDelivery\nOther"
+  },
+  {
+   "fieldname": "closed_at",
+   "fieldtype": "Datetime",
+   "label": "Closed At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "closed_by",
+   "fieldtype": "Link",
+   "label": "Closed By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_notes",
+   "fieldtype": "Section Break",
+   "label": "Notes"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Text Editor",
+   "label": "Description"
+  },
+  {
+   "fieldname": "section_po",
+   "fieldtype": "Section Break",
+   "label": "Customer Purchase Orders"
+  },
+  {
+   "fieldname": "customer_pos",
+   "fieldtype": "Table",
+   "label": "Customer POs",
+   "options": "Trader Opportunity Customer PO"
+  },
+  {
+   "fieldname": "section_activity",
+   "fieldtype": "Section Break",
+   "label": "Activity"
+  },
+  {
+   "fieldname": "comments",
+   "fieldtype": "Table",
+   "label": "Comments",
+   "options": "Trader Opportunity Comment"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Trader Opportunity",
+   "print_hide": 1,
+   "read_only": 1
+  }
+ ],
+ "links": [],
+ "modified": "2026-07-21 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Trader",
+ "name": "Trader Opportunity",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Trader Super Admin",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Trader Admin",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Trader Sales Manager",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Sales User",
+   "write": 1
+  }
+ ],
+ "search_fields": "opportunity_ref,title,customer,customer_name",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "title_field": "title",
+ "track_changes": 1
+}

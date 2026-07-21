@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { salesApi } from '../lib/api';
 import RecordInvoicePaymentPanel from '../components/RecordInvoicePaymentPanel';
+import CommercialHierarchyEditor from '../components/CommercialHierarchyEditor';
 import { appendPreservedListQuery, classNames, extractFrappeError, formatCurrency, formatDate, getActiveCurrency, getStatusColor, isFilterListContext, isOperationsContext, isReportContext } from '../lib/utils';
 
 type SalesInvoiceDetail = Record<string, any>;
@@ -375,6 +376,15 @@ export default function SalesInvoiceDetailPage() {
           )}
         </div>
       </div>
+
+      <CommercialHierarchyEditor
+        doctype="Sales Invoice"
+        name={invoice.name}
+        initialOptions={invoice.trader_commercial_options}
+        readOnly={invoice.docstatus !== 0}
+        currency={invoice.currency}
+        onSaved={() => { void reloadInvoice(); }}
+      />
     </div>
   );
 }

@@ -84,9 +84,19 @@ def _ensure_tenant_for_company(company_row, dry_run=False):
     components_enabled = cint_safe(
         frappe.db.get_value("Company", company_name, "trader_components_enabled")
     )
+    opportunity_enabled = cint_safe(
+        frappe.db.get_value("Company", company_name, "trader_opportunity_enabled")
+    )
+    ar_enabled = cint_safe(
+        frappe.db.get_value("Company", company_name, "trader_ar_enabled")
+    )
     for row in doc.enabled_modules:
         if row.module_key == "components":
             row.enabled = components_enabled
+        elif row.module_key == "opportunity":
+            row.enabled = opportunity_enabled
+        elif row.module_key == "ar":
+            row.enabled = ar_enabled
 
     doc.insert(ignore_permissions=True)
     frappe.db.set_value("Company", company_name, "trader_tenant", doc.name, update_modified=False)

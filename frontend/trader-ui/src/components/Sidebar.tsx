@@ -30,6 +30,7 @@ interface NavChild {
   label: string;
   module?: TenantModuleKey;
   requiresComponents?: boolean;
+  requiresOpportunity?: boolean;
   feature?: NavFeatureKey;
 }
 
@@ -41,6 +42,7 @@ interface NavItem {
   capability?: AppCapability;
   module?: TenantModuleKey;
   requiresComponents?: boolean;
+  requiresOpportunity?: boolean;
   feature?: NavFeatureKey;
   children?: NavChild[];
 }
@@ -50,6 +52,7 @@ const standardNavItems: NavItem[] = [
   {
     to: '/sales', label: 'Sales', icon: TrendingUp, capability: 'sales:view', module: 'sales',
     children: [
+      { to: '/sales/opportunities', label: 'Opportunities', module: 'opportunity', requiresOpportunity: true, feature: 'opportunities' },
       { to: '/sales', label: 'Invoices', module: 'sales', feature: 'sales_invoices' },
       { to: '/sales/pos', label: 'POS Checkout', module: 'pos', feature: 'pos' },
       { to: '/sales/challans', label: 'Delivery Challans', module: 'sales', feature: 'delivery_challans' },
@@ -190,6 +193,7 @@ export default function Sidebar({ mobile = false, onClose }: SidebarProps) {
   const location = useLocation();
   const roles = useAuthStore((s) => s.roles);
   const componentsEnabled = useCompanyStore((s) => s.componentsEnabled);
+  const opportunityEnabled = useCompanyStore((s) => s.opportunityEnabled);
   const multitenantEnabled = useTenantStore((s) => s.enabled);
   const isModuleEnabled = useTenantStore((s) => s.isModuleEnabled);
   const isNavFeatureVisible = useTenantStore((s) => s.isNavFeatureVisible);
@@ -210,6 +214,7 @@ export default function Sidebar({ mobile = false, onClose }: SidebarProps) {
 
   const isChildVisible = (child: NavChild) => {
     if (child.requiresComponents && !componentsEnabled) return false;
+    if (child.requiresOpportunity && !opportunityEnabled) return false;
     if (!isFeatureVisible(child.feature)) return false;
     return isModuleVisible(child.module);
   };
@@ -219,6 +224,7 @@ export default function Sidebar({ mobile = false, onClose }: SidebarProps) {
       return false;
     }
     if (item.requiresComponents && !componentsEnabled) return false;
+    if (item.requiresOpportunity && !opportunityEnabled) return false;
     if (!isFeatureVisible(item.feature)) return false;
     if (!isModuleVisible(item.module)) return false;
     if (item.children) {

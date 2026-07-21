@@ -1,0 +1,263 @@
+{
+ "actions": [],
+ "autoname": "format:OPP-{#####}",
+ "creation": "2026-07-21 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "description": "Company-scoped Commercial Opportunity pack (OPP PRD). OPT-IN: APIs and UI only act when Company.trader_opportunity_enabled is on AND this profile is_active. No tenant-name branching — Electrance is a seed template, not a code path.",
+ "field_order": [
+  "profile_name",
+  "company",
+  "column_break_head",
+  "is_active",
+  "template_key",
+  "section_gates",
+  "require_opportunity_for_quotation",
+  "dn_requires_oc_if_quotations_exist",
+  "invoice_from_dn_only",
+  "column_break_gates",
+  "allow_quick_quotation",
+  "allow_quotation_revisions",
+  "allow_duplicate_quotation",
+  "partial_invoicing",
+  "section_stages",
+  "enable_quotation",
+  "enable_order_confirmation",
+  "enable_delivery_note",
+  "enable_invoice",
+  "column_break_stages",
+  "oc_maps_to",
+  "section_hierarchy",
+  "hierarchy_on_quotation",
+  "hierarchy_on_oc",
+  "hierarchy_on_dn",
+  "hierarchy_on_invoice",
+  "section_posting",
+  "stock_posting_moment",
+  "cogs_model"
+ ],
+ "fields": [
+  {
+   "fieldname": "profile_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Profile Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_head",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Active",
+   "description": "When off, this profile is documentation / seed only."
+  },
+  {
+   "fieldname": "template_key",
+   "fieldtype": "Data",
+   "label": "Template Key",
+   "description": "Seed template used to create this profile (e.g. electrance, minimal).",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_gates",
+   "fieldtype": "Section Break",
+   "label": "Process Gates"
+  },
+  {
+   "default": "1",
+   "fieldname": "require_opportunity_for_quotation",
+   "fieldtype": "Check",
+   "label": "Require Opportunity for Quotation"
+  },
+  {
+   "default": "1",
+   "fieldname": "dn_requires_oc_if_quotations_exist",
+   "fieldtype": "Check",
+   "label": "DN Requires OC if Quotations Exist",
+   "description": "PRD FR-DN-02: allow DN if no quotations, or at least one finalized OC."
+  },
+  {
+   "default": "1",
+   "fieldname": "invoice_from_dn_only",
+   "fieldtype": "Check",
+   "label": "Invoice from Delivery Notes Only"
+  },
+  {
+   "fieldname": "column_break_gates",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "allow_quick_quotation",
+   "fieldtype": "Check",
+   "label": "Allow Quick Quotation (without items)"
+  },
+  {
+   "default": "1",
+   "fieldname": "allow_quotation_revisions",
+   "fieldtype": "Check",
+   "label": "Allow Quotation Revisions"
+  },
+  {
+   "default": "1",
+   "fieldname": "allow_duplicate_quotation",
+   "fieldtype": "Check",
+   "label": "Allow Duplicate Quotation"
+  },
+  {
+   "default": "1",
+   "fieldname": "partial_invoicing",
+   "fieldtype": "Check",
+   "label": "Allow Partial Invoicing",
+   "description": "Uses Trader Grouping Policy when present."
+  },
+  {
+   "fieldname": "section_stages",
+   "fieldtype": "Section Break",
+   "label": "Enabled Stages"
+  },
+  {
+   "default": "1",
+   "fieldname": "enable_quotation",
+   "fieldtype": "Check",
+   "label": "Quotation"
+  },
+  {
+   "default": "1",
+   "fieldname": "enable_order_confirmation",
+   "fieldtype": "Check",
+   "label": "Order Confirmation"
+  },
+  {
+   "default": "1",
+   "fieldname": "enable_delivery_note",
+   "fieldtype": "Check",
+   "label": "Delivery Note"
+  },
+  {
+   "default": "1",
+   "fieldname": "enable_invoice",
+   "fieldtype": "Check",
+   "label": "Sales Invoice"
+  },
+  {
+   "fieldname": "column_break_stages",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Sales Order",
+   "fieldname": "oc_maps_to",
+   "fieldtype": "Select",
+   "label": "OC Maps To (Host DocType)",
+   "options": "Sales Order",
+   "description": "Host ERP document used as Order Confirmation."
+  },
+  {
+   "fieldname": "section_hierarchy",
+   "fieldtype": "Section Break",
+   "label": "Commercial Line Hierarchy"
+  },
+  {
+   "default": "1",
+   "fieldname": "hierarchy_on_quotation",
+   "fieldtype": "Check",
+   "label": "Hierarchy on Quotation"
+  },
+  {
+   "default": "1",
+   "fieldname": "hierarchy_on_oc",
+   "fieldtype": "Check",
+   "label": "Hierarchy on Order Confirmation"
+  },
+  {
+   "default": "1",
+   "fieldname": "hierarchy_on_dn",
+   "fieldtype": "Check",
+   "label": "Hierarchy on Delivery Note"
+  },
+  {
+   "default": "1",
+   "fieldname": "hierarchy_on_invoice",
+   "fieldtype": "Check",
+   "label": "Hierarchy on Invoice"
+  },
+  {
+   "fieldname": "section_posting",
+   "fieldtype": "Section Break",
+   "label": "Inventory / COGS"
+  },
+  {
+   "default": "delivery_note",
+   "fieldname": "stock_posting_moment",
+   "fieldtype": "Select",
+   "label": "Stock Posting Moment",
+   "options": "delivery_note\ninvoice",
+   "description": "When inventory is issued (PRD FR-DN-04 / FR-INV-08)."
+  },
+  {
+   "default": "A",
+   "fieldname": "cogs_model",
+   "fieldtype": "Select",
+   "label": "COGS Model",
+   "options": "A\nB",
+   "description": "A = stock+COGS on DN, invoice AR-only. B = stock+COGS on Invoice."
+  }
+ ],
+ "links": [],
+ "modified": "2026-07-21 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Trader",
+ "name": "Trader Opportunity Profile",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Trader Super Admin",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Trader Admin",
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "title_field": "profile_name",
+ "track_changes": 1
+}

@@ -192,6 +192,30 @@ def toggle_components_feature(enabled=0, company=None):
 
 
 @frappe.whitelist()
+def toggle_opportunity_feature(enabled=0, company=None):
+    """Enable or disable the Commercial Opportunity module for a company.
+
+    Does not create a profile — use ``provision_opportunity_pack`` for that.
+    Restricted to Trader Admin / System Manager / Administrator.
+    """
+    from trader_app.api.opportunity import set_opportunity_enabled
+
+    return set_opportunity_enabled(enabled=enabled, company=company)
+
+
+@frappe.whitelist()
+def toggle_ar_feature(enabled=0, company=None):
+    """Enable or disable Customer AR & Document Prints for a company.
+
+    Does not create a profile — use ``provision_ar_pack`` for that.
+    Restricted to Trader Admin / System Manager / Administrator.
+    """
+    from trader_app.api.ar import set_ar_enabled
+
+    return set_ar_enabled(enabled=enabled, company=company)
+
+
+@frappe.whitelist()
 def get_current_user_roles():
     """Return the Trader-App roles assigned to the currently logged-in user.
 

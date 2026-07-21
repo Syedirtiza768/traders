@@ -1,0 +1,90 @@
+{
+ "actions": [],
+ "creation": "2026-07-21 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "istable": 1,
+ "description": "Commercial Line→Option row (OPP PRD). Lines group by line_no; effective item qty = unit_qty × package_qty.",
+ "field_order": [
+  "line_no",
+  "client_requirements",
+  "option_no",
+  "option_text",
+  "package_qty",
+  "stock_status",
+  "package_price",
+  "qty_invoiced",
+  "items"
+ ],
+ "fields": [
+  {
+   "default": "1",
+   "fieldname": "line_no",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Line No",
+   "reqd": 1
+  },
+  {
+   "fieldname": "client_requirements",
+   "fieldtype": "Small Text",
+   "label": "Client Requirements"
+  },
+  {
+   "default": "1",
+   "fieldname": "option_no",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Option No",
+   "reqd": 1
+  },
+  {
+   "fieldname": "option_text",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Option Text"
+  },
+  {
+   "default": "1",
+   "fieldname": "package_qty",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Package Qty",
+   "reqd": 1
+  },
+  {
+   "fieldname": "stock_status",
+   "fieldtype": "Data",
+   "label": "Stock Status"
+  },
+  {
+   "fieldname": "package_price",
+   "fieldtype": "Currency",
+   "label": "Package Price"
+  },
+  {
+   "default": "0",
+   "fieldname": "qty_invoiced",
+   "fieldtype": "Float",
+   "label": "Package Qty Invoiced",
+   "read_only": 1,
+   "description": "Package qty already pulled into invoices (Delivery Note)."
+  },
+  {
+   "fieldname": "items",
+   "fieldtype": "Table",
+   "label": "Items",
+   "options": "Trader Commercial Option Item"
+  }
+ ],
+ "links": [],
+ "modified": "2026-07-21 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Trader",
+ "name": "Trader Commercial Option",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "idx",
+ "sort_order": "ASC",
+ "track_changes": 0
+}

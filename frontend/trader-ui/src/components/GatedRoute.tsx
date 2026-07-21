@@ -13,23 +13,26 @@ export type GatedRouteProps = {
   capability?: AppCapability;
   module?: TenantModuleKey;
   requiresComponents?: boolean;
+  requiresOpportunity?: boolean;
   /** Child-level nav feature; blocked when tenant nav profile hides it. */
   navFeature?: NavFeatureKey;
 };
 
 /**
- * Combined role + tenant-module + components-feature + nav-profile gate for business routes.
+ * Combined role + tenant-module + feature-flag + nav-profile gate for business routes.
  */
 export default function GatedRoute({
   children,
   capability,
   module,
   requiresComponents = false,
+  requiresOpportunity = false,
   navFeature,
 }: GatedRouteProps) {
   const location = useLocation();
   const roles = useAuthStore((s) => s.roles);
   const componentsEnabled = useCompanyStore((s) => s.componentsEnabled);
+  const opportunityEnabled = useCompanyStore((s) => s.opportunityEnabled);
   const isModuleEnabled = useTenantStore((s) => s.isModuleEnabled);
   const isNavFeatureVisible = useTenantStore((s) => s.isNavFeatureVisible);
   const isPathAllowedByNavProfile = useTenantStore((s) => s.isPathAllowedByNavProfile);
@@ -40,7 +43,9 @@ export default function GatedRoute({
   }
 
   const effectiveModule: TenantModuleKey | undefined =
-    module ?? (requiresComponents ? 'components' : undefined);
+    module
+    ?? (requiresComponents ? 'components' : undefined)
+    ?? (requiresOpportunity ? 'opportunity' : undefined);
 
   if (multitenantEnabled && effectiveModule && !isModuleEnabled(effectiveModule)) {
     return (
@@ -56,6 +61,15 @@ export default function GatedRoute({
       <AccessDenied
         title="Feature not enabled"
         description="The Components Trading feature is not enabled for this company. Enable it in Settings → Feature Flags."
+      />
+    );
+  }
+
+  if (requiresOpportunity && !opportunityEnabled) {
+    return (
+      <AccessDenied
+        title="Feature not enabled"
+        description="The Commercial Opportunity module is not enabled for this company. Enable it in Settings → Feature Flags, or provision an opportunity pack."
       />
     );
   }

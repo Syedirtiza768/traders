@@ -1,11 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Save } from 'lucide-react';
-import { customersApi, financeApi, suppliersApi } from '../lib/api';
+import { arApi, customersApi, financeApi, suppliersApi } from '../lib/api';
 import { appendPreservedListQuery, extractFrappeError, formatCurrency, formatDate, isFilterListContext, isOperationsContext, isReportContext, isWorkflowContext } from '../lib/utils';
 import SearchableSelect from '../components/SearchableSelect';
 import useQuickAdd from '../components/useQuickAdd';
 import QuickAddProvider from '../components/QuickAddProvider';
+import PaymentAllocationPanel, {
+  type InvoiceAllocation,
+  type OpenInvoice,
+} from '../components/PaymentAllocationPanel';
+import { useCompanyStore } from '../stores/companyStore';
 
 type PartyTransaction = {
   name: string;
@@ -30,6 +35,7 @@ type SettlementAccount = {
 export default function CreatePaymentEntryPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const arEnabled = useCompanyStore((s) => s.arEnabled);
   const isBootstrappingFromQuery = useRef(true);
   // Holds the referenceName from the URL until references finish loading,
   // so the loadReferences effect doesn't wipe it before the list arrives.
@@ -56,6 +62,9 @@ export default function CreatePaymentEntryPage() {
   const [referenceName, setReferenceName] = useState(searchParams.get('referenceName') || '');
   const [parties, setParties] = useState<any[]>([]);
   const [references, setReferences] = useState<PartyTransaction[]>([]);
+  const [openInvoices, setOpenInvoices] = useState<OpenInvoice[]>([]);
+  const [allocations, setAllocations] = useState<InvoiceAllocation[]>([]);
+  const [multiAllocEnabled, setMultiAllocEnabled] = useState(false);
   const [paymentModes, setPaymentModes] = useState<PaymentMode[]>([]);
   const [settlementAccounts, setSettlementAccounts] = useState<SettlementAccount[]>([]);
   const [modeAccounts, setModeAccounts] = useState<Record<string, string>>({});
@@ -115,6 +124,19 @@ export default function CreatePaymentEntryPage() {
   useEffect(() => {
     isBootstrappingFromQuery.current = false;
   }, []);
+
+  useEffect(() => {
+    if (!arEnabled) {
+      setMultiAllocEnabled(false);
+      return;
+    }
+    arApi.getSettings()
+      .then((res) => {
+        const profile = res.data.message?.profile || {};
+        setMultiAllocEnabled(Boolean(res.data.message?.ar_enabled && profile.require_explicit_allocation));
+      })
+      .catch(() => setMultiAllocEnabled(false));
+  }, [arEnabled]);
 
   // Resolve party from URL param once the parties list is loaded.
   // The URL may pass either the doc name (e.g. "CUST-00001") or the
@@ -228,6 +250,8 @@ export default function CreatePaymentEntryPage() {
     const loadReferences = async () => {
       if (!party) {
         setReferences([]);
+        setOpenInvoices([]);
+        setAllocations([]);
         // Only clear referenceName state; preserve pendingReferenceName ref
         // so it's still available when party resolves
         setReferenceName((prev) => (pendingReferenceName.current ? prev : ''));
@@ -236,41 +260,64 @@ export default function CreatePaymentEntryPage() {
 
       setLoadingReferences(true);
       try {
-        const response = partyType === 'Customer'
-          ? await customersApi.getTransactions(party, { page: 1, page_size: 100 })
-          : await suppliersApi.getTransactions(party, { page: 1, page_size: 100 });
+        if (multiAllocEnabled) {
+          const response = await financeApi.getOpenInvoicesForPayment(partyType, party);
+          const rows: OpenInvoice[] = (response.data.message?.invoices || []).map((row: OpenInvoice) => ({
+            name: row.name,
+            posting_date: row.posting_date,
+            outstanding_amount: Number(row.outstanding_amount) || 0,
+          }));
+          setOpenInvoices(rows);
+          setReferences([]);
 
-        const rows = (response.data.message?.data || []).filter((row: PartyTransaction) => (row.outstanding_amount || 0) > 0);
-        setReferences(rows);
+          const pending = pendingReferenceName.current;
+          if (pending) {
+            const match = rows.find((row) => row.name === pending);
+            if (match && (!amount || amount <= 0)) {
+              setAmount(Number(match.outstanding_amount) || 0);
+            }
+            pendingReferenceName.current = '';
+          }
+        } else {
+          const response = partyType === 'Customer'
+            ? await customersApi.getTransactions(party, { page: 1, page_size: 100 })
+            : await suppliersApi.getTransactions(party, { page: 1, page_size: 100 });
 
-        // Apply pending reference name from URL param now that the list is loaded
-        const pending = pendingReferenceName.current;
-        if (pending) {
-          const match = rows.find((row: PartyTransaction) => row.name === pending);
-          if (match) {
-            setReferenceName(match.name);
-            // If no amount was passed in the URL, auto-fill from outstanding amount
-            setAmount((prev) => (prev > 0 ? prev : Number(match.outstanding_amount) || 0));
-          } else {
-            // Invoice not in outstanding list — clear
+          const rows = (response.data.message?.data || []).filter((row: PartyTransaction) => (row.outstanding_amount || 0) > 0);
+          setReferences(rows);
+          setOpenInvoices([]);
+          setAllocations([]);
+
+          // Apply pending reference name from URL param now that the list is loaded
+          const pending = pendingReferenceName.current;
+          if (pending) {
+            const match = rows.find((row: PartyTransaction) => row.name === pending);
+            if (match) {
+              setReferenceName(match.name);
+              // If no amount was passed in the URL, auto-fill from outstanding amount
+              setAmount((prev) => (prev > 0 ? prev : Number(match.outstanding_amount) || 0));
+            } else {
+              // Invoice not in outstanding list — clear
+              setReferenceName('');
+            }
+            pendingReferenceName.current = '';
+          } else if (referenceName && !rows.some((row: PartyTransaction) => row.name === referenceName)) {
+            // Active reference no longer outstanding — clear it
             setReferenceName('');
           }
-          pendingReferenceName.current = '';
-        } else if (referenceName && !rows.some((row: PartyTransaction) => row.name === referenceName)) {
-          // Active reference no longer outstanding — clear it
-          setReferenceName('');
         }
       } catch (err) {
         console.error('Failed to load invoice references:', err);
         setError('Could not load invoice references for the selected party.');
         setReferences([]);
+        setOpenInvoices([]);
       } finally {
         setLoadingReferences(false);
       }
     };
 
     void loadReferences();
-  }, [party, partyType]);
+  }, [party, partyType, multiAllocEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectedReference = references.find((entry) => entry.name === referenceName);
 
@@ -343,21 +390,33 @@ export default function CreatePaymentEntryPage() {
     setSaving(true);
     setError(null);
     try {
-      const response = await financeApi.createPaymentEntry({
+      const payload: Record<string, any> = {
         payment_type: paymentType,
         party_type: partyType,
         party,
         amount,
         posting_date: postingDate,
         mode_of_payment: modeOfPayment,
-        reference_doctype: referenceDoctype || undefined,
-        reference_name: referenceName || undefined,
         ...(paymentType === 'Receive'
           ? { paid_to: settlementAccount || undefined }
           : { paid_from: settlementAccount || undefined }),
         reference_no: referenceNo.trim() || referenceName || undefined,
         reference_date: requiresBankReference ? (referenceDate || postingDate) : undefined,
-      });
+      };
+
+      if (multiAllocEnabled) {
+        payload.allocations = allocations
+          .filter((row) => (Number(row.allocated_amount) || 0) > 0)
+          .map((row) => ({
+            reference_name: row.reference_name,
+            allocated_amount: Number(row.allocated_amount) || 0,
+          }));
+      } else {
+        payload.reference_doctype = referenceDoctype || undefined;
+        payload.reference_name = referenceName || undefined;
+      }
+
+      const response = await financeApi.createPaymentEntry(payload);
       const created = response.data.message;
       navigate(appendPreservedListQuery(`/finance/payments/${encodeURIComponent(created.name)}`, listSearch));
     } catch (err: any) {
@@ -475,27 +534,42 @@ export default function CreatePaymentEntryPage() {
             <Field label="Reference Doctype">
               <input value={referenceDoctype} onChange={(e) => setReferenceDoctype(e.target.value)} className="input-field bg-gray-50" placeholder="Optional" disabled />
             </Field>
-            <Field label="Reference Name">
-              <div className="space-y-1">
-                <SearchableSelect
-                  value={referenceName}
-                  onChange={setReferenceName}
-                  options={references.map((e) => ({
-                    label: `${e.name} · ${formatDate(e.posting_date)} · ${formatCurrency(e.outstanding_amount || 0)} outstanding`,
-                    value: e.name,
-                  }))}
-                  placeholder={party ? 'Select outstanding invoice' : 'Select party first'}
-                  disabled={loadingReferences || !party}
+            {multiAllocEnabled ? (
+              <div className="md:col-span-2">
+                <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">
+                  Invoice Allocation
+                </span>
+                <PaymentAllocationPanel
+                  invoices={openInvoices}
+                  amount={amount}
+                  allocations={allocations}
+                  onChange={setAllocations}
+                  loading={loadingReferences}
                 />
-                <p className="text-xs text-gray-500">
-                  {selectedReference
-                    ? `${selectedReference.status || 'Open'} · Total ${formatCurrency(selectedReference.grand_total || 0)} · Outstanding ${formatCurrency(selectedReference.outstanding_amount || 0)}`
-                    : party
-                      ? 'Choose an outstanding invoice to allocate this payment automatically.'
-                      : 'Select a customer or supplier to load open invoice references.'}
-                </p>
               </div>
-            </Field>
+            ) : (
+              <Field label="Reference Name">
+                <div className="space-y-1">
+                  <SearchableSelect
+                    value={referenceName}
+                    onChange={setReferenceName}
+                    options={references.map((e) => ({
+                      label: `${e.name} · ${formatDate(e.posting_date)} · ${formatCurrency(e.outstanding_amount || 0)} outstanding`,
+                      value: e.name,
+                    }))}
+                    placeholder={party ? 'Select outstanding invoice' : 'Select party first'}
+                    disabled={loadingReferences || !party}
+                  />
+                  <p className="text-xs text-gray-500">
+                    {selectedReference
+                      ? `${selectedReference.status || 'Open'} · Total ${formatCurrency(selectedReference.grand_total || 0)} · Outstanding ${formatCurrency(selectedReference.outstanding_amount || 0)}`
+                      : party
+                        ? 'Choose an outstanding invoice to allocate this payment automatically.'
+                        : 'Select a customer or supplier to load open invoice references.'}
+                  </p>
+                </div>
+              </Field>
+            )}
           </div>
         </div>
 
@@ -503,7 +577,16 @@ export default function CreatePaymentEntryPage() {
           <h2 className="text-lg font-semibold text-gray-900">Summary</h2>
           <SummaryRow label="Payment Type" value={paymentType} />
           <SummaryRow label="Party Type" value={partyType} />
-          <SummaryRow label="Reference" value={referenceName || 'Not linked'} />
+          <SummaryRow
+            label="Reference"
+            value={
+              multiAllocEnabled
+                ? (allocations.filter((a) => (a.allocated_amount || 0) > 0).length
+                  ? `${allocations.filter((a) => (a.allocated_amount || 0) > 0).length} invoice(s)`
+                  : 'On-account')
+                : (referenceName || 'Not linked')
+            }
+          />
           <SummaryRow label="Settlement Account" value={effectiveAccount || 'Auto-derived'} />
           <SummaryRow label="Amount" value={formatCurrency(amount)} />
           <SummaryRow label="Posting Date" value={postingDate} />
