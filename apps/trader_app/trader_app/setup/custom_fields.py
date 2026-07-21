@@ -513,6 +513,9 @@ def ensure_custom_fields():
         doc.insert(ignore_permissions=True)
     frappe.db.commit()
 
+    from trader_app.setup.master_permissions import ensure_master_doc_permissions
+    ensure_master_doc_permissions()
+
 
 def backfill_master_tenants(tenant):
     """One-time: assign existing untenanted Customer/Supplier/Item to ``tenant``.
