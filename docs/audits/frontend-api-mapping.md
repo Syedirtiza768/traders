@@ -12,7 +12,7 @@ All frontend API calls, their originating screens, HTTP methods, and target endp
 - `frontend/trader-ui/src/stores/authStore.ts`
 
 ## Last Audit Basis
-Full scan of all API namespaces and page-level call sites — 2026-07-17
+Full scan of all API namespaces and page-level call sites — 2026-07-21
 
 ---
 
@@ -44,6 +44,16 @@ Full scan of all API namespaces and page-level call sites — 2026-07-17
 |---|---|---|---|
 
 ### `salesApi`
+
+| Method | HTTP | Endpoint | Parameters |
+|---|---|---|---|
+
+### `opportunityApi`
+
+| Method | HTTP | Endpoint | Parameters |
+|---|---|---|---|
+
+### `arApi`
 
 | Method | HTTP | Endpoint | Parameters |
 |---|---|---|---|
