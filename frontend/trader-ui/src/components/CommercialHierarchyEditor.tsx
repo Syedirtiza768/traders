@@ -45,6 +45,8 @@ type ItemOption = {
   standard_rate?: number;
 };
 
+export type HierarchyFocus = 'full' | 'boq' | 'description' | 'group-discount';
+
 type Props = {
   doctype?: 'Quotation' | 'Sales Order' | 'Delivery Note' | 'Sales Invoice';
   name?: string;
@@ -60,6 +62,10 @@ type Props = {
   createdItem?: CreatedHierarchyItem | null;
   onCreatedItemApplied?: () => void;
   onSaved?: () => void;
+  /** Sahamid makequotation tabs: isolate BoQ / Description / Group Discount. */
+  focus?: HierarchyFocus;
+  /** Omit outer card chrome when embedded in a tabbed editor. */
+  plain?: boolean;
 };
 
 const STOCK_STATUS_PRESETS = [
@@ -181,9 +187,14 @@ export default function CommercialHierarchyEditor({
   createdItem,
   onCreatedItemApplied,
   onSaved,
+  focus = 'full',
+  plain = false,
 }: Props) {
   const opportunityEnabled = useCompanyStore((s) => s.opportunityEnabled);
   const controlled = draft || typeof onChange === 'function';
+  const showBoq = focus === 'full' || focus === 'boq';
+  const showGroupDiscount = focus === 'full' || focus === 'group-discount';
+  const showHeaderTotals = focus === 'full' || focus === 'boq';
   const [options, setOptionsInternal] = useState<CommercialOption[]>(() =>
     normalizeOptions(value ?? initialOptions),
   );
@@ -473,24 +484,40 @@ export default function CommercialHierarchyEditor({
     }
   };
 
-  return (
-    <div className="card">
-      <div className="card-header flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900">Commercial Hierarchy</h2>
-          <p className="text-sm text-gray-500">
-            Line → Option → Item. Add alternate options on the same line. Effective qty = unit × package.
-            External total uses first option per line.
-            {warehouse ? ` QOH from ${warehouse} (warn only).` : ''}
-          </p>
-        </div>
-        <div className="text-sm font-medium text-gray-800 space-y-0.5 text-right">
-          <div>All options: {formatCurrency(total, currency)}</div>
-          <div className="text-green-700">Billed (1st options): {formatCurrency(billedTotal, currency)}</div>
-        </div>
-      </div>
+  const shellClass = plain ? 'space-y-4' : 'card';
+  const bodyClass = plain ? 'space-y-4' : 'card-body space-y-4';
 
-      <div className="card-body space-y-4">
+  return (
+    <div className={shellClass}>
+      {!plain ? (
+        <div className="card-header flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">
+              {focus === 'description'
+                ? 'Description'
+                : focus === 'group-discount'
+                  ? 'Group Discount'
+                  : 'Bill Of Quantities'}
+            </h2>
+            <p className="text-sm text-gray-500">
+              {focus === 'description'
+                ? 'Client requirements and option commercial text (Sahamid Description tab).'
+                : focus === 'group-discount'
+                  ? 'Apply a discount percent to all items of a brand.'
+                  : 'Line → Option → Item. Add alternate options on the same line. First option per line is billed.'}
+              {warehouse && showBoq ? ` QOH from ${warehouse} (warn only).` : ''}
+            </p>
+          </div>
+          {showHeaderTotals ? (
+            <div className="text-sm font-medium text-gray-800 space-y-0.5 text-right">
+              <div>All options: {formatCurrency(total, currency)}</div>
+              <div className="text-green-700">Billed (1st options): {formatCurrency(billedTotal, currency)}</div>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      <div className={bodyClass}>
         {feedback ? (
           <div
             className={`rounded-lg border px-3 py-2 text-sm ${
@@ -503,43 +530,88 @@ export default function CommercialHierarchyEditor({
           </div>
         ) : null}
 
-        {!readOnly && brands.length > 0 ? (
+        {!readOnly && showGroupDiscount ? (
           <div className="rounded-lg border border-dashed border-gray-300 bg-white p-3">
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Group Discount</p>
-            <div className="flex flex-wrap items-end gap-2">
-              <label className="block space-y-1">
-                <span className="text-xs text-gray-500">Brand</span>
-                <select
-                  className="input-field"
-                  value={groupDiscountBrand}
-                  onChange={(e) => setGroupDiscountBrand(e.target.value)}
-                >
-                  <option value="">Select brand</option>
-                  {brands.map((b) => (
-                    <option key={b} value={b}>{b}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="block space-y-1">
-                <span className="text-xs text-gray-500">Discount %</span>
-                <input
-                  className="input-field w-28"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={groupDiscountPct}
-                  onChange={(e) => setGroupDiscountPct(Number(e.target.value) || 0)}
-                />
-              </label>
-              <button type="button" className="btn-secondary" onClick={applyGroupDiscount}>
-                Apply to brand
-              </button>
-            </div>
+            {brands.length === 0 ? (
+              <p className="text-sm text-gray-500">Add items with a brand / Make: line to enable group discounts.</p>
+            ) : (
+              <div className="flex flex-wrap items-end gap-2">
+                <label className="block space-y-1">
+                  <span className="text-xs text-gray-500">Brand</span>
+                  <select
+                    className="input-field"
+                    value={groupDiscountBrand}
+                    onChange={(e) => setGroupDiscountBrand(e.target.value)}
+                  >
+                    <option value="">Select brand</option>
+                    {brands.map((b) => (
+                      <option key={b} value={b}>{b}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block space-y-1">
+                  <span className="text-xs text-gray-500">Discount %</span>
+                  <input
+                    className="input-field w-28"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={groupDiscountPct}
+                    onChange={(e) => setGroupDiscountPct(Number(e.target.value) || 0)}
+                  />
+                </label>
+                <button type="button" className="btn-secondary" onClick={applyGroupDiscount}>
+                  Update Discounts
+                </button>
+              </div>
+            )}
           </div>
         ) : null}
 
-        {options.length === 0 ? (
-          <p className="text-sm text-gray-400">No commercial options yet.</p>
+        {focus === 'group-discount' ? null : options.length === 0 ? (
+          <p className="text-sm text-gray-400">
+            {focus === 'description'
+              ? 'No options yet — add lines on the Bill Of Quantities tab.'
+              : 'No commercial options yet.'}
+          </p>
+        ) : focus === 'description' ? (
+          options.map((opt, optIndex) => (
+            <div key={`desc-${optIndex}`} className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-gray-900">
+                  Line {opt.line_no} · Option {opt.option_no}
+                </p>
+                {!readOnly ? (
+                  <button
+                    type="button"
+                    className="text-xs text-brand-700 hover:underline"
+                    onClick={() => copyItemsToOptionText(optIndex)}
+                  >
+                    Copy items → description
+                  </button>
+                ) : null}
+              </div>
+              <label className="block space-y-1">
+                <span className="text-xs text-gray-500">Client requirements</span>
+                <textarea
+                  className="input-field min-h-[88px]"
+                  disabled={readOnly}
+                  value={opt.client_requirements || ''}
+                  onChange={(e) => updateOption(optIndex, { client_requirements: e.target.value })}
+                />
+              </label>
+              <label className="block space-y-1">
+                <span className="text-xs text-gray-500">Option description (SAH Description)</span>
+                <textarea
+                  className="input-field min-h-[120px] whitespace-pre-wrap"
+                  disabled={readOnly}
+                  value={opt.option_text || ''}
+                  onChange={(e) => updateOption(optIndex, { option_text: e.target.value })}
+                />
+              </label>
+            </div>
+          ))
         ) : (
           options.map((opt, optIndex) => {
             const isFirstOnLine =
@@ -654,30 +726,33 @@ export default function CommercialHierarchyEditor({
                   </label>
                 </div>
 
-                <label className="block space-y-1">
-                  <span className="text-xs text-gray-500">Client requirements</span>
-                  <textarea
-                    className="input-field min-h-[56px]"
-                    disabled={readOnly}
-                    value={opt.client_requirements || ''}
-                    onChange={(e) => updateOption(optIndex, { client_requirements: e.target.value })}
-                  />
-                </label>
+              {focus === 'full' ? (
+                <>
+                  <label className="block space-y-1">
+                    <span className="text-xs text-gray-500">Client requirements</span>
+                    <textarea
+                      className="input-field min-h-[56px]"
+                      disabled={readOnly}
+                      value={opt.client_requirements || ''}
+                      onChange={(e) => updateOption(optIndex, { client_requirements: e.target.value })}
+                    />
+                  </label>
+                  <label className="block space-y-1">
+                    <span className="text-xs text-gray-500">Option description</span>
+                    <textarea
+                      className="input-field min-h-[72px] whitespace-pre-wrap"
+                      disabled={readOnly}
+                      value={opt.option_text || ''}
+                      onChange={(e) => updateOption(optIndex, { option_text: e.target.value })}
+                      placeholder="Commercial option text (Sahamid Description tab)"
+                    />
+                  </label>
+                </>
+              ) : null}
 
-                <label className="block space-y-1">
-                  <span className="text-xs text-gray-500">Option description</span>
-                  <textarea
-                    className="input-field min-h-[72px] whitespace-pre-wrap"
-                    disabled={readOnly}
-                    value={opt.option_text || ''}
-                    onChange={(e) => updateOption(optIndex, { option_text: e.target.value })}
-                    placeholder="Commercial option text (Sahamid Description tab)"
-                  />
-                </label>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Items</p>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Items</p>
                     {!readOnly ? (
                       <button type="button" className="inline-flex items-center gap-1 text-xs text-brand-700" onClick={() => addItem(optIndex)}>
                         <Plus className="h-3.5 w-3.5" /> Add item
@@ -791,7 +866,7 @@ export default function CommercialHierarchyEditor({
           })
         )}
 
-        {!readOnly ? (
+        {!readOnly && showBoq ? (
           <div className="flex flex-wrap gap-2">
             <button type="button" className="btn-secondary inline-flex items-center gap-2" onClick={addLine}>
               <Plus className="h-4 w-4" /> Add line

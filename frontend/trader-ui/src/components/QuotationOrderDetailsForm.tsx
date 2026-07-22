@@ -96,6 +96,8 @@ type Props = {
   warehouses?: Array<{ name?: string; warehouse?: string; warehouse_name?: string }>;
   readOnly?: boolean;
   showWarehouse?: boolean;
+  /** Omit outer card when embedded in Sahamid-style tabs. */
+  plain?: boolean;
 };
 
 function formatClauseRates(raw?: string) {
@@ -117,6 +119,7 @@ export default function QuotationOrderDetailsForm({
   warehouses = [],
   readOnly = false,
   showWarehouse = true,
+  plain = false,
 }: Props) {
   const patch = (partial: Partial<OrderDetails>) => onChange({ ...value, ...partial });
   const [refreshingRates, setRefreshingRates] = useState(false);
@@ -145,14 +148,16 @@ export default function QuotationOrderDetailsForm({
   };
 
   return (
-    <div className="card">
-      <div className="card-header">
-        <h2 className="text-lg font-semibold text-gray-900">Order Details</h2>
-        <p className="text-sm text-gray-500">
-          Delivery, payment schedule, GST/WHT, freight and FX clause (Sahamid-aligned).
-        </p>
-      </div>
-      <div className="card-body space-y-6">
+    <div className={plain ? 'space-y-6' : 'card'}>
+      {!plain ? (
+        <div className="card-header">
+          <h2 className="text-lg font-semibold text-gray-900">Order Details</h2>
+          <p className="text-sm text-gray-500">
+            Delivery, payment schedule, GST/WHT, freight and FX clause (Sahamid-aligned).
+          </p>
+        </div>
+      ) : null}
+      <div className={plain ? 'space-y-6' : 'card-body space-y-6'}>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {showWarehouse ? (
             <label className="block space-y-1 sm:col-span-2">

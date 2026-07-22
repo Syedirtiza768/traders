@@ -85,6 +85,16 @@ export default function CreateQuotationPage() {
   const useHierarchy = opportunityEnabled && !isProforma;
 
   useEffect(() => {
+    if (!useHierarchy) return;
+    const opp = searchParams.get('opportunity') || searchParams.get('project') || '';
+    const qs = new URLSearchParams();
+    if (opp) qs.set('opportunity', opp);
+    if (listSearch) qs.set('list', listSearch);
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    navigate(`/sales/quotations/make${suffix}`, { replace: true });
+  }, [useHierarchy, navigate, searchParams, listSearch]);
+
+  useEffect(() => {
     const customerParam = searchParams.get('customer');
     if (customerParam) setCustomer(customerParam);
   }, [searchParams]);
@@ -357,6 +367,10 @@ export default function CreateQuotationPage() {
 
   if (loading) {
     return <div className="card card-body text-sm text-gray-500">Loading quotation form…</div>;
+  }
+
+  if (useHierarchy) {
+    return <div className="card card-body text-sm text-gray-500">Opening Make Quotation editor…</div>;
   }
 
   return (

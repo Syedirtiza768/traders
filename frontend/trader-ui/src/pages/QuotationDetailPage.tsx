@@ -258,6 +258,17 @@ export default function QuotationDetailPage() {
           >
             <Printer className="h-4 w-4" /> Print / Preview
           </button>
+          {quotation.docstatus === 0 && quotation.trader_opportunity ? (
+            <button
+              type="button"
+              onClick={() =>
+                navigate(`/sales/quotations/${encodeURIComponent(quotation.name)}/edit`)
+              }
+              className="btn-primary inline-flex items-center gap-2"
+            >
+              Open tabbed editor
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() => setShowPreview((v) => !v)}
