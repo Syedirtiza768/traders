@@ -762,7 +762,11 @@ def _list_final_quotations(opportunity_name):
 
 
 def _has_commercial_field(doctype):
-    return frappe.db.has_column(doctype, "trader_commercial_options")
+    """Child Table fields are not SQL columns on the parent — use meta."""
+    try:
+        return bool(frappe.get_meta(doctype).has_field("trader_commercial_options"))
+    except Exception:
+        return False
 
 
 def _first_stock_item():
