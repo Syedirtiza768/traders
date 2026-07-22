@@ -43,7 +43,7 @@ export const MODULE_LABELS: Record<TenantModuleKey, string> = {
   suppliers: 'Suppliers',
   operations: 'Operations',
   components: 'Components Trading',
-  opportunity: 'Commercial Opportunity',
+  opportunity: 'Projects',
   pos: 'POS',
   settings: 'Settings',
 };

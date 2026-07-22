@@ -69,7 +69,7 @@ export default function GatedRoute({
     return (
       <AccessDenied
         title="Feature not enabled"
-        description="The Commercial Opportunity module is not enabled for this company. Enable it in Settings → Feature Flags, or provision an opportunity pack."
+        description="The Projects module is not enabled for this company. Enable it in Settings → Feature Flags, or provision an opportunity pack."
       />
     );
   }

@@ -46,6 +46,10 @@ type PrintData = {
     letterhead_header?: string;
     letterhead_footer?: string;
   };
+  customer_ref?: string;
+  revision_label?: string;
+  project?: string;
+  commercial_options?: unknown[];
   party: { name: string; display_name: string; address: string; tax_id: string };
   items: PrintItem[];
   taxes: Tax[];
@@ -274,6 +278,16 @@ export default function DocumentPrintPage() {
                 <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>
                   <strong>Date:</strong> {formatDate(printData.date)}
                 </div>
+                {printData.customer_ref && (
+                  <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>
+                    <strong>Customer Ref:</strong> {printData.customer_ref}
+                  </div>
+                )}
+                {printData.revision_label && (
+                  <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>
+                    <strong>Revision:</strong> {printData.revision_label}
+                  </div>
+                )}
                 {printData.due_date && (
                   <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>
                     <strong>{doctype === 'Quotation' ? 'Valid Till' : 'Due Date'}:</strong> {formatDate(printData.due_date)}

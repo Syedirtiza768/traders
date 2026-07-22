@@ -785,18 +785,19 @@ def list_source_quotations(opportunity, company=None):
 
 @frappe.whitelist()
 def create_quotation_for_opportunity(opportunity, data=None, company=None):
-    """Create a draft Quotation linked to the Opportunity (optional hierarchy seed)."""
+    """Create a draft Quotation linked to the Project (Opportunity) with optional hierarchy."""
     from trader_app.api.hierarchy import apply_commercial_options, sync_flat_items_from_hierarchy
+    from trader_app.api.quotation_defaults import get_default_quotation_terms
     from trader_app.setup.custom_fields import ensure_custom_fields
 
     ensure_custom_fields()
     doc = _load_opportunity(opportunity, company)
     if doc.status == "Closed":
-        frappe.throw(_("Reopen the Opportunity before creating a quotation."))
+        frappe.throw(_("Reopen the Project before creating a quotation."))
 
     profile = _profile_or_defaults(doc.company)
     if not cint(profile.get("enable_quotation", 1)):
-        frappe.throw(_("Quotations are disabled in the Opportunity profile."))
+        frappe.throw(_("Quotations are disabled in the Project profile."))
 
     payload = _parse_payload(data)
     warehouse = payload.get("warehouse") or _default_warehouse(doc.company)
@@ -813,6 +814,15 @@ def create_quotation_for_opportunity(opportunity, data=None, company=None):
     if _has_opportunity_link("Quotation"):
         quotation.trader_opportunity = doc.name
 
+    if frappe.db.has_column("Quotation", "trader_customer_ref"):
+        quotation.trader_customer_ref = (payload.get("customer_ref") or payload.get("trader_customer_ref") or "").strip() or None
+
+    terms = payload.get("terms")
+    if terms is None:
+        terms = get_default_quotation_terms(doc.company)
+    if terms:
+        quotation.terms = terms
+
     from trader_app.api.currency import apply_document_currency
     apply_document_currency(
         quotation,
@@ -823,7 +833,7 @@ def create_quotation_for_opportunity(opportunity, data=None, company=None):
     commercial = payload.get("commercial_options") or []
     if commercial and _has_commercial_field("Quotation"):
         apply_commercial_options(quotation, commercial)
-        sync_flat_items_from_hierarchy(quotation, warehouse=warehouse)
+        sync_flat_items_from_hierarchy(quotation, warehouse=warehouse, first_option_only=True)
     else:
         quotation.append(
             "items",
@@ -834,13 +844,18 @@ def create_quotation_for_opportunity(opportunity, data=None, company=None):
             },
         )
 
+    taxes_and_charges = payload.get("taxes_and_charges")
+    if taxes_and_charges:
+        quotation.taxes_and_charges = taxes_and_charges
+        quotation.run_method("set_taxes")
+
     quotation.insert(ignore_permissions=False)
     frappe.db.commit()
     log_decision(
         "other",
         company=doc.company,
         outcome="applied",
-        message="Created Quotation {0} from Opportunity".format(quotation.name),
+        message="Created Quotation {0} from Project".format(quotation.name),
         reference_doctype="Quotation",
         reference_name=quotation.name,
         policy="opportunity_hub",
@@ -849,6 +864,76 @@ def create_quotation_for_opportunity(opportunity, data=None, company=None):
         "name": quotation.name,
         "doctype": "Quotation",
         "opportunity": get_opportunity(doc.name, company=doc.company),
+        "customer_ref": getattr(quotation, "trader_customer_ref", None),
+    }
+
+
+@frappe.whitelist()
+def get_quotation_defaults(company=None):
+    """Default terms and helpers for the New Quotation form."""
+    from trader_app.api.quotation_defaults import get_default_quotation_terms
+
+    company = resolve_active_company(company)
+    return {
+        "company": company,
+        "terms": get_default_quotation_terms(company),
+        "require_project": bool(cint(_profile_or_defaults(company).get("require_opportunity_for_quotation"))),
+    }
+
+
+@frappe.whitelist()
+def create_quotation_revision(name, company=None):
+    """Create a draft revision (R1, R2, …) from a submitted quotation (FR-Q-07)."""
+    from trader_app.api.hierarchy import apply_commercial_options, serialize_commercial_options, sync_flat_items_from_hierarchy
+    from trader_app.setup.custom_fields import ensure_custom_fields
+
+    ensure_custom_fields()
+    source = frappe.get_doc("Quotation", name)
+    source.check_permission("read")
+    assert_document_company_access(source.company)
+    if company and source.company != company:
+        frappe.throw(_("Company mismatch for quotation revision."))
+
+    profile = _profile_or_defaults(source.company)
+    if not cint(profile.get("allow_quotation_revisions", 0)):
+        frappe.throw(_("Quotation revisions are disabled for this company."))
+
+    if cint(source.docstatus) != 1:
+        frappe.throw(_("Only submitted quotations can be revised."))
+
+    root = getattr(source, "trader_revision_of", None) or source.name
+    existing = frappe.get_all(
+        "Quotation",
+        filters={"trader_revision_of": root},
+        fields=["name", "trader_revision_label"],
+        order_by="creation asc",
+    )
+    next_n = len(existing) + 1
+    label = "R{0}".format(next_n)
+
+    revision = frappe.copy_doc(source)
+    revision.name = None
+    revision.docstatus = 0
+    revision.status = "Draft"
+    revision.amended_from = None
+    if frappe.db.has_column("Quotation", "trader_revision_of"):
+        revision.trader_revision_of = root
+    if frappe.db.has_column("Quotation", "trader_revision_label"):
+        revision.trader_revision_label = label
+
+    # Re-apply hierarchy if present so flat items stay first-option synced
+    commercial = serialize_commercial_options(source)
+    if commercial and _has_commercial_field("Quotation"):
+        apply_commercial_options(revision, commercial)
+        sync_flat_items_from_hierarchy(revision, first_option_only=True)
+
+    revision.insert(ignore_permissions=False)
+    frappe.db.commit()
+    return {
+        "name": revision.name,
+        "revision_of": root,
+        "revision_label": label,
+        "source": source.name,
     }
 
 
