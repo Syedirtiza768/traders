@@ -147,7 +147,7 @@ All `@frappe.whitelist()` decorated functions — 2026-07-22
 | 125 | `save_commercial_options` | opportunity | `/api/method/trader_app.api.opportunity.save_commercial_options` | doctype, name, commercial_options, company=None | — | 🔍 Unknown |
 | 126 | `get_pos_setup` | pos | `/api/method/trader_app.api.pos.get_pos_setup` | company=None | — | 🔍 Unknown |
 | 127 | `preview_posting` | posting | `/api/method/trader_app.api.posting.preview_posting` | doctype, name | — | 🔍 Unknown |
-| 128 | `get_print_data` | printing | `/api/method/trader_app.api.printing.get_print_data` | doctype, name, view_mode="external", doc_format="tax_invoice" | — | 🔍 Unknown |
+| 128 | `get_print_data` | printing | `/api/method/trader_app.api.printing.get_print_data` | doctype, name, view_mode="external", doc_format=None, format=None | — | 🔍 Unknown |
 | 129 | `transition_state` | process | `/api/method/trader_app.api.process.transition_state` | doctype, name, to_state | — | 🔍 Unknown |
 | 130 | `get_state_model` | process | `/api/method/trader_app.api.process.get_state_model` | company, doctype=None | — | 🔍 Unknown |
 | 131 | `get_purchase_document_catalog` | purchases | `/api/method/trader_app.api.purchases.get_purchase_document_catalog` | none | — | 🔍 Unknown |
