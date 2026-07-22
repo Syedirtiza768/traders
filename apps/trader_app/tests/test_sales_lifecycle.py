@@ -108,6 +108,11 @@ from trader_app.api.ar import (
     reported_outstanding,
     can_access_internal_print,
 )
+from trader_app.api.customer_pack import (
+    PROFILE_TEMPLATES as CUSTOMER_PACK_TEMPLATES,
+    DEFAULT_INACTIVE_PROFILE as CUSTOMER_PACK_INACTIVE,
+    build_profile_defaults as build_customer_pack_defaults,
+)
 from trader_app.api.hierarchy import (
     effective_item_qty,
     remaining_package_qty,
@@ -416,6 +421,30 @@ class ARInternalPrintAccessTests(unittest.TestCase):
 
     def test_sales_user_denied(self):
         self.assertFalse(can_access_internal_print(["Trader Sales User"]))
+
+
+class CustomerPackTemplateTests(unittest.TestCase):
+    def test_electrance_template_enables_extended_master(self):
+        d = build_customer_pack_defaults("electrance")
+        self.assertEqual(d["template_key"], "electrance")
+        self.assertEqual(d["extended_master_fields"], 1)
+        self.assertEqual(d["contacts_enabled"], 1)
+        self.assertEqual(d["require_billing_address"], 1)
+        self.assertEqual(d["require_payment_terms"], 1)
+        self.assertEqual(d["ship_to_sites_enabled"], 0)
+
+    def test_minimal_template_is_conservative(self):
+        d = build_customer_pack_defaults("minimal")
+        self.assertEqual(d["extended_master_fields"], 0)
+        self.assertEqual(d["contacts_enabled"], 0)
+
+    def test_unknown_template_raises(self):
+        with self.assertRaises(ValueError):
+            build_customer_pack_defaults("not-a-pack")
+
+    def test_inactive_defaults_safe(self):
+        self.assertEqual(CUSTOMER_PACK_INACTIVE["extended_master_fields"], 0)
+        self.assertIn("electrance", CUSTOMER_PACK_TEMPLATES)
 
 
 if __name__ == "__main__":

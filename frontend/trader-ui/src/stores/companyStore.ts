@@ -11,6 +11,7 @@ export type CompanyOption = {
   components_enabled?: boolean;
   opportunity_enabled?: boolean;
   ar_enabled?: boolean;
+  customer_pack_enabled?: boolean;
 };
 
 interface CompanyState {
@@ -21,6 +22,7 @@ interface CompanyState {
   componentsEnabled: boolean;
   opportunityEnabled: boolean;
   arEnabled: boolean;
+  customerPackEnabled: boolean;
   companies: CompanyOption[];
   initialized: boolean;
   loading: boolean;
@@ -31,6 +33,7 @@ interface CompanyState {
   setComponentsEnabled: (enabled: boolean) => void;
   setOpportunityEnabled: (enabled: boolean) => void;
   setArEnabled: (enabled: boolean) => void;
+  setCustomerPackEnabled: (enabled: boolean) => void;
 }
 
 registerActiveCompanyGetter(() => useCompanyStore.getState().company || undefined);
@@ -43,6 +46,7 @@ export const useCompanyStore = create<CompanyState>((set, get) => ({
   componentsEnabled: false,
   opportunityEnabled: false,
   arEnabled: false,
+  customerPackEnabled: false,
   companies: [],
   initialized: false,
   loading: false,
@@ -70,6 +74,7 @@ export const useCompanyStore = create<CompanyState>((set, get) => ({
         componentsEnabled: Boolean(active.components_enabled),
         opportunityEnabled: Boolean(active.opportunity_enabled),
         arEnabled: Boolean(active.ar_enabled),
+        customerPackEnabled: Boolean(active.customer_pack_enabled),
         initialized: true,
         loading: false,
       });
@@ -95,6 +100,7 @@ export const useCompanyStore = create<CompanyState>((set, get) => ({
         componentsEnabled: Boolean(active.components_enabled),
         opportunityEnabled: Boolean(active.opportunity_enabled),
         arEnabled: Boolean(active.ar_enabled),
+        customerPackEnabled: Boolean(active.customer_pack_enabled),
         loading: false,
         revision: state.revision + 1,
       }));
@@ -116,5 +122,9 @@ export const useCompanyStore = create<CompanyState>((set, get) => ({
 
   setArEnabled: (enabled: boolean) => {
     set({ arEnabled: enabled });
+  },
+
+  setCustomerPackEnabled: (enabled: boolean) => {
+    set({ customerPackEnabled: enabled });
   },
 }));

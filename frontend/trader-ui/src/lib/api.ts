@@ -548,6 +548,9 @@ export const customersApi = {
   getGroups: () =>
     get('trader_app.api.customers.get_customer_groups'),
 
+  getFormSetup: (company?: string) =>
+    get('trader_app.api.customers.get_customer_form_setup', { company }),
+
   getTransactions: (customer: string, params?: Record<string, any>) =>
     get('trader_app.api.customers.get_customer_transactions', { customer, ...params }),
   create: (data: Record<string, any>) =>
@@ -556,11 +559,29 @@ export const customersApi = {
   update: (data: Record<string, any>) =>
     call('trader_app.api.customers.update_customer', data),
 
+  addContact: (data: Record<string, any>) =>
+    call('trader_app.api.customers.add_customer_contact', data),
+
+  deleteContact: (name: string, customer: string) =>
+    call('trader_app.api.customers.delete_customer_contact', { name, customer }),
+
   enable: (name: string) =>
     call('trader_app.api.customers.enable_customer', { name }),
 
   disable: (name: string) =>
-    call('trader_app.api.customers.disable_customer', { name }),};
+    call('trader_app.api.customers.disable_customer', { name }),
+};
+
+export const customerPackApi = {
+  getSettings: (company?: string) =>
+    get('trader_app.api.customer_pack.get_customer_pack_settings', { company }),
+
+  toggleFeature: (enabled: boolean, company?: string) =>
+    call('trader_app.api.settings.toggle_customer_pack_feature', {
+      enabled: enabled ? 1 : 0,
+      company,
+    }),
+};
 
 // ─── Suppliers API ───────────────────────────────────────────────
 
