@@ -358,7 +358,7 @@ export default function SearchableSelect({
   };
 
   const handleCreate = () => {
-    if (onCreateNew && query.trim()) {
+    if (onCreateNew) {
       onCreateNew(query.trim());
     }
     setOpen(false);
@@ -448,7 +448,7 @@ export default function SearchableSelect({
                 {opt.label}
               </li>
             ))}
-            {creatable && query.trim() && !filtered.some((o) => o.label.toLowerCase() === query.trim().toLowerCase()) && (
+            {creatable && (
               <li
                 role="option"
                 aria-selected={false}
@@ -462,7 +462,10 @@ export default function SearchableSelect({
                 }}
                 className="flex items-center gap-2 px-4 py-2 text-sm cursor-pointer outline-none text-brand-600 hover:bg-brand-50 focus:bg-brand-50 border-t border-gray-100"
               >
-                <Plus size={13} /> Create "{query.trim()}"
+                <Plus size={13} />{' '}
+                {query.trim() && !filtered.some((o) => o.label.toLowerCase() === query.trim().toLowerCase())
+                  ? `Create "${query.trim()}"`
+                  : 'Create new item'}
               </li>
             )}
           </>

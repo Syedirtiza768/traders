@@ -6,7 +6,10 @@ import { appendPreservedListQuery, formatCurrency } from '../lib/utils';
 import SearchableSelect from '../components/SearchableSelect';
 import useQuickAdd from '../components/useQuickAdd';
 import QuickAddProvider from '../components/QuickAddProvider';
-import CommercialHierarchyEditor, { type CommercialOption } from '../components/CommercialHierarchyEditor';
+import CommercialHierarchyEditor, {
+  type CommercialOption,
+  type CreatedHierarchyItem,
+} from '../components/CommercialHierarchyEditor';
 import QuotationOrderDetailsForm, {
   EMPTY_ORDER_DETAILS,
   type OrderDetails,
@@ -76,6 +79,7 @@ export default function CreateQuotationPage() {
   const listSearch = searchParams.get('list');
   const quickAdd = useQuickAdd();
   const quickAddItemLine = useRef<number>(-1);
+  const [createdHierarchyItem, setCreatedHierarchyItem] = useState<CreatedHierarchyItem | null>(null);
   const useHierarchy = opportunityEnabled && !isProforma;
 
   useEffect(() => {
@@ -447,7 +451,12 @@ export default function CreateQuotationPage() {
           onChange={setHierarchy}
           itemOptions={items}
           warehouse={orderDetails.warehouse}
-          onQuickAddItem={() => quickAdd.open('item')}
+          createdItem={createdHierarchyItem}
+          onCreatedItemApplied={() => setCreatedHierarchyItem(null)}
+          onQuickAddItem={({ prefill }) => {
+            quickAddItemLine.current = -1;
+            quickAdd.open('item', prefill || '');
+          }}
         />
       ) : (
         <div className="card">
@@ -533,8 +542,17 @@ export default function CreateQuotationPage() {
         customersSetter={setCustomers}
         customerValueSetter={setCustomer}
         itemsSetter={setItems}
-        itemValueSetter={(value) => {
-          if (quickAddItemLine.current >= 0) handleItemChange(quickAddItemLine.current, value);
+        itemValueSetter={(value, raw) => {
+          if (quickAddItemLine.current >= 0) {
+            handleItemChange(quickAddItemLine.current, value);
+            quickAddItemLine.current = -1;
+            return;
+          }
+          setCreatedHierarchyItem({
+            item_code: value,
+            description: raw?.description || raw?.item_name || '',
+            unit_price: Number(raw?.standard_rate ?? raw?.selling_price ?? 0) || 0,
+          });
         }}
       />
     </div>

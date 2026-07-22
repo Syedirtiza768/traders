@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { inventoryApi, opportunityApi } from '../lib/api';
 import { extractFrappeError, formatCurrency } from '../lib/utils';
 import { useCompanyStore } from '../stores/companyStore';
+import SearchableSelect from './SearchableSelect';
 
 export type CommercialItem = {
   item_code: string;
@@ -26,24 +27,42 @@ export type CommercialOption = {
   items: CommercialItem[];
 };
 
+export type HierarchyItemTarget = { optIndex: number; itemIndex: number };
+
+export type CreatedHierarchyItem = {
+  item_code: string;
+  description?: string;
+  unit_price?: number;
+};
+
+type ItemOption = {
+  item_code?: string;
+  name?: string;
+  item_name?: string;
+  description?: string;
+  selling_price?: number;
+  standard_rate?: number;
+};
+
 type Props = {
   doctype?: 'Quotation' | 'Sales Order' | 'Delivery Note' | 'Sales Invoice';
   name?: string;
   initialOptions?: CommercialOption[] | null;
   value?: CommercialOption[];
   onChange?: (options: CommercialOption[]) => void;
-  /** When true, no API save — parent owns state (New Quotation). */
   draft?: boolean;
   readOnly?: boolean;
   currency?: string;
   warehouse?: string;
-  itemOptions?: Array<{ item_code?: string; name?: string; description?: string; selling_price?: number; standard_rate?: number }>;
-  onQuickAddItem?: () => void;
+  itemOptions?: ItemOption[];
+  onQuickAddItem?: (ctx: { prefill?: string; optIndex: number; itemIndex: number }) => void;
+  createdItem?: CreatedHierarchyItem | null;
+  onCreatedItemApplied?: () => void;
   onSaved?: () => void;
 };
 
 function emptyItem(): CommercialItem {
-  return { item_code: '', unit_qty: 1, unit_price: 0, discount_percent: 0 };
+  return { item_code: '', description: '', unit_qty: 1, unit_price: 0, discount_percent: 0 };
 }
 
 function emptyOption(lineNo = 1, optionNo = 1): CommercialOption {
@@ -89,6 +108,21 @@ function itemAmount(it: CommercialItem, packageQty: number) {
   return qty * rate * (1 - discount / 100);
 }
 
+function itemLabel(row: ItemOption) {
+  const code = row.item_code || row.name || '';
+  const name = row.item_name || '';
+  if (name && name !== code) return `${code} — ${name}`;
+  return code;
+}
+
+function resolveItemMeta(itemOptions: ItemOption[] | undefined, code: string) {
+  const selected = (itemOptions || []).find((row) => (row.item_code || row.name) === code);
+  return {
+    description: selected?.description || selected?.item_name || '',
+    unit_price: selected?.selling_price ?? selected?.standard_rate ?? undefined,
+  };
+}
+
 export default function CommercialHierarchyEditor({
   doctype = 'Quotation',
   name = '',
@@ -101,6 +135,8 @@ export default function CommercialHierarchyEditor({
   warehouse,
   itemOptions,
   onQuickAddItem,
+  createdItem,
+  onCreatedItemApplied,
   onSaved,
 }: Props) {
   const opportunityEnabled = useCompanyStore((s) => s.opportunityEnabled);
@@ -111,6 +147,7 @@ export default function CommercialHierarchyEditor({
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [qoh, setQoh] = useState<Record<string, number>>({});
+  const pendingTarget = useRef<HierarchyItemTarget | null>(null);
 
   const setOptions = (next: CommercialOption[] | ((prev: CommercialOption[]) => CommercialOption[])) => {
     setOptionsInternal((prev) => {
@@ -129,6 +166,57 @@ export default function CommercialHierarchyEditor({
       setOptionsInternal(normalizeOptions(initialOptions));
     }
   }, [initialOptions, value, controlled]);
+
+  useEffect(() => {
+    if (!itemOptions?.length || readOnly) return;
+    setOptionsInternal((prev) => {
+      let changed = false;
+      const next = prev.map((opt) => ({
+        ...opt,
+        items: opt.items.map((it) => {
+          if (!it.item_code || (it.description || '').trim()) return it;
+          const meta = resolveItemMeta(itemOptions, it.item_code);
+          if (!meta.description) return it;
+          changed = true;
+          return {
+            ...it,
+            description: meta.description,
+            unit_price: it.unit_price || meta.unit_price || 0,
+          };
+        }),
+      }));
+      if (changed && controlled) onChange?.(next);
+      return changed ? next : prev;
+    });
+  }, [itemOptions, readOnly, controlled, onChange]);
+
+  useEffect(() => {
+    if (!createdItem?.item_code || !pendingTarget.current) return;
+    const { optIndex, itemIndex } = pendingTarget.current;
+    pendingTarget.current = null;
+    setOptions((prev) =>
+      prev.map((row, i) => {
+        if (i !== optIndex) return row;
+        return {
+          ...row,
+          items: row.items.map((it, j) =>
+            j === itemIndex
+              ? {
+                  ...it,
+                  item_code: createdItem.item_code,
+                  description: createdItem.description || it.description || '',
+                  unit_price:
+                    createdItem.unit_price != null && createdItem.unit_price > 0
+                      ? createdItem.unit_price
+                      : it.unit_price,
+                }
+              : it,
+          ),
+        };
+      }),
+    );
+    onCreatedItemApplied?.();
+  }, [createdItem, onCreatedItemApplied]);
 
   const itemCodesKey = useMemo(() => {
     const codes = new Set<string>();
@@ -160,6 +248,15 @@ export default function CommercialHierarchyEditor({
     };
   }, [warehouse, itemCodesKey]);
 
+  const selectOptions = useMemo(
+    () =>
+      (itemOptions || []).map((row) => {
+        const code = row.item_code || row.name || '';
+        return { value: code, label: itemLabel(row) };
+      }),
+    [itemOptions],
+  );
+
   const hasData = options.length > 0;
   const show = opportunityEnabled || hasData || Boolean(initialOptions?.length) || draft || controlled;
 
@@ -172,7 +269,6 @@ export default function CommercialHierarchyEditor({
     [options],
   );
 
-  // First-option-only total (Electrence external rule)
   const billedTotal = useMemo(() => {
     const firstByLine = new Map<number, CommercialOption>();
     for (const opt of options) {
@@ -199,6 +295,20 @@ export default function CommercialHierarchyEditor({
         return { ...row, items };
       }),
     );
+  };
+
+  const selectItemCode = (optIndex: number, itemIndex: number, code: string) => {
+    const meta = resolveItemMeta(itemOptions, code);
+    updateItem(optIndex, itemIndex, {
+      item_code: code,
+      ...(meta.description ? { description: meta.description } : {}),
+      ...(meta.unit_price != null ? { unit_price: meta.unit_price } : {}),
+    });
+  };
+
+  const openQuickAdd = (optIndex: number, itemIndex: number, prefill = '') => {
+    pendingTarget.current = { optIndex, itemIndex };
+    onQuickAddItem?.({ prefill, optIndex, itemIndex });
   };
 
   const addOption = () => {
@@ -253,6 +363,7 @@ export default function CommercialHierarchyEditor({
           <p className="text-sm text-gray-500">
             Line → Option → Item. Effective qty = unit qty × package qty. External total uses first option per line.
             {warehouse ? ` QOH from ${warehouse} (warn only).` : ''}
+            {' '}Missing items can be created on the spot.
           </p>
         </div>
         <div className="text-sm font-medium text-gray-800 space-y-0.5 text-right">
@@ -375,114 +486,97 @@ export default function CommercialHierarchyEditor({
                   const available = it.item_code ? Number(qoh[it.item_code] ?? 0) : 0;
                   const short = Boolean(warehouse && it.item_code && effQty > available);
                   return (
-                    <div key={`it-${optIndex}-${itemIndex}`} className="grid grid-cols-1 gap-2 rounded-lg border border-gray-200 bg-white p-3 md:grid-cols-12">
-                      <label className="md:col-span-3 block space-y-1">
-                        <span className="text-xs text-gray-500">Item code</span>
-                        {itemOptions && itemOptions.length > 0 && !readOnly ? (
-                          <select
-                            className="input-field"
-                            value={it.item_code}
-                            onChange={(e) => {
-                              const code = e.target.value;
-                              const selected = itemOptions.find(
-                                (row) => (row.item_code || row.name) === code,
-                              );
-                              updateItem(optIndex, itemIndex, {
-                                item_code: code,
-                                description: selected?.description || it.description || '',
-                                unit_price:
-                                  selected?.selling_price ?? selected?.standard_rate ?? it.unit_price,
-                              });
-                            }}
-                          >
-                            <option value="">Select item</option>
-                            {itemOptions.map((row) => {
-                              const code = row.item_code || row.name || '';
-                              return (
-                                <option key={code} value={code}>
-                                  {code}
-                                </option>
-                              );
-                            })}
-                          </select>
-                        ) : (
+                    <div key={`it-${optIndex}-${itemIndex}`} className="space-y-2 rounded-lg border border-gray-200 bg-white p-3">
+                      <div className="grid grid-cols-1 gap-2 md:grid-cols-12">
+                        <div className="md:col-span-5 space-y-1">
+                          <span className="text-xs text-gray-500">Item</span>
+                          {readOnly ? (
+                            <input className="input-field" disabled value={it.item_code} readOnly />
+                          ) : (
+                            <SearchableSelect
+                              value={it.item_code}
+                              onChange={(code) => selectItemCode(optIndex, itemIndex, code)}
+                              options={selectOptions}
+                              placeholder="Search or create item"
+                              creatable={Boolean(onQuickAddItem)}
+                              onCreateNew={(query) => openQuickAdd(optIndex, itemIndex, query)}
+                              emptyMessage="No items — create one on the spot"
+                            />
+                          )}
+                          {warehouse && it.item_code ? (
+                            <span className={`text-[11px] ${short ? 'text-amber-700' : 'text-gray-500'}`}>
+                              QOH: {available}
+                              {short ? ` — below needed ${effQty}` : ''}
+                            </span>
+                          ) : null}
+                        </div>
+                        <label className="md:col-span-2 block space-y-1">
+                          <span className="text-xs text-gray-500">Unit qty</span>
                           <input
                             className="input-field"
+                            type="number"
+                            min="0"
+                            step="0.01"
                             disabled={readOnly}
-                            value={it.item_code}
-                            onChange={(e) => updateItem(optIndex, itemIndex, { item_code: e.target.value })}
+                            value={it.unit_qty}
+                            onChange={(e) => updateItem(optIndex, itemIndex, { unit_qty: Number(e.target.value) || 0 })}
                           />
-                        )}
-                        {warehouse && it.item_code ? (
-                          <span className={`text-[11px] ${short ? 'text-amber-700' : 'text-gray-500'}`}>
-                            QOH: {available}
-                            {short ? ` — below needed ${effQty}` : ''}
-                          </span>
-                        ) : null}
-                      </label>
-                      <label className="md:col-span-2 block space-y-1">
-                        <span className="text-xs text-gray-500">Unit qty</span>
-                        <input
-                          className="input-field"
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          disabled={readOnly}
-                          value={it.unit_qty}
-                          onChange={(e) => updateItem(optIndex, itemIndex, { unit_qty: Number(e.target.value) || 0 })}
-                        />
-                      </label>
-                      <label className="md:col-span-2 block space-y-1">
-                        <span className="text-xs text-gray-500">Unit price</span>
-                        <input
-                          className="input-field"
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          disabled={readOnly}
-                          value={it.unit_price}
-                          onChange={(e) => updateItem(optIndex, itemIndex, { unit_price: Number(e.target.value) || 0 })}
-                        />
-                      </label>
-                      <label className="md:col-span-2 block space-y-1">
-                        <span className="text-xs text-gray-500">Discount %</span>
-                        <input
-                          className="input-field"
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          disabled={readOnly}
-                          value={it.discount_percent || 0}
-                          onChange={(e) => updateItem(optIndex, itemIndex, { discount_percent: Number(e.target.value) || 0 })}
-                        />
-                      </label>
-                      <div className="md:col-span-2 flex items-end justify-between gap-2">
-                        <div>
-                          <p className="text-xs text-gray-500">Eff. qty / amt</p>
-                          <p className="text-sm font-medium text-gray-900">
-                            {effQty} · {formatCurrency(amt, currency)}
-                          </p>
+                        </label>
+                        <label className="md:col-span-2 block space-y-1">
+                          <span className="text-xs text-gray-500">Unit price</span>
+                          <input
+                            className="input-field"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            disabled={readOnly}
+                            value={it.unit_price}
+                            onChange={(e) => updateItem(optIndex, itemIndex, { unit_price: Number(e.target.value) || 0 })}
+                          />
+                        </label>
+                        <label className="md:col-span-2 block space-y-1">
+                          <span className="text-xs text-gray-500">Discount %</span>
+                          <input
+                            className="input-field"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            disabled={readOnly}
+                            value={it.discount_percent || 0}
+                            onChange={(e) =>
+                              updateItem(optIndex, itemIndex, { discount_percent: Number(e.target.value) || 0 })
+                            }
+                          />
+                        </label>
+                        <div className="md:col-span-1 flex items-end justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-xs text-gray-500">Amt</p>
+                            <p className="text-sm font-medium text-gray-900 truncate">{formatCurrency(amt, currency)}</p>
+                          </div>
+                          {!readOnly ? (
+                            <button
+                              type="button"
+                              className="rounded p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600"
+                              onClick={() => removeItem(optIndex, itemIndex)}
+                              aria-label="Remove item"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          ) : null}
                         </div>
-                        {!readOnly ? (
-                          <button
-                            type="button"
-                            className="rounded p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600"
-                            onClick={() => removeItem(optIndex, itemIndex)}
-                            aria-label="Remove item"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        ) : null}
                       </div>
-                      <label className="md:col-span-12 block space-y-1">
-                        <span className="text-xs text-gray-500">Description</span>
-                        <input
-                          className="input-field"
+
+                      <label className="block space-y-1">
+                        <span className="text-xs text-gray-500">Description / specification</span>
+                        <textarea
+                          className="input-field min-h-[88px] whitespace-pre-wrap"
                           disabled={readOnly}
                           value={it.description || ''}
                           onChange={(e) => updateItem(optIndex, itemIndex, { description: e.target.value })}
+                          placeholder="Full commercial text shown on the quotation (make, packing, delivery…)"
                         />
                       </label>
+                      <p className="text-[11px] text-gray-500">Eff. qty = {effQty} (unit × package)</p>
                     </div>
                   );
                 })}
@@ -496,11 +590,6 @@ export default function CommercialHierarchyEditor({
             <button type="button" className="btn-secondary inline-flex items-center gap-2" onClick={addOption}>
               <Plus className="h-4 w-4" /> Add option
             </button>
-            {onQuickAddItem ? (
-              <button type="button" className="btn-secondary inline-flex items-center gap-2" onClick={onQuickAddItem}>
-                <Plus className="h-4 w-4" /> New item
-              </button>
-            ) : null}
             {!draft && name ? (
               <button type="button" className="btn-primary" disabled={saving} onClick={handleSave}>
                 {saving ? 'Saving…' : 'Save hierarchy'}

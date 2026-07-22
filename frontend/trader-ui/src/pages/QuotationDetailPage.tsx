@@ -13,11 +13,13 @@ import {
 } from 'lucide-react';
 import { salesApi, opportunityApi, inventoryApi } from '../lib/api';
 import { appendPreservedListQuery, classNames, extractFrappeError, formatCurrency, formatDate, getActiveCurrency, getStatusColor, isOperationsContext } from '../lib/utils';
-import CommercialHierarchyEditor from '../components/CommercialHierarchyEditor';
+import CommercialHierarchyEditor, { type CreatedHierarchyItem } from '../components/CommercialHierarchyEditor';
 import QuotationOrderDetailsForm, {
   orderDetailsFromQuotation,
   type OrderDetails,
 } from '../components/QuotationOrderDetailsForm';
+import useQuickAdd from '../components/useQuickAdd';
+import QuickAddProvider from '../components/QuickAddProvider';
 
 type QuotationDetail = Record<string, any>;
 
@@ -34,7 +36,10 @@ export default function QuotationDetailPage() {
   const [savingOrder, setSavingOrder] = useState(false);
   const [orderDetails, setOrderDetails] = useState<OrderDetails>(orderDetailsFromQuotation(null));
   const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [items, setItems] = useState<any[]>([]);
+  const [createdHierarchyItem, setCreatedHierarchyItem] = useState<CreatedHierarchyItem | null>(null);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const quickAdd = useQuickAdd();
 
   useEffect(() => {
     const load = async () => {
@@ -50,9 +55,10 @@ export default function QuotationDetailPage() {
 
       try {
         const decodedId = decodeURIComponent(quotationId);
-        const [response, whRes] = await Promise.all([
+        const [response, whRes, itemsRes] = await Promise.all([
           salesApi.getQuotationDetail(decodedId),
           inventoryApi.getWarehouses().catch(() => null),
+          inventoryApi.getItems({ page: 1, page_size: 200 }).catch(() => null),
         ]);
         setQuotation(response.data.message);
         setOrderDetails(orderDetailsFromQuotation(response.data.message));
@@ -61,6 +67,7 @@ export default function QuotationDetailPage() {
             ? whRes.data.message
             : whRes?.data?.message?.data || [],
         );
+        setItems(itemsRes?.data?.message?.data || []);
       } catch (err) {
         console.error('Failed to load quotation detail:', err);
         setError('Could not load quotation details at the moment.');
@@ -376,7 +383,27 @@ export default function QuotationDetailPage() {
         readOnly={quotation.docstatus !== 0}
         currency={quotation.currency}
         warehouse={orderDetails.warehouse || quotation.trader_warehouse}
+        itemOptions={items}
+        createdItem={createdHierarchyItem}
+        onCreatedItemApplied={() => setCreatedHierarchyItem(null)}
+        onQuickAddItem={
+          quotation.docstatus === 0
+            ? ({ prefill }) => quickAdd.open('item', prefill || '')
+            : undefined
+        }
         onSaved={() => { void reloadQuotation(); }}
+      />
+
+      <QuickAddProvider
+        quickAdd={quickAdd}
+        itemsSetter={setItems}
+        itemValueSetter={(value, raw) => {
+          setCreatedHierarchyItem({
+            item_code: value,
+            description: raw?.description || raw?.item_name || '',
+            unit_price: Number(raw?.standard_rate ?? raw?.selling_price ?? 0) || 0,
+          });
+        }}
       />
 
       {linkedOrders.length > 0 && (

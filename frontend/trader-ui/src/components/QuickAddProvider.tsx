@@ -48,11 +48,11 @@ type Props = {
   };
   /** Setters for injecting the newly created entity into the parent form state */
   customersSetter?: React.Dispatch<React.SetStateAction<any[]>>;
-  customerValueSetter?: (value: string) => void;
+  customerValueSetter?: (value: string, raw?: any) => void;
   suppliersSetter?: React.Dispatch<React.SetStateAction<any[]>>;
-  supplierValueSetter?: (value: string) => void;
+  supplierValueSetter?: (value: string, raw?: any) => void;
   itemsSetter?: React.Dispatch<React.SetStateAction<any[]>>;
-  itemValueSetter?: (value: string) => void;
+  itemValueSetter?: (value: string, raw?: any) => void;
 };
 
 const ENTITY_TITLES: Record<QuickAddEntity, string> = {
