@@ -237,6 +237,8 @@ def _parse_payload(data):
         return {}
     if isinstance(data, dict):
         return data
+    if isinstance(data, (list, tuple)):
+        return list(data)
     if isinstance(data, str):
         return json.loads(data) if data else {}
     return dict(data)
