@@ -108,117 +108,120 @@ All `@frappe.whitelist()` decorated functions — 2026-07-22
 | 86 | `get_items` | inventory | `/api/method/trader_app.api.inventory.get_items` | item_group=None, page=1, page_size=20, search=None | Item Barcode, Item, Item Price | 🔍 Unknown |
 | 87 | `lookup_item_by_barcode` | inventory | `/api/method/trader_app.api.inventory.lookup_item_by_barcode` | barcode, company=None | — | 🔍 Unknown |
 | 88 | `get_warehouse_item_qty` | inventory | `/api/method/trader_app.api.inventory.get_warehouse_item_qty` | item_code, warehouse, company=None | — | 🔍 Unknown |
-| 89 | `validate_serial_for_item` | inventory | `/api/method/trader_app.api.inventory.validate_serial_for_item` | item_code, serial_no, warehouse=None, company=None | — | 🔍 Unknown |
-| 90 | `validate_items_stock` | inventory | `/api/method/trader_app.api.inventory.validate_items_stock` | items, company=None | — | 🔍 Unknown |
-| 91 | `validate_serial_for_purchase` | inventory | `/api/method/trader_app.api.inventory.validate_serial_for_purchase` | item_code, serial_no, company=None | — | 🔍 Unknown |
-| 92 | `get_warehouses` | inventory | `/api/method/trader_app.api.inventory.get_warehouses` | company=None | Warehouse, Bin | 🔍 Unknown |
-| 93 | `get_inventory_summary` | inventory | `/api/method/trader_app.api.inventory.get_inventory_summary` | company=None | Bin, Warehouse, Item | 🔍 Unknown |
-| 94 | `get_low_stock_items` | inventory | `/api/method/trader_app.api.inventory.get_low_stock_items` | company=None, threshold=10, page=1, page_size=20 | Bin, Warehouse, Item | InventoryPage → inventoryApi.getLowStockItems() |
-| 95 | `get_item_groups` | inventory | `/api/method/trader_app.api.inventory.get_item_groups` | none | — | 🔍 Unknown |
-| 96 | `get_item_detail` | inventory | `/api/method/trader_app.api.inventory.get_item_detail` | item_code, company=None | Bin | 🔍 Unknown |
-| 97 | `create_purchase_receipt` | inventory | `/api/method/trader_app.api.inventory.create_purchase_receipt` | items, posting_date=None, company=None | — | 🔍 Unknown |
-| 98 | `create_sales_dispatch` | inventory | `/api/method/trader_app.api.inventory.create_sales_dispatch` | items, posting_date=None, company=None | — | 🔍 Unknown |
-| 99 | `create_stock_entry` | inventory | `/api/method/trader_app.api.inventory.create_stock_entry` | purpose, items, company=None, posting_date=None | — | 🔍 Unknown |
-| 100 | `provision_config_packs` | migration_toolkit | `/api/method/trader_app.api.migration_toolkit.provision_config_packs` | company=None, activate=0 | — | 🔍 Unknown |
-| 101 | `provision_opportunity_pack` | migration_toolkit | `/api/method/trader_app.api.migration_toolkit.provision_opportunity_pack` | company=None, template="minimal", activate=0 | — | 🔍 Unknown |
-| 102 | `provision_ar_pack` | migration_toolkit | `/api/method/trader_app.api.migration_toolkit.provision_ar_pack` | company=None, template="minimal", activate=0 | — | 🔍 Unknown |
-| 103 | `provision_customer_pack` | migration_toolkit | `/api/method/trader_app.api.migration_toolkit.provision_customer_pack` | company=None, template="minimal", activate=0 | — | 🔍 Unknown |
-| 104 | `migration_status` | migration_toolkit | `/api/method/trader_app.api.migration_toolkit.migration_status` | company=None | — | 🔍 Unknown |
-| 105 | `parity_report` | migration_toolkit | `/api/method/trader_app.api.migration_toolkit.parity_report` | company=None | — | 🔍 Unknown |
-| 106 | `audit_hardcoded_branches` | migration_toolkit | `/api/method/trader_app.api.migration_toolkit.audit_hardcoded_branches` | none | — | 🔍 Unknown |
-| 107 | `get_opportunity_settings` | opportunity | `/api/method/trader_app.api.opportunity.get_opportunity_settings` | company=None | — | 🔍 Unknown |
-| 108 | `set_opportunity_enabled` | opportunity | `/api/method/trader_app.api.opportunity.set_opportunity_enabled` | enabled=0, company=None | — | 🔍 Unknown |
-| 109 | `get_opportunity` | opportunity | `/api/method/trader_app.api.opportunity.get_opportunity` | name, company=None | — | 🔍 Unknown |
-| 110 | `create_opportunity` | opportunity | `/api/method/trader_app.api.opportunity.create_opportunity` | data=None, company=None | — | 🔍 Unknown |
-| 111 | `update_opportunity` | opportunity | `/api/method/trader_app.api.opportunity.update_opportunity` | name, data=None, company=None | — | 🔍 Unknown |
-| 112 | `close_opportunity` | opportunity | `/api/method/trader_app.api.opportunity.close_opportunity` | name, close_stage, company=None | — | 🔍 Unknown |
-| 113 | `reopen_opportunity` | opportunity | `/api/method/trader_app.api.opportunity.reopen_opportunity` | name, company=None | — | 🔍 Unknown |
-| 114 | `add_opportunity_comment` | opportunity | `/api/method/trader_app.api.opportunity.add_opportunity_comment` | name, comment, company=None | — | 🔍 Unknown |
-| 115 | `add_customer_po` | opportunity | `/api/method/trader_app.api.opportunity.add_customer_po` | name, data=None, company=None | — | 🔍 Unknown |
-| 116 | `link_document` | opportunity | `/api/method/trader_app.api.opportunity.link_document` | opportunity, doctype, document_name, company=None | — | 🔍 Unknown |
-| 117 | `list_source_quotations` | opportunity | `/api/method/trader_app.api.opportunity.list_source_quotations` | opportunity, company=None | — | 🔍 Unknown |
-| 118 | `create_quotation_for_opportunity` | opportunity | `/api/method/trader_app.api.opportunity.create_quotation_for_opportunity` | opportunity, data=None, company=None | — | 🔍 Unknown |
-| 119 | `get_quotation_defaults` | opportunity | `/api/method/trader_app.api.opportunity.get_quotation_defaults` | company=None | — | 🔍 Unknown |
-| 120 | `create_quotation_revision` | opportunity | `/api/method/trader_app.api.opportunity.create_quotation_revision` | name, company=None | — | 🔍 Unknown |
-| 121 | `create_delivery_note_for_opportunity` | opportunity | `/api/method/trader_app.api.opportunity.create_delivery_note_for_opportunity` | opportunity, source_oc=None, company=None | — | 🔍 Unknown |
-| 122 | `save_commercial_options` | opportunity | `/api/method/trader_app.api.opportunity.save_commercial_options` | doctype, name, commercial_options, company=None | — | 🔍 Unknown |
-| 123 | `get_pos_setup` | pos | `/api/method/trader_app.api.pos.get_pos_setup` | company=None | — | 🔍 Unknown |
-| 124 | `preview_posting` | posting | `/api/method/trader_app.api.posting.preview_posting` | doctype, name | — | 🔍 Unknown |
-| 125 | `get_print_data` | printing | `/api/method/trader_app.api.printing.get_print_data` | doctype, name, view_mode="external", doc_format="tax_invoice" | — | 🔍 Unknown |
-| 126 | `transition_state` | process | `/api/method/trader_app.api.process.transition_state` | doctype, name, to_state | — | 🔍 Unknown |
-| 127 | `get_state_model` | process | `/api/method/trader_app.api.process.get_state_model` | company, doctype=None | — | 🔍 Unknown |
-| 128 | `get_purchase_document_catalog` | purchases | `/api/method/trader_app.api.purchases.get_purchase_document_catalog` | none | — | 🔍 Unknown |
-| 129 | `get_purchase_invoice_detail` | purchases | `/api/method/trader_app.api.purchases.get_purchase_invoice_detail` | name | — | 🔍 Unknown |
-| 130 | `get_material_request_detail` | purchases | `/api/method/trader_app.api.purchases.get_material_request_detail` | name | — | 🔍 Unknown |
-| 131 | `get_supplier_quotation_detail` | purchases | `/api/method/trader_app.api.purchases.get_supplier_quotation_detail` | name | — | 🔍 Unknown |
-| 132 | `get_purchase_order_detail` | purchases | `/api/method/trader_app.api.purchases.get_purchase_order_detail` | name | Purchase Invoice Item, Purchase Invoice | 🔍 Unknown |
-| 133 | `create_purchase_order_from_supplier_quotation` | purchases | `/api/method/trader_app.api.purchases.create_purchase_order_from_supplier_quotation` | name, company=None, transaction_date=None, schedule_date=None | — | 🔍 Unknown |
-| 134 | `create_material_request` | purchases | `/api/method/trader_app.api.purchases.create_material_request` | items, company=None, transaction_date=None, schedule_date=None, title=None | — | 🔍 Unknown |
-| 135 | `submit_purchase_invoice` | purchases | `/api/method/trader_app.api.purchases.submit_purchase_invoice` | name | — | 🔍 Unknown |
-| 136 | `submit_purchase_order` | purchases | `/api/method/trader_app.api.purchases.submit_purchase_order` | name | — | 🔍 Unknown |
-| 137 | `submit_material_request` | purchases | `/api/method/trader_app.api.purchases.submit_material_request` | name | — | 🔍 Unknown |
-| 138 | `submit_supplier_quotation` | purchases | `/api/method/trader_app.api.purchases.submit_supplier_quotation` | name | — | 🔍 Unknown |
-| 139 | `cancel_purchase_invoice` | purchases | `/api/method/trader_app.api.purchases.cancel_purchase_invoice` | name | — | 🔍 Unknown |
-| 140 | `cancel_purchase_order` | purchases | `/api/method/trader_app.api.purchases.cancel_purchase_order` | name | — | 🔍 Unknown |
-| 141 | `cancel_material_request` | purchases | `/api/method/trader_app.api.purchases.cancel_material_request` | name | — | 🔍 Unknown |
-| 142 | `cancel_supplier_quotation` | purchases | `/api/method/trader_app.api.purchases.cancel_supplier_quotation` | name | — | 🔍 Unknown |
-| 143 | `get_purchase_summary` | purchases | `/api/method/trader_app.api.purchases.get_purchase_summary` | company=None | Purchase Invoice | 🔍 Unknown |
-| 144 | `get_customer_ledger` | reports | `/api/method/trader_app.api.reports.get_customer_ledger` | customer, company=None, from_date=None, to_date=None | GL Entry | 🔍 Unknown |
-| 145 | `get_supplier_ledger` | reports | `/api/method/trader_app.api.reports.get_supplier_ledger` | supplier, company=None, from_date=None, to_date=None | GL Entry | 🔍 Unknown |
-| 146 | `get_receivable_aging` | reports | `/api/method/trader_app.api.reports.get_receivable_aging` | company=None | Sales Invoice | 🔍 Unknown |
-| 147 | `get_receivable_aging_detail` | reports | `/api/method/trader_app.api.reports.get_receivable_aging_detail` | company=None, page=1, page_size=20 | Sales Invoice | 🔍 Unknown |
-| 148 | `get_payable_aging` | reports | `/api/method/trader_app.api.reports.get_payable_aging` | company=None | Purchase Invoice | 🔍 Unknown |
-| 149 | `get_profit_and_loss` | reports | `/api/method/trader_app.api.reports.get_profit_and_loss` | company=None, from_date=None, to_date=None | — | FinancePage → reportsApi.getProfitAndLoss() |
-| 150 | `get_accounts_payable` | reports | `/api/method/trader_app.api.reports.get_accounts_payable` | company=None | — | ReportsPage, FinancePage → reportsApi.getAccountsPayable() |
-| 151 | `get_consolidated_company_summary` | reports | `/api/method/trader_app.api.reports.get_consolidated_company_summary` | from_date=None, to_date=None | Sales Invoice, Purchase Invoice, Bin, Warehouse | 🔍 Unknown |
-| 152 | `get_tax_summary_report` | reports | `/api/method/trader_app.api.reports.get_tax_summary_report` | company=None, from_date=None, to_date=None, format=None | Sales Taxes and Charges, Sales Invoice, Purchase Taxes and Charges, Purchase Invoice | 🔍 Unknown |
-| 153 | `get_trial_balance_report` | reports | `/api/method/trader_app.api.reports.get_trial_balance_report` | company=None, from_date=None, to_date=None, format=None | Account, GL Entry | 🔍 Unknown |
-| 154 | `get_balance_sheet_report` | reports | `/api/method/trader_app.api.reports.get_balance_sheet_report` | company=None, as_on_date=None, format=None | Account, GL Entry | 🔍 Unknown |
-| 155 | `get_fx_gain_loss_report` | reports | `/api/method/trader_app.api.reports.get_fx_gain_loss_report` | company=None, as_on_date=None, format=None | Sales Invoice, Purchase Invoice | 🔍 Unknown |
-| 156 | `get_sales_document_catalog` | sales | `/api/method/trader_app.api.sales.get_sales_document_catalog` | none | — | 🔍 Unknown |
-| 157 | `get_sales_invoice_detail` | sales | `/api/method/trader_app.api.sales.get_sales_invoice_detail` | name | — | 🔍 Unknown |
-| 158 | `get_sales_order_detail` | sales | `/api/method/trader_app.api.sales.get_sales_order_detail` | name | Sales Invoice Item, Sales Invoice | 🔍 Unknown |
-| 159 | `get_quotation_detail` | sales | `/api/method/trader_app.api.sales.get_quotation_detail` | name | Sales Order Item, Sales Order | 🔍 Unknown |
-| 160 | `get_customer_item_sales_history` | sales | `/api/method/trader_app.api.sales.get_customer_item_sales_history` | customer, item_code, company=None, limit=5 | Sales Invoice Item, Sales Invoice | 🔍 Unknown |
-| 161 | `submit_sales_invoice` | sales | `/api/method/trader_app.api.sales.submit_sales_invoice` | name | — | 🔍 Unknown |
-| 162 | `submit_sales_order` | sales | `/api/method/trader_app.api.sales.submit_sales_order` | name | — | 🔍 Unknown |
-| 163 | `cancel_sales_invoice` | sales | `/api/method/trader_app.api.sales.cancel_sales_invoice` | name | — | 🔍 Unknown |
-| 164 | `cancel_sales_order` | sales | `/api/method/trader_app.api.sales.cancel_sales_order` | name | — | 🔍 Unknown |
-| 165 | `cancel_quotation` | sales | `/api/method/trader_app.api.sales.cancel_quotation` | name | — | 🔍 Unknown |
-| 166 | `get_delivery_note_detail` | sales | `/api/method/trader_app.api.sales.get_delivery_note_detail` | name | — | 🔍 Unknown |
-| 167 | `submit_delivery_note` | sales | `/api/method/trader_app.api.sales.submit_delivery_note` | name | — | 🔍 Unknown |
-| 168 | `cancel_delivery_note` | sales | `/api/method/trader_app.api.sales.cancel_delivery_note` | name | — | 🔍 Unknown |
-| 169 | `submit_quotation` | sales | `/api/method/trader_app.api.sales.submit_quotation` | name | — | 🔍 Unknown |
-| 170 | `get_sales_summary` | sales | `/api/method/trader_app.api.sales.get_sales_summary` | company=None | Sales Invoice | 🔍 Unknown |
-| 171 | `get_settings` | settings | `/api/method/trader_app.api.settings.get_settings` | none | — | 🔍 Unknown |
-| 172 | `save_settings` | settings | `/api/method/trader_app.api.settings.save_settings` | data=None | — | 🔍 Unknown |
-| 173 | `get_trader_roles` | settings | `/api/method/trader_app.api.settings.get_trader_roles` | none | Role | 🔍 Unknown |
-| 174 | `toggle_components_feature` | settings | `/api/method/trader_app.api.settings.toggle_components_feature` | enabled=0, company=None | — | 🔍 Unknown |
-| 175 | `toggle_opportunity_feature` | settings | `/api/method/trader_app.api.settings.toggle_opportunity_feature` | enabled=0, company=None | — | 🔍 Unknown |
-| 176 | `toggle_ar_feature` | settings | `/api/method/trader_app.api.settings.toggle_ar_feature` | enabled=0, company=None | — | 🔍 Unknown |
-| 177 | `toggle_customer_pack_feature` | settings | `/api/method/trader_app.api.settings.toggle_customer_pack_feature` | enabled=0, company=None | — | 🔍 Unknown |
-| 178 | `get_current_user_roles` | settings | `/api/method/trader_app.api.settings.get_current_user_roles` | none | Has Role | 🔍 Unknown |
-| 179 | `get_tenant_dashboard` | super_admin | `/api/method/trader_app.api.super_admin.get_tenant_dashboard` | none | — | 🔍 Unknown |
-| 180 | `list_tenants` | super_admin | `/api/method/trader_app.api.super_admin.list_tenants` | search=None, status=None, page=1, page_size=20 | — | 🔍 Unknown |
-| 181 | `get_tenant_detail` | super_admin | `/api/method/trader_app.api.super_admin.get_tenant_detail` | tenant | — | 🔍 Unknown |
-| 182 | `create_tenant` | super_admin | `/api/method/trader_app.api.super_admin.create_tenant` | data=None | — | 🔍 Unknown |
-| 183 | `update_tenant` | super_admin | `/api/method/trader_app.api.super_admin.update_tenant` | tenant, data=None | — | 🔍 Unknown |
-| 184 | `set_tenant_status` | super_admin | `/api/method/trader_app.api.super_admin.set_tenant_status` | tenant, status | — | 🔍 Unknown |
-| 185 | `set_tenant_modules` | super_admin | `/api/method/trader_app.api.super_admin.set_tenant_modules` | tenant, modules=None | — | 🔍 Unknown |
-| 186 | `set_tenant_nav_profile` | super_admin | `/api/method/trader_app.api.super_admin.set_tenant_nav_profile` | tenant, profile="standard" | — | 🔍 Unknown |
-| 187 | `set_tenant_branding` | super_admin | `/api/method/trader_app.api.super_admin.set_tenant_branding` | tenant, branding=None, logo=None | — | 🔍 Unknown |
-| 188 | `get_tenant_audit_log` | super_admin | `/api/method/trader_app.api.super_admin.get_tenant_audit_log` | tenant, page=1, page_size=20 | — | 🔍 Unknown |
-| 189 | `get_suppliers` | suppliers | `/api/method/trader_app.api.suppliers.get_suppliers` | page=1, page_size=20, search=None, supplier_group=None | Supplier, Purchase Invoice | 🔍 Unknown |
-| 190 | `get_supplier_detail` | suppliers | `/api/method/trader_app.api.suppliers.get_supplier_detail` | name | Purchase Invoice | 🔍 Unknown |
-| 191 | `get_supplier_groups` | suppliers | `/api/method/trader_app.api.suppliers.get_supplier_groups` | none | — | 🔍 Unknown |
-| 192 | `get_supplier_transactions` | suppliers | `/api/method/trader_app.api.suppliers.get_supplier_transactions` | supplier, company=None, page=1, page_size=20 | Purchase Invoice | 🔍 Unknown |
-| 193 | `disable_supplier` | suppliers | `/api/method/trader_app.api.suppliers.disable_supplier` | name | — | 🔍 Unknown |
-| 194 | `enable_supplier` | suppliers | `/api/method/trader_app.api.suppliers.enable_supplier` | name | — | 🔍 Unknown |
-| 195 | `preview_tax` | tax_policy | `/api/method/trader_app.api.tax_policy.preview_tax` | company, posting_date=None, customer=None, is_service=0 | — | 🔍 Unknown |
-| 196 | `get_document_template` | templates | `/api/method/trader_app.api.templates.get_document_template` | target_doctype, company=None, customer=None, persona=None | — | 🔍 Unknown |
-| 197 | `get_multitenant_status` | tenant | `/api/method/trader_app.api.tenant.get_multitenant_status` | none | — | 🔍 Unknown |
-| 198 | `get_tenant_config` | tenant | `/api/method/trader_app.api.tenant.get_tenant_config` | none | — | 🔍 Unknown |
-| 199 | `get_business_tenant_audit_log` | tenant | `/api/method/trader_app.api.tenant.get_business_tenant_audit_log` | page=1, page_size=20 | — | 🔍 Unknown |
+| 89 | `get_items_qoh` | inventory | `/api/method/trader_app.api.inventory.get_items_qoh` | item_codes=None, warehouse=None, company=None | Bin | 🔍 Unknown |
+| 90 | `validate_serial_for_item` | inventory | `/api/method/trader_app.api.inventory.validate_serial_for_item` | item_code, serial_no, warehouse=None, company=None | — | 🔍 Unknown |
+| 91 | `validate_items_stock` | inventory | `/api/method/trader_app.api.inventory.validate_items_stock` | items, company=None | — | 🔍 Unknown |
+| 92 | `validate_serial_for_purchase` | inventory | `/api/method/trader_app.api.inventory.validate_serial_for_purchase` | item_code, serial_no, company=None | — | 🔍 Unknown |
+| 93 | `get_warehouses` | inventory | `/api/method/trader_app.api.inventory.get_warehouses` | company=None | Warehouse, Bin | 🔍 Unknown |
+| 94 | `get_inventory_summary` | inventory | `/api/method/trader_app.api.inventory.get_inventory_summary` | company=None | Bin, Warehouse, Item | 🔍 Unknown |
+| 95 | `get_low_stock_items` | inventory | `/api/method/trader_app.api.inventory.get_low_stock_items` | company=None, threshold=10, page=1, page_size=20 | Bin, Warehouse, Item | InventoryPage → inventoryApi.getLowStockItems() |
+| 96 | `get_item_groups` | inventory | `/api/method/trader_app.api.inventory.get_item_groups` | none | — | 🔍 Unknown |
+| 97 | `get_item_detail` | inventory | `/api/method/trader_app.api.inventory.get_item_detail` | item_code, company=None | Bin | 🔍 Unknown |
+| 98 | `create_purchase_receipt` | inventory | `/api/method/trader_app.api.inventory.create_purchase_receipt` | items, posting_date=None, company=None | — | 🔍 Unknown |
+| 99 | `create_sales_dispatch` | inventory | `/api/method/trader_app.api.inventory.create_sales_dispatch` | items, posting_date=None, company=None | — | 🔍 Unknown |
+| 100 | `create_stock_entry` | inventory | `/api/method/trader_app.api.inventory.create_stock_entry` | purpose, items, company=None, posting_date=None | — | 🔍 Unknown |
+| 101 | `provision_config_packs` | migration_toolkit | `/api/method/trader_app.api.migration_toolkit.provision_config_packs` | company=None, activate=0 | — | 🔍 Unknown |
+| 102 | `provision_opportunity_pack` | migration_toolkit | `/api/method/trader_app.api.migration_toolkit.provision_opportunity_pack` | company=None, template="minimal", activate=0 | — | 🔍 Unknown |
+| 103 | `provision_ar_pack` | migration_toolkit | `/api/method/trader_app.api.migration_toolkit.provision_ar_pack` | company=None, template="minimal", activate=0 | — | 🔍 Unknown |
+| 104 | `provision_customer_pack` | migration_toolkit | `/api/method/trader_app.api.migration_toolkit.provision_customer_pack` | company=None, template="minimal", activate=0 | — | 🔍 Unknown |
+| 105 | `migration_status` | migration_toolkit | `/api/method/trader_app.api.migration_toolkit.migration_status` | company=None | — | 🔍 Unknown |
+| 106 | `parity_report` | migration_toolkit | `/api/method/trader_app.api.migration_toolkit.parity_report` | company=None | — | 🔍 Unknown |
+| 107 | `audit_hardcoded_branches` | migration_toolkit | `/api/method/trader_app.api.migration_toolkit.audit_hardcoded_branches` | none | — | 🔍 Unknown |
+| 108 | `get_opportunity_settings` | opportunity | `/api/method/trader_app.api.opportunity.get_opportunity_settings` | company=None | — | 🔍 Unknown |
+| 109 | `set_opportunity_enabled` | opportunity | `/api/method/trader_app.api.opportunity.set_opportunity_enabled` | enabled=0, company=None | — | 🔍 Unknown |
+| 110 | `get_opportunity` | opportunity | `/api/method/trader_app.api.opportunity.get_opportunity` | name, company=None | — | 🔍 Unknown |
+| 111 | `create_opportunity` | opportunity | `/api/method/trader_app.api.opportunity.create_opportunity` | data=None, company=None | — | 🔍 Unknown |
+| 112 | `update_opportunity` | opportunity | `/api/method/trader_app.api.opportunity.update_opportunity` | name, data=None, company=None | — | 🔍 Unknown |
+| 113 | `close_opportunity` | opportunity | `/api/method/trader_app.api.opportunity.close_opportunity` | name, close_stage, company=None | — | 🔍 Unknown |
+| 114 | `reopen_opportunity` | opportunity | `/api/method/trader_app.api.opportunity.reopen_opportunity` | name, company=None | — | 🔍 Unknown |
+| 115 | `add_opportunity_comment` | opportunity | `/api/method/trader_app.api.opportunity.add_opportunity_comment` | name, comment, company=None | — | 🔍 Unknown |
+| 116 | `add_customer_po` | opportunity | `/api/method/trader_app.api.opportunity.add_customer_po` | name, data=None, company=None | — | 🔍 Unknown |
+| 117 | `link_document` | opportunity | `/api/method/trader_app.api.opportunity.link_document` | opportunity, doctype, document_name, company=None | — | 🔍 Unknown |
+| 118 | `list_source_quotations` | opportunity | `/api/method/trader_app.api.opportunity.list_source_quotations` | opportunity, company=None | — | 🔍 Unknown |
+| 119 | `create_quotation_for_opportunity` | opportunity | `/api/method/trader_app.api.opportunity.create_quotation_for_opportunity` | opportunity, data=None, company=None | — | 🔍 Unknown |
+| 120 | `discard_quotation_draft` | opportunity | `/api/method/trader_app.api.opportunity.discard_quotation_draft` | name, company=None | — | 🔍 Unknown |
+| 121 | `save_quotation_order_details` | opportunity | `/api/method/trader_app.api.opportunity.save_quotation_order_details` | name, data=None, company=None | — | 🔍 Unknown |
+| 122 | `get_quotation_defaults` | opportunity | `/api/method/trader_app.api.opportunity.get_quotation_defaults` | company=None | — | 🔍 Unknown |
+| 123 | `create_quotation_revision` | opportunity | `/api/method/trader_app.api.opportunity.create_quotation_revision` | name, company=None | — | 🔍 Unknown |
+| 124 | `create_delivery_note_for_opportunity` | opportunity | `/api/method/trader_app.api.opportunity.create_delivery_note_for_opportunity` | opportunity, source_oc=None, company=None | — | 🔍 Unknown |
+| 125 | `save_commercial_options` | opportunity | `/api/method/trader_app.api.opportunity.save_commercial_options` | doctype, name, commercial_options, company=None | — | 🔍 Unknown |
+| 126 | `get_pos_setup` | pos | `/api/method/trader_app.api.pos.get_pos_setup` | company=None | — | 🔍 Unknown |
+| 127 | `preview_posting` | posting | `/api/method/trader_app.api.posting.preview_posting` | doctype, name | — | 🔍 Unknown |
+| 128 | `get_print_data` | printing | `/api/method/trader_app.api.printing.get_print_data` | doctype, name, view_mode="external", doc_format="tax_invoice" | — | 🔍 Unknown |
+| 129 | `transition_state` | process | `/api/method/trader_app.api.process.transition_state` | doctype, name, to_state | — | 🔍 Unknown |
+| 130 | `get_state_model` | process | `/api/method/trader_app.api.process.get_state_model` | company, doctype=None | — | 🔍 Unknown |
+| 131 | `get_purchase_document_catalog` | purchases | `/api/method/trader_app.api.purchases.get_purchase_document_catalog` | none | — | 🔍 Unknown |
+| 132 | `get_purchase_invoice_detail` | purchases | `/api/method/trader_app.api.purchases.get_purchase_invoice_detail` | name | — | 🔍 Unknown |
+| 133 | `get_material_request_detail` | purchases | `/api/method/trader_app.api.purchases.get_material_request_detail` | name | — | 🔍 Unknown |
+| 134 | `get_supplier_quotation_detail` | purchases | `/api/method/trader_app.api.purchases.get_supplier_quotation_detail` | name | — | 🔍 Unknown |
+| 135 | `get_purchase_order_detail` | purchases | `/api/method/trader_app.api.purchases.get_purchase_order_detail` | name | Purchase Invoice Item, Purchase Invoice | 🔍 Unknown |
+| 136 | `create_purchase_order_from_supplier_quotation` | purchases | `/api/method/trader_app.api.purchases.create_purchase_order_from_supplier_quotation` | name, company=None, transaction_date=None, schedule_date=None | — | 🔍 Unknown |
+| 137 | `create_material_request` | purchases | `/api/method/trader_app.api.purchases.create_material_request` | items, company=None, transaction_date=None, schedule_date=None, title=None | — | 🔍 Unknown |
+| 138 | `submit_purchase_invoice` | purchases | `/api/method/trader_app.api.purchases.submit_purchase_invoice` | name | — | 🔍 Unknown |
+| 139 | `submit_purchase_order` | purchases | `/api/method/trader_app.api.purchases.submit_purchase_order` | name | — | 🔍 Unknown |
+| 140 | `submit_material_request` | purchases | `/api/method/trader_app.api.purchases.submit_material_request` | name | — | 🔍 Unknown |
+| 141 | `submit_supplier_quotation` | purchases | `/api/method/trader_app.api.purchases.submit_supplier_quotation` | name | — | 🔍 Unknown |
+| 142 | `cancel_purchase_invoice` | purchases | `/api/method/trader_app.api.purchases.cancel_purchase_invoice` | name | — | 🔍 Unknown |
+| 143 | `cancel_purchase_order` | purchases | `/api/method/trader_app.api.purchases.cancel_purchase_order` | name | — | 🔍 Unknown |
+| 144 | `cancel_material_request` | purchases | `/api/method/trader_app.api.purchases.cancel_material_request` | name | — | 🔍 Unknown |
+| 145 | `cancel_supplier_quotation` | purchases | `/api/method/trader_app.api.purchases.cancel_supplier_quotation` | name | — | 🔍 Unknown |
+| 146 | `get_purchase_summary` | purchases | `/api/method/trader_app.api.purchases.get_purchase_summary` | company=None | Purchase Invoice | 🔍 Unknown |
+| 147 | `get_customer_ledger` | reports | `/api/method/trader_app.api.reports.get_customer_ledger` | customer, company=None, from_date=None, to_date=None | GL Entry | 🔍 Unknown |
+| 148 | `get_supplier_ledger` | reports | `/api/method/trader_app.api.reports.get_supplier_ledger` | supplier, company=None, from_date=None, to_date=None | GL Entry | 🔍 Unknown |
+| 149 | `get_receivable_aging` | reports | `/api/method/trader_app.api.reports.get_receivable_aging` | company=None | Sales Invoice | 🔍 Unknown |
+| 150 | `get_receivable_aging_detail` | reports | `/api/method/trader_app.api.reports.get_receivable_aging_detail` | company=None, page=1, page_size=20 | Sales Invoice | 🔍 Unknown |
+| 151 | `get_payable_aging` | reports | `/api/method/trader_app.api.reports.get_payable_aging` | company=None | Purchase Invoice | 🔍 Unknown |
+| 152 | `get_profit_and_loss` | reports | `/api/method/trader_app.api.reports.get_profit_and_loss` | company=None, from_date=None, to_date=None | — | FinancePage → reportsApi.getProfitAndLoss() |
+| 153 | `get_accounts_payable` | reports | `/api/method/trader_app.api.reports.get_accounts_payable` | company=None | — | ReportsPage, FinancePage → reportsApi.getAccountsPayable() |
+| 154 | `get_consolidated_company_summary` | reports | `/api/method/trader_app.api.reports.get_consolidated_company_summary` | from_date=None, to_date=None | Sales Invoice, Purchase Invoice, Bin, Warehouse | 🔍 Unknown |
+| 155 | `get_tax_summary_report` | reports | `/api/method/trader_app.api.reports.get_tax_summary_report` | company=None, from_date=None, to_date=None, format=None | Sales Taxes and Charges, Sales Invoice, Purchase Taxes and Charges, Purchase Invoice | 🔍 Unknown |
+| 156 | `get_trial_balance_report` | reports | `/api/method/trader_app.api.reports.get_trial_balance_report` | company=None, from_date=None, to_date=None, format=None | Account, GL Entry | 🔍 Unknown |
+| 157 | `get_balance_sheet_report` | reports | `/api/method/trader_app.api.reports.get_balance_sheet_report` | company=None, as_on_date=None, format=None | Account, GL Entry | 🔍 Unknown |
+| 158 | `get_fx_gain_loss_report` | reports | `/api/method/trader_app.api.reports.get_fx_gain_loss_report` | company=None, as_on_date=None, format=None | Sales Invoice, Purchase Invoice | 🔍 Unknown |
+| 159 | `get_sales_document_catalog` | sales | `/api/method/trader_app.api.sales.get_sales_document_catalog` | none | — | 🔍 Unknown |
+| 160 | `get_sales_invoice_detail` | sales | `/api/method/trader_app.api.sales.get_sales_invoice_detail` | name | — | 🔍 Unknown |
+| 161 | `get_sales_order_detail` | sales | `/api/method/trader_app.api.sales.get_sales_order_detail` | name | Sales Invoice Item, Sales Invoice | 🔍 Unknown |
+| 162 | `get_quotation_detail` | sales | `/api/method/trader_app.api.sales.get_quotation_detail` | name | Sales Order Item, Sales Order | 🔍 Unknown |
+| 163 | `get_customer_item_sales_history` | sales | `/api/method/trader_app.api.sales.get_customer_item_sales_history` | customer, item_code, company=None, limit=5 | Sales Invoice Item, Sales Invoice | 🔍 Unknown |
+| 164 | `submit_sales_invoice` | sales | `/api/method/trader_app.api.sales.submit_sales_invoice` | name | — | 🔍 Unknown |
+| 165 | `submit_sales_order` | sales | `/api/method/trader_app.api.sales.submit_sales_order` | name | — | 🔍 Unknown |
+| 166 | `cancel_sales_invoice` | sales | `/api/method/trader_app.api.sales.cancel_sales_invoice` | name | — | 🔍 Unknown |
+| 167 | `cancel_sales_order` | sales | `/api/method/trader_app.api.sales.cancel_sales_order` | name | — | 🔍 Unknown |
+| 168 | `cancel_quotation` | sales | `/api/method/trader_app.api.sales.cancel_quotation` | name | — | 🔍 Unknown |
+| 169 | `get_delivery_note_detail` | sales | `/api/method/trader_app.api.sales.get_delivery_note_detail` | name | — | 🔍 Unknown |
+| 170 | `submit_delivery_note` | sales | `/api/method/trader_app.api.sales.submit_delivery_note` | name | — | 🔍 Unknown |
+| 171 | `cancel_delivery_note` | sales | `/api/method/trader_app.api.sales.cancel_delivery_note` | name | — | 🔍 Unknown |
+| 172 | `submit_quotation` | sales | `/api/method/trader_app.api.sales.submit_quotation` | name | — | 🔍 Unknown |
+| 173 | `get_sales_summary` | sales | `/api/method/trader_app.api.sales.get_sales_summary` | company=None | Sales Invoice | 🔍 Unknown |
+| 174 | `get_settings` | settings | `/api/method/trader_app.api.settings.get_settings` | none | — | 🔍 Unknown |
+| 175 | `save_settings` | settings | `/api/method/trader_app.api.settings.save_settings` | data=None | — | 🔍 Unknown |
+| 176 | `get_trader_roles` | settings | `/api/method/trader_app.api.settings.get_trader_roles` | none | Role | 🔍 Unknown |
+| 177 | `toggle_components_feature` | settings | `/api/method/trader_app.api.settings.toggle_components_feature` | enabled=0, company=None | — | 🔍 Unknown |
+| 178 | `toggle_opportunity_feature` | settings | `/api/method/trader_app.api.settings.toggle_opportunity_feature` | enabled=0, company=None | — | 🔍 Unknown |
+| 179 | `toggle_ar_feature` | settings | `/api/method/trader_app.api.settings.toggle_ar_feature` | enabled=0, company=None | — | 🔍 Unknown |
+| 180 | `toggle_customer_pack_feature` | settings | `/api/method/trader_app.api.settings.toggle_customer_pack_feature` | enabled=0, company=None | — | 🔍 Unknown |
+| 181 | `get_current_user_roles` | settings | `/api/method/trader_app.api.settings.get_current_user_roles` | none | Has Role | 🔍 Unknown |
+| 182 | `get_tenant_dashboard` | super_admin | `/api/method/trader_app.api.super_admin.get_tenant_dashboard` | none | — | 🔍 Unknown |
+| 183 | `list_tenants` | super_admin | `/api/method/trader_app.api.super_admin.list_tenants` | search=None, status=None, page=1, page_size=20 | — | 🔍 Unknown |
+| 184 | `get_tenant_detail` | super_admin | `/api/method/trader_app.api.super_admin.get_tenant_detail` | tenant | — | 🔍 Unknown |
+| 185 | `create_tenant` | super_admin | `/api/method/trader_app.api.super_admin.create_tenant` | data=None | — | 🔍 Unknown |
+| 186 | `update_tenant` | super_admin | `/api/method/trader_app.api.super_admin.update_tenant` | tenant, data=None | — | 🔍 Unknown |
+| 187 | `set_tenant_status` | super_admin | `/api/method/trader_app.api.super_admin.set_tenant_status` | tenant, status | — | 🔍 Unknown |
+| 188 | `set_tenant_modules` | super_admin | `/api/method/trader_app.api.super_admin.set_tenant_modules` | tenant, modules=None | — | 🔍 Unknown |
+| 189 | `set_tenant_nav_profile` | super_admin | `/api/method/trader_app.api.super_admin.set_tenant_nav_profile` | tenant, profile="standard" | — | 🔍 Unknown |
+| 190 | `set_tenant_branding` | super_admin | `/api/method/trader_app.api.super_admin.set_tenant_branding` | tenant, branding=None, logo=None | — | 🔍 Unknown |
+| 191 | `get_tenant_audit_log` | super_admin | `/api/method/trader_app.api.super_admin.get_tenant_audit_log` | tenant, page=1, page_size=20 | — | 🔍 Unknown |
+| 192 | `get_suppliers` | suppliers | `/api/method/trader_app.api.suppliers.get_suppliers` | page=1, page_size=20, search=None, supplier_group=None | Supplier, Purchase Invoice | 🔍 Unknown |
+| 193 | `get_supplier_detail` | suppliers | `/api/method/trader_app.api.suppliers.get_supplier_detail` | name | Purchase Invoice | 🔍 Unknown |
+| 194 | `get_supplier_groups` | suppliers | `/api/method/trader_app.api.suppliers.get_supplier_groups` | none | — | 🔍 Unknown |
+| 195 | `get_supplier_transactions` | suppliers | `/api/method/trader_app.api.suppliers.get_supplier_transactions` | supplier, company=None, page=1, page_size=20 | Purchase Invoice | 🔍 Unknown |
+| 196 | `disable_supplier` | suppliers | `/api/method/trader_app.api.suppliers.disable_supplier` | name | — | 🔍 Unknown |
+| 197 | `enable_supplier` | suppliers | `/api/method/trader_app.api.suppliers.enable_supplier` | name | — | 🔍 Unknown |
+| 198 | `preview_tax` | tax_policy | `/api/method/trader_app.api.tax_policy.preview_tax` | company, posting_date=None, customer=None, is_service=0 | — | 🔍 Unknown |
+| 199 | `get_document_template` | templates | `/api/method/trader_app.api.templates.get_document_template` | target_doctype, company=None, customer=None, persona=None | — | 🔍 Unknown |
+| 200 | `get_multitenant_status` | tenant | `/api/method/trader_app.api.tenant.get_multitenant_status` | none | — | 🔍 Unknown |
+| 201 | `get_tenant_config` | tenant | `/api/method/trader_app.api.tenant.get_tenant_config` | none | — | 🔍 Unknown |
+| 202 | `get_business_tenant_audit_log` | tenant | `/api/method/trader_app.api.tenant.get_business_tenant_audit_log` | page=1, page_size=20 | — | 🔍 Unknown |
 
 ## Frappe Built-in Endpoints Used
 
@@ -238,7 +241,7 @@ All `@frappe.whitelist()` decorated functions — 2026-07-22
 
 | Category | Count |
 |---|---|
-| Custom whitelisted endpoints | 199 |
-| With frontend consumer | 199 |
+| Custom whitelisted endpoints | 202 |
+| With frontend consumer | 202 |
 | Without frontend consumer (orphan) | 0 |
 | Frappe built-in endpoints used | 4 (active) + 5 (defined, unused) |
