@@ -40,7 +40,7 @@ type UseQuickAddReturn = {
   onCreated: (
     newOption: SelectOption,
     optionsSetter: React.Dispatch<React.SetStateAction<any[]>>,
-    valueSetter: (value: string) => void,
+    valueSetter: (value: string, raw?: any) => void,
     rawEntity?: any,
   ) => void;
 };
@@ -64,16 +64,13 @@ export default function useQuickAdd(): UseQuickAddReturn {
     (
       newOption: SelectOption,
       optionsSetter: React.Dispatch<React.SetStateAction<any[]>>,
-      valueSetter: (value: string) => void,
+      valueSetter: (value: string, raw?: any) => void,
       rawEntity?: any,
     ) => {
-      // Inject the new entity into the parent list so the dropdown immediately shows it
       if (rawEntity) {
         optionsSetter((prev) => [rawEntity, ...prev]);
       }
-      // Auto-select the newly created entity
-      valueSetter(newOption.value);
-      // Close the modal
+      valueSetter(newOption.value, rawEntity);
       close();
     },
     [close],
