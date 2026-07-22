@@ -7,6 +7,10 @@ import SearchableSelect from '../components/SearchableSelect';
 import useQuickAdd from '../components/useQuickAdd';
 import QuickAddProvider from '../components/QuickAddProvider';
 import CommercialHierarchyEditor, { type CommercialOption } from '../components/CommercialHierarchyEditor';
+import QuotationOrderDetailsForm, {
+  EMPTY_ORDER_DETAILS,
+  type OrderDetails,
+} from '../components/QuotationOrderDetailsForm';
 import { useCompanyStore } from '../stores/companyStore';
 
 type QuotationLine = {
@@ -22,7 +26,13 @@ function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function emptyHierarchy(): CommercialOption[] {
+function addDays(iso: string, days: number) {
+  const d = new Date(`${iso}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function emptyHierarchy(stockStatus = 'Ex-Stock (Subject to Prior Sale)'): CommercialOption[] {
   return [
     {
       line_no: 1,
@@ -30,6 +40,7 @@ function emptyHierarchy(): CommercialOption[] {
       option_no: 1,
       option_text: '',
       package_qty: 1,
+      stock_status: stockStatus,
       items: [{ item_code: '', unit_qty: 1, unit_price: 0, discount_percent: 0 }],
     },
   ];
@@ -44,10 +55,12 @@ export default function CreateQuotationPage() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [items, setItems] = useState<any[]>([]);
+  const [warehouses, setWarehouses] = useState<any[]>([]);
   const [project, setProject] = useState(searchParams.get('opportunity') || searchParams.get('project') || '');
   const [customer, setCustomer] = useState('');
   const [customerRef, setCustomerRef] = useState('');
   const [terms, setTerms] = useState('');
+  const [orderDetails, setOrderDetails] = useState<OrderDetails>({ ...EMPTY_ORDER_DETAILS });
   const [transactionDate, setTransactionDate] = useState(today());
   const [validTill, setValidTill] = useState(today());
   const [lines, setLines] = useState<QuotationLine[]>([{ ...EMPTY_LINE }]);
@@ -55,6 +68,7 @@ export default function CreateQuotationPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [draftBanner, setDraftBanner] = useState<{ name: string } | null>(null);
   const [taxTemplates, setTaxTemplates] = useState<any[]>([]);
   const [taxTemplate, setTaxTemplate] = useState('');
   const [taxRate, setTaxRate] = useState(0);
@@ -77,15 +91,21 @@ export default function CreateQuotationPage() {
           customersApi.getList({ page: 1, page_size: 100 }),
           inventoryApi.getItems({ page: 1, page_size: 200 }),
           gstApi.getTaxTemplates('Sales'),
+          inventoryApi.getWarehouses(),
         ];
         if (opportunityEnabled) {
           jobs.push(opportunityApi.list({ page: 1, page_size: 100, status: 'Open' }));
           jobs.push(opportunityApi.getQuotationDefaults());
         }
         const results = await Promise.all(jobs);
-        const [customersRes, itemsRes, taxRes] = results;
+        const [customersRes, itemsRes, taxRes, whRes] = results;
         setCustomers(customersRes.data.message?.data || []);
         setItems(itemsRes.data.message?.data || []);
+        setWarehouses(
+          Array.isArray(whRes.data.message)
+            ? whRes.data.message
+            : whRes.data.message?.data || [],
+        );
         const templates = taxRes.data.message?.templates || taxRes.data.message || [];
         setTaxTemplates(templates);
         const defaultTpl = templates.find((t: any) => t.is_default);
@@ -94,10 +114,23 @@ export default function CreateQuotationPage() {
           setTaxRate(parseFloat(defaultTpl.total_tax_rate || defaultTpl.tax_rate || 0));
         }
         if (opportunityEnabled) {
-          const projectsRes = results[3];
+          const projectsRes = results[4];
           setProjects(projectsRes?.data?.message?.data || []);
-          const defaults = results[4]?.data?.message || {};
+          const defaults = results[5]?.data?.message || {};
           if (defaults.terms) setTerms(defaults.terms);
+          if (defaults.order_details) {
+            setOrderDetails({
+              ...EMPTY_ORDER_DETAILS,
+              ...defaults.order_details,
+              warehouse: defaults.warehouse || defaults.order_details.warehouse || '',
+            });
+            const days = Number(defaults.order_details.validity_days) || 5;
+            setValidTill(addDays(today(), days));
+            const stock = defaults.order_details.default_stock_status;
+            if (stock) setHierarchy(emptyHierarchy(stock));
+          } else if (defaults.warehouse) {
+            setOrderDetails((prev) => ({ ...prev, warehouse: defaults.warehouse }));
+          }
         }
       } catch (err) {
         console.error('Failed to load quotation form data:', err);
@@ -110,10 +143,29 @@ export default function CreateQuotationPage() {
   }, [opportunityEnabled]);
 
   useEffect(() => {
-    if (!project) return;
+    if (!project) {
+      setDraftBanner(null);
+      return;
+    }
     const selected = projects.find((p) => p.name === project);
     if (selected?.customer) setCustomer(selected.customer);
+    void (async () => {
+      try {
+        const res = await opportunityApi.get(project);
+        const draft = res.data.message?.open_quotation_draft;
+        setDraftBanner(draft ? { name: draft.name } : null);
+      } catch {
+        setDraftBanner(null);
+      }
+    })();
   }, [project, projects]);
+
+  useEffect(() => {
+    const days = Number(orderDetails.validity_days) || 0;
+    if (days > 0 && transactionDate) {
+      setValidTill(addDays(transactionDate, days));
+    }
+  }, [orderDetails.validity_days, transactionDate]);
 
   const flatTotal = useMemo(
     () => lines.reduce((sum, l) => sum + (Number(l.qty) || 0) * (Number(l.rate) || 0), 0),
@@ -158,7 +210,7 @@ export default function CreateQuotationPage() {
     [hierarchy],
   );
   const isReadyToSave = useHierarchy
-    ? Boolean(project) && validHierarchy
+    ? Boolean(project) && validHierarchy && !draftBanner
     : Boolean(customer) && validLineCount > 0;
 
   const updateLine = (index: number, patch: Partial<QuotationLine>) => {
@@ -183,6 +235,10 @@ export default function CreateQuotationPage() {
   const handleSubmit = async () => {
     if (useHierarchy && !project) {
       setError('Select a Project before creating the quotation.');
+      return;
+    }
+    if (useHierarchy && draftBanner) {
+      setError('Continue or discard the open draft before creating a new quotation.');
       return;
     }
     if (!useHierarchy && !customer) {
@@ -214,9 +270,16 @@ export default function CreateQuotationPage() {
           customer_ref: customerRef || undefined,
           terms: terms || undefined,
           taxes_and_charges: taxTemplate || undefined,
+          warehouse: orderDetails.warehouse || undefined,
+          order_details: orderDetails,
           commercial_options,
         });
         const created = response.data.message;
+        if (created?.existing_draft) {
+          setDraftBanner({ name: created.name });
+          setError(created.message || 'An open draft already exists.');
+          return;
+        }
         navigate(appendPreservedListQuery(`/sales/quotations/${encodeURIComponent(created.name)}`, listSearch));
         return;
       }
@@ -272,6 +335,35 @@ export default function CreateQuotationPage() {
 
       {error ? (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+      ) : null}
+
+      {draftBanner ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 flex flex-wrap items-center gap-3">
+          <span>Open draft {draftBanner.name} exists for this project.</span>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => navigate(`/sales/quotations/${encodeURIComponent(draftBanner.name)}`)}
+          >
+            Continue
+          </button>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={async () => {
+              if (!window.confirm('Discard the open draft quotation? This deletes it.')) return;
+              try {
+                await opportunityApi.discardQuotationDraft(draftBanner.name);
+                setDraftBanner(null);
+                setError(null);
+              } catch (err: any) {
+                setError(err?.response?.data?.exception || 'Could not discard draft.');
+              }
+            }}
+          >
+            Discard
+          </button>
+        </div>
       ) : null}
 
       <div className="card">
@@ -341,11 +433,20 @@ export default function CreateQuotationPage() {
       </div>
 
       {useHierarchy ? (
+        <QuotationOrderDetailsForm
+          value={orderDetails}
+          onChange={setOrderDetails}
+          warehouses={warehouses}
+        />
+      ) : null}
+
+      {useHierarchy ? (
         <CommercialHierarchyEditor
           draft
           value={hierarchy}
           onChange={setHierarchy}
           itemOptions={items}
+          warehouse={orderDetails.warehouse}
           onQuickAddItem={() => quickAdd.open('item')}
         />
       ) : (

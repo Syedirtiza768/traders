@@ -150,20 +150,45 @@ export default function OpportunityDetailPage() {
         <div className="flex flex-wrap gap-2">
           {opp.status === 'Open' ? (
             <>
-              <button
-                type="button"
-                className="btn-primary"
-                disabled={busy}
-                onClick={() =>
-                  runAction(async () => {
-                    const res = await opportunityApi.createQuotation(opp.name);
-                    const name = res.data.message?.name;
-                    if (name) navigate(`/sales/quotations/${encodeURIComponent(name)}`);
-                  }, 'Quotation created.')
-                }
-              >
-                Make Quotation
-              </button>
+              {hub?.open_quotation_draft ? (
+                <>
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    disabled={busy}
+                    onClick={() =>
+                      navigate(`/sales/quotations/${encodeURIComponent(hub.open_quotation_draft.name)}`)
+                    }
+                  >
+                    Continue Quotation
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    disabled={busy}
+                    onClick={async () => {
+                      if (!window.confirm('Discard the open draft quotation? This deletes it.')) return;
+                      await runAction(
+                        () => opportunityApi.discardQuotationDraft(hub.open_quotation_draft.name),
+                        'Draft quotation discarded.',
+                      );
+                    }}
+                  >
+                    Discard Draft
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="btn-primary"
+                  disabled={busy}
+                  onClick={() =>
+                    navigate(`/sales/quotations/new?opportunity=${encodeURIComponent(opp.name)}`)
+                  }
+                >
+                  Make Quotation
+                </button>
+              )}
               <button
                 type="button"
                 className="btn-secondary"
@@ -481,11 +506,15 @@ export default function OpportunityDetailPage() {
               </ul>
             )}
             <p className="text-xs text-gray-500">
-              Use Make Quotation / Make OC / Make Delivery Note on the hub header. Hierarchy
-              (Line → Option → Item) copies Quote → OC → DN when present; effective qty = unit × package.
+              Use Make Quotation (create form with hierarchy — no empty seed) or Continue/Discard when a
+              draft exists. Hierarchy (Line → Option → Item) copies Quote → OC → DN; effective qty = unit ×
+              package.
             </p>
-            <Link to="/sales/quotations/new" className="btn-secondary inline-flex self-start">
-              New quotation (manual)
+            <Link
+              to={`/sales/quotations/new?opportunity=${encodeURIComponent(opp.name)}`}
+              className="btn-secondary inline-flex self-start"
+            >
+              New quotation with hierarchy
             </Link>
           </div>
         </div>

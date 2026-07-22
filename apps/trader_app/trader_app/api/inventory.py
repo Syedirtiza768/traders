@@ -11,6 +11,8 @@ Whitelisted endpoints for:
 
 from __future__ import unicode_literals
 
+import json
+
 import frappe
 from frappe import _
 from frappe.utils import nowdate, getdate, flt, cint
@@ -257,6 +259,43 @@ def get_warehouse_item_qty(item_code, warehouse, company=None):
         "Bin", {"item_code": item_code, "warehouse": warehouse}, "actual_qty"
     ) or 0)
     return {"item_code": item_code, "warehouse": warehouse, "qty": qty}
+
+
+@frappe.whitelist()
+def get_items_qoh(item_codes=None, warehouse=None, company=None):
+    """Batch QOH lookup for commercial hierarchy editor (warn-only display)."""
+    company = resolve_active_company(company)
+    if isinstance(item_codes, str):
+        try:
+            item_codes = json.loads(item_codes) if item_codes.strip().startswith("[") else [
+                c.strip() for c in item_codes.split(",") if c.strip()
+            ]
+        except Exception:
+            item_codes = [item_codes]
+    item_codes = [c for c in (item_codes or []) if c]
+    if not warehouse or not item_codes:
+        return {"warehouse": warehouse, "items": {}}
+
+    if not frappe.db.exists("Warehouse", warehouse):
+        frappe.throw(_("Warehouse {0} does not exist.").format(warehouse))
+    wh_company = frappe.get_cached_value("Warehouse", warehouse, "company")
+    if wh_company and wh_company != company:
+        frappe.throw(_("Warehouse {0} does not belong to company {1}.").format(warehouse, company))
+
+    rows = frappe.db.sql(
+        """
+        SELECT item_code, actual_qty
+        FROM `tabBin`
+        WHERE warehouse = %(warehouse)s AND item_code IN %(items)s
+        """,
+        {"warehouse": warehouse, "items": tuple(item_codes)},
+        as_dict=True,
+    )
+    qty_map = {r.item_code: flt(r.actual_qty) for r in rows}
+    return {
+        "warehouse": warehouse,
+        "items": {code: qty_map.get(code, 0) for code in item_codes},
+    }
 
 
 def check_serial_for_item(item_code, serial_no, warehouse=None, company=None):

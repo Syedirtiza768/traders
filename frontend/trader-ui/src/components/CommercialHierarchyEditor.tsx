@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
-import { opportunityApi } from '../lib/api';
+import { inventoryApi, opportunityApi } from '../lib/api';
 import { extractFrappeError, formatCurrency } from '../lib/utils';
 import { useCompanyStore } from '../stores/companyStore';
 
@@ -36,6 +36,7 @@ type Props = {
   draft?: boolean;
   readOnly?: boolean;
   currency?: string;
+  warehouse?: string;
   itemOptions?: Array<{ item_code?: string; name?: string; description?: string; selling_price?: number; standard_rate?: number }>;
   onQuickAddItem?: () => void;
   onSaved?: () => void;
@@ -52,6 +53,7 @@ function emptyOption(lineNo = 1, optionNo = 1): CommercialOption {
     option_no: optionNo,
     option_text: '',
     package_qty: 1,
+    stock_status: 'Ex-Stock (Subject to Prior Sale)',
     items: [emptyItem()],
   };
 }
@@ -96,6 +98,7 @@ export default function CommercialHierarchyEditor({
   draft = false,
   readOnly = false,
   currency,
+  warehouse,
   itemOptions,
   onQuickAddItem,
   onSaved,
@@ -107,6 +110,7 @@ export default function CommercialHierarchyEditor({
   );
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [qoh, setQoh] = useState<Record<string, number>>({});
 
   const setOptions = (next: CommercialOption[] | ((prev: CommercialOption[]) => CommercialOption[])) => {
     setOptionsInternal((prev) => {
@@ -125,6 +129,36 @@ export default function CommercialHierarchyEditor({
       setOptionsInternal(normalizeOptions(initialOptions));
     }
   }, [initialOptions, value, controlled]);
+
+  const itemCodesKey = useMemo(() => {
+    const codes = new Set<string>();
+    for (const opt of options) {
+      for (const it of opt.items) {
+        if (it.item_code) codes.add(it.item_code);
+      }
+    }
+    return Array.from(codes).sort().join('|');
+  }, [options]);
+
+  useEffect(() => {
+    if (!warehouse || !itemCodesKey) {
+      setQoh({});
+      return;
+    }
+    const codes = itemCodesKey.split('|').filter(Boolean);
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await inventoryApi.getItemsQoh(codes, warehouse);
+        if (!cancelled) setQoh(res.data.message?.items || {});
+      } catch {
+        if (!cancelled) setQoh({});
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [warehouse, itemCodesKey]);
 
   const hasData = options.length > 0;
   const show = opportunityEnabled || hasData || Boolean(initialOptions?.length) || draft || controlled;
@@ -218,6 +252,7 @@ export default function CommercialHierarchyEditor({
           <h2 className="text-lg font-semibold text-gray-900">Commercial Hierarchy</h2>
           <p className="text-sm text-gray-500">
             Line → Option → Item. Effective qty = unit qty × package qty. External total uses first option per line.
+            {warehouse ? ` QOH from ${warehouse} (warn only).` : ''}
           </p>
         </div>
         <div className="text-sm font-medium text-gray-800 space-y-0.5 text-right">
@@ -255,7 +290,7 @@ export default function CommercialHierarchyEditor({
                 ) : null}
               </div>
 
-              <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+              <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
                 <label className="block space-y-1">
                   <span className="text-xs text-gray-500">Line no</span>
                   <input
@@ -286,6 +321,16 @@ export default function CommercialHierarchyEditor({
                     disabled={readOnly}
                     value={opt.package_qty}
                     onChange={(e) => updateOption(optIndex, { package_qty: Number(e.target.value) || 0 })}
+                  />
+                </label>
+                <label className="block space-y-1">
+                  <span className="text-xs text-gray-500">Stock status</span>
+                  <input
+                    className="input-field"
+                    disabled={readOnly}
+                    value={opt.stock_status || ''}
+                    onChange={(e) => updateOption(optIndex, { stock_status: e.target.value })}
+                    placeholder="Ex-Stock…"
                   />
                 </label>
                 <label className="block space-y-1">
@@ -327,6 +372,8 @@ export default function CommercialHierarchyEditor({
                 {opt.items.map((it, itemIndex) => {
                   const effQty = (Number(it.unit_qty) || 0) * (Number(opt.package_qty) || 1);
                   const amt = itemAmount(it, opt.package_qty);
+                  const available = it.item_code ? Number(qoh[it.item_code] ?? 0) : 0;
+                  const short = Boolean(warehouse && it.item_code && effQty > available);
                   return (
                     <div key={`it-${optIndex}-${itemIndex}`} className="grid grid-cols-1 gap-2 rounded-lg border border-gray-200 bg-white p-3 md:grid-cols-12">
                       <label className="md:col-span-3 block space-y-1">
@@ -366,6 +413,12 @@ export default function CommercialHierarchyEditor({
                             onChange={(e) => updateItem(optIndex, itemIndex, { item_code: e.target.value })}
                           />
                         )}
+                        {warehouse && it.item_code ? (
+                          <span className={`text-[11px] ${short ? 'text-amber-700' : 'text-gray-500'}`}>
+                            QOH: {available}
+                            {short ? ` — below needed ${effQty}` : ''}
+                          </span>
+                        ) : null}
                       </label>
                       <label className="md:col-span-2 block space-y-1">
                         <span className="text-xs text-gray-500">Unit qty</span>

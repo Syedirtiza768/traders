@@ -49,6 +49,16 @@ type PrintData = {
   customer_ref?: string;
   revision_label?: string;
   project?: string;
+  order_details?: {
+    pay_advance_pct?: number;
+    pay_after_pct?: number;
+    pay_after_days?: number;
+    freight_clause?: string;
+    gst_mode?: string;
+    wht_percent?: number;
+    rate_clause?: string;
+    validity_days?: number;
+  };
   commercial_options?: unknown[];
   party: { name: string; display_name: string; address: string; tax_id: string };
   items: PrintItem[];
@@ -293,6 +303,20 @@ export default function DocumentPrintPage() {
                     <strong>{doctype === 'Quotation' ? 'Valid Till' : 'Due Date'}:</strong> {formatDate(printData.due_date)}
                   </div>
                 )}
+                {doctype === 'Quotation' && printData.order_details?.freight_clause ? (
+                  <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>
+                    <strong>Freight:</strong> {printData.order_details.freight_clause}
+                  </div>
+                ) : null}
+                {doctype === 'Quotation' && printData.order_details?.pay_advance_pct != null ? (
+                  <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>
+                    <strong>Payment:</strong>{' '}
+                    {printData.order_details.pay_advance_pct}% Adv
+                    {printData.order_details.pay_after_pct
+                      ? ` / ${printData.order_details.pay_after_pct}% after ${printData.order_details.pay_after_days || 0}d`
+                      : ''}
+                  </div>
+                ) : null}
                 <div style={{ fontSize: 12, color: '#666' }}>
                   <strong>Status:</strong> {printData.status}
                 </div>

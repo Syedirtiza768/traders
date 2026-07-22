@@ -209,6 +209,56 @@ def run(company="Electrence", submit=0):
             "customer_ref": CUSTOMER_REF,
             "terms": ELECTRENCE_QUOTATION_TERMS,
             "taxes_and_charges": tax_template,
+            "order_details": {
+                "validity_days": 5,
+                "pay_advance_pct": 50,
+                "pay_after_pct": 50,
+                "pay_after_days": 30,
+                "gst_mode": "exclusive",
+                "freight_clause": "EXW",
+                "rate_clause": "usd",
+            },
+            "commercial_options": hierarchy,
+        },
+        company=company,
+    )
+    qname = created["name"]
+
+    # One-draft rule: second create without force returns existing
+    again = create_quotation_for_opportunity(
+        project_name,
+        data={"commercial_options": hierarchy},
+        company=company,
+    )
+    assert cint(again.get("existing_draft")) == 1, "expected existing_draft"
+    assert again.get("name") == qname
+
+    from trader_app.api.opportunity import discard_quotation_draft, get_opportunity
+
+    hub = get_opportunity(project_name, company=company)
+    assert hub.get("open_quotation_draft") and hub["open_quotation_draft"]["name"] == qname
+
+    discard_quotation_draft(qname, company=company)
+    hub2 = get_opportunity(project_name, company=company)
+    assert not hub2.get("open_quotation_draft"), "draft should be cleared after discard"
+
+    created = create_quotation_for_opportunity(
+        project_name,
+        data={
+            "transaction_date": "2026-03-25",
+            "valid_till": "2026-04-01",
+            "customer_ref": CUSTOMER_REF,
+            "terms": ELECTRENCE_QUOTATION_TERMS,
+            "taxes_and_charges": tax_template,
+            "order_details": {
+                "validity_days": 5,
+                "pay_advance_pct": 50,
+                "pay_after_pct": 50,
+                "pay_after_days": 30,
+                "gst_mode": "exclusive",
+                "freight_clause": "EXW",
+                "rate_clause": "usd",
+            },
             "commercial_options": hierarchy,
         },
         company=company,
@@ -216,8 +266,13 @@ def run(company="Electrence", submit=0):
     qname = created["name"]
     q = frappe.get_doc("Quotation", qname)
 
+    assert flt(getattr(q, "trader_pay_advance_pct", 0)) == 50
+    assert getattr(q, "trader_freight_clause", None) == "EXW"
+    assert getattr(q, "trader_customer_ref", None) == CUSTOMER_REF
+
     external = get_print_data("Quotation", qname, view_mode="external")
     internal = get_print_data("Quotation", qname, view_mode="internal")
+    od = external.get("order_details") or {}
 
     result = {
         "ok": True,
@@ -235,9 +290,24 @@ def run(company="Electrence", submit=0):
         "external_item_count": len(external.get("items") or []),
         "internal_item_count": len(internal.get("items") or []),
         "external_customer_ref": external.get("customer_ref"),
+        "print_freight": od.get("freight_clause"),
+        "print_advance_pct": od.get("pay_advance_pct"),
         "terms_len": len(q.terms or ""),
         "commercial_rows": len(q.trader_commercial_options or []),
+        "draft_rule_ok": True,
+        "stock_status_sample": getattr(
+            (q.trader_commercial_options or [None])[0], "stock_status", None
+        ),
     }
+
+    # CDC isolation: opportunity flag must remain off unless activated
+    cdc_rows = frappe.get_all("Company", filters={"name": ["like", "%CDC%"]}, pluck="name", limit=1)
+    if cdc_rows:
+        cdc = cdc_rows[0]
+        result["cdc_company"] = cdc
+        result["cdc_opportunity_enabled"] = cint(
+            frappe.db.get_value("Company", cdc, "trader_opportunity_enabled") or 0
+        )
 
     if abs(flt(q.net_total) - expected_net) > 1:
         result["ok"] = False
