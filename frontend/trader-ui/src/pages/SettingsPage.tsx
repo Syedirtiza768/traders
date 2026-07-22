@@ -52,7 +52,7 @@ export default function SettingsPage() {
   const multitenantEnabled = useTenantStore((s) => s.enabled);
   const isAdmin = roles_.includes('Trader Admin') || roles_.includes('System Manager');
   const [togglingComponents, setTogglingComponents] = useState(false);
-  const [togglingOpportunity, setTogglingOpportunity] = useState(false);
+  const [togglingProject, setTogglingProject] = useState(false);
   const [togglingAr, setTogglingAr] = useState(false);
   const [togglingCustomerPack, setTogglingCustomerPack] = useState(false);
   const [skuCategoryCount, setSkuCategoryCount] = useState<number | null>(null);
@@ -88,21 +88,21 @@ export default function SettingsPage() {
     }
   };
 
-  const handleToggleOpportunity = async (enabled: boolean) => {
-    setTogglingOpportunity(true);
+  const handleToggleProject = async (enabled: boolean) => {
+    setTogglingProject(true);
     try {
       await opportunityApi.toggleFeature(enabled);
       setOpportunityEnabled(enabled);
       setFeedback({
         type: 'success',
         message: enabled
-          ? 'Commercial Opportunity enabled. Reload the page to see Sales → Opportunities.'
-          : 'Commercial Opportunity disabled. Data and profile are preserved.',
+          ? 'Projects module enabled. Reload the page to see Sales → Projects.'
+          : 'Projects module disabled. Data and profile are preserved.',
       });
     } catch (err: any) {
-      setFeedback({ type: 'error', message: err?.response?.data?.exception || 'Failed to toggle opportunity feature.' });
+      setFeedback({ type: 'error', message: err?.response?.data?.exception || 'Failed to toggle projects feature.' });
     } finally {
-      setTogglingOpportunity(false);
+      setTogglingProject(false);
     }
   };
 
@@ -589,11 +589,11 @@ export default function SettingsPage() {
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
                 <Briefcase size={16} className="text-brand-600 dark:text-brand-400" />
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Commercial Opportunity Module</h3>
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Projects Module</h3>
               </div>
               <p className="text-xs text-gray-500 dark:text-slate-400 leading-relaxed">
-                Enables the Opportunity hub (enquiry → quotation → order confirmation → delivery → invoice)
-                for project/tender sales. Behaviour is driven by Trader Opportunity Profile — not company name.
+                Enables the Project hub (enquiry → quotation → order confirmation → delivery → invoice)
+                for project/tender sales. Behaviour is driven by the project profile — not company name.
                 Default off so other tenants stay unchanged. Provision a pack for full Electrence-shaped defaults.
                 <br />
                 <span className="text-brand-600 dark:text-brand-400 font-medium">
@@ -604,14 +604,14 @@ export default function SettingsPage() {
             <div className="flex-shrink-0">
               {isAdmin ? (
                 <button
-                  onClick={() => handleToggleOpportunity(!opportunityEnabled)}
-                  disabled={togglingOpportunity}
+                  onClick={() => handleToggleProject(!opportunityEnabled)}
+                  disabled={togglingProject}
                   className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 disabled:opacity-60 ${
                     opportunityEnabled ? 'bg-brand-600' : 'bg-gray-200 dark:bg-slate-700'
                   }`}
                   role="switch"
                   aria-checked={opportunityEnabled}
-                  title={opportunityEnabled ? 'Disable Commercial Opportunity' : 'Enable Commercial Opportunity'}
+                  title={opportunityEnabled ? 'Disable Projects' : 'Enable Projects'}
                 >
                   <span
                     className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${

@@ -94,10 +94,23 @@ def copy_commercial_options(rows, remaining_only=False):
     return out
 
 
-def flatten_commercial_options(rows, warehouse=None):
-    """Expand hierarchy into ERPNext item rows: qty = unit_qty × package_qty."""
-    flat = []
+def select_first_options(rows):
+    """Keep the lowest option_no per line_no (Electrence multi-option total rule)."""
+    by_line = {}
     for row in copy_commercial_options(rows):
+        line_no = cint_safe(row.get("line_no") or 1)
+        option_no = cint_safe(row.get("option_no") or 1)
+        current = by_line.get(line_no)
+        if current is None or option_no < cint_safe(current.get("option_no") or 1):
+            by_line[line_no] = row
+    return [by_line[k] for k in sorted(by_line.keys())]
+
+
+def flatten_commercial_options(rows, warehouse=None, first_option_only=False):
+    """Expand hierarchy into ERPNext item rows: qty = unit_qty × package_qty."""
+    source = select_first_options(rows) if first_option_only else copy_commercial_options(rows)
+    flat = []
+    for row in source:
         package_qty = flt(row.get("package_qty") or 1)
         for it in row.get("items") or []:
             qty = effective_item_qty(it.get("unit_qty"), package_qty)
@@ -120,6 +133,20 @@ def flatten_commercial_options(rows, warehouse=None):
     return flat
 
 
+def hierarchy_amount(rows, first_option_only=True):
+    """Sum package amounts (unit_qty × package_qty × unit_price)."""
+    source = select_first_options(rows) if first_option_only else copy_commercial_options(rows)
+    total = 0.0
+    for row in source:
+        package_qty = flt(row.get("package_qty") or 1)
+        for it in row.get("items") or []:
+            unit_qty = flt(it.get("unit_qty") or 1)
+            unit_price = flt(it.get("unit_price") or 0)
+            discount = flt(it.get("discount_percent") or 0)
+            total += unit_qty * package_qty * unit_price * (1.0 - (discount / 100.0))
+    return total
+
+
 def serialize_commercial_options(doc):
     """Read trader_commercial_options from a document into API-friendly dicts."""
     if not doc or not hasattr(doc, COMMERCIAL_FIELD):
@@ -140,10 +167,12 @@ def apply_commercial_options(doc, rows, clear_existing=True):
             child.append("items", it)
 
 
-def sync_flat_items_from_hierarchy(doc, warehouse=None, clear_items=True):
+def sync_flat_items_from_hierarchy(doc, warehouse=None, clear_items=True, first_option_only=None):
     """Rebuild standard ``items`` from commercial hierarchy for stock/GL engines."""
     rows = serialize_commercial_options(doc)
-    flat = flatten_commercial_options(rows, warehouse=warehouse)
+    if first_option_only is None:
+        first_option_only = getattr(doc, "doctype", None) == "Quotation"
+    flat = flatten_commercial_options(rows, warehouse=warehouse, first_option_only=first_option_only)
     if clear_items:
         doc.set("items", [])
     for entry in flat:

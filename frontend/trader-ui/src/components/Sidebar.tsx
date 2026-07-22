@@ -52,7 +52,7 @@ const standardNavItems: NavItem[] = [
   {
     to: '/sales', label: 'Sales', icon: TrendingUp, capability: 'sales:view', module: 'sales',
     children: [
-      { to: '/sales/opportunities', label: 'Opportunities', module: 'opportunity', requiresOpportunity: true, feature: 'opportunities' },
+      { to: '/sales/opportunities', label: 'Projects', module: 'opportunity', requiresOpportunity: true, feature: 'opportunities' },
       { to: '/sales', label: 'Invoices', module: 'sales', feature: 'sales_invoices' },
       { to: '/sales/pos', label: 'POS Checkout', module: 'pos', feature: 'pos' },
       { to: '/sales/challans', label: 'Delivery Challans', module: 'sales', feature: 'delivery_challans' },

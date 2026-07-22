@@ -11,7 +11,7 @@ import {
   ShoppingCart,
   User,
 } from 'lucide-react';
-import { salesApi } from '../lib/api';
+import { salesApi, opportunityApi } from '../lib/api';
 import { appendPreservedListQuery, classNames, extractFrappeError, formatCurrency, formatDate, getActiveCurrency, getStatusColor, isOperationsContext } from '../lib/utils';
 import CommercialHierarchyEditor from '../components/CommercialHierarchyEditor';
 
@@ -26,6 +26,7 @@ export default function QuotationDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [revising, setRevising] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   useEffect(() => {
@@ -94,6 +95,26 @@ export default function QuotationDetailPage() {
       setFeedback({ type: 'error', message: extractFrappeError(err, 'Could not cancel this quotation.') });
     } finally {
       setCancelling(false);
+    }
+  };
+
+  const handleCreateRevision = async () => {
+    if (!quotation?.name) return;
+    setRevising(true);
+    setFeedback(null);
+    try {
+      const res = await opportunityApi.createQuotationRevision(quotation.name);
+      const created = res.data.message;
+      setFeedback({
+        type: 'success',
+        message: `Revision ${created.revision_label} created.`,
+      });
+      navigate(appendPreservedListQuery(`/sales/quotations/${encodeURIComponent(created.name)}`, searchParams.get('list')));
+    } catch (err) {
+      console.error('Failed to create revision:', err);
+      setFeedback({ type: 'error', message: extractFrappeError(err, 'Could not create revision.') });
+    } finally {
+      setRevising(false);
     }
   };
 
@@ -167,6 +188,11 @@ export default function QuotationDetailPage() {
             </button>
           )}
           {quotation.docstatus === 1 && (
+            <button onClick={handleCreateRevision} disabled={revising} className="btn-secondary disabled:opacity-60">
+              {revising ? 'Creating…' : 'Create Revision'}
+            </button>
+          )}
+          {quotation.docstatus === 1 && (
             <button onClick={handleCancelQuotation} disabled={cancelling} className="btn-danger disabled:opacity-60">
               {cancelling ? 'Cancelling…' : 'Cancel Quotation'}
             </button>
@@ -195,6 +221,9 @@ export default function QuotationDetailPage() {
           </div>
           <div className="card-body grid grid-cols-1 gap-4 md:grid-cols-2">
             <InfoRow icon={User} label="Customer" value={quotation.customer_name || quotation.party_name || '—'} />
+            <InfoRow icon={FileText} label="Customer Ref" value={quotation.trader_customer_ref || '—'} />
+            <InfoRow icon={ClipboardCheck} label="Project" value={quotation.trader_opportunity || '—'} />
+            <InfoRow icon={FileText} label="Revision" value={quotation.trader_revision_label || (quotation.trader_revision_of ? `of ${quotation.trader_revision_of}` : '—')} />
             <InfoRow icon={Calendar} label="Transaction Date" value={formatDate(quotation.transaction_date)} />
             <InfoRow icon={Calendar} label="Valid Till" value={formatDate(quotation.valid_till)} />
             <InfoRow icon={ShoppingCart} label="Order Type" value={quotation.order_type || 'Sales'} />

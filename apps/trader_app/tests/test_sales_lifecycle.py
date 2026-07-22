@@ -118,6 +118,8 @@ from trader_app.api.hierarchy import (
     remaining_package_qty,
     copy_commercial_options,
     flatten_commercial_options,
+    hierarchy_amount,
+    select_first_options,
 )
 
 
@@ -364,6 +366,36 @@ class CommercialHierarchyTests(unittest.TestCase):
         rows = self._sample_options()
         rows[0]["qty_invoiced"] = 2
         self.assertEqual(copy_commercial_options(rows, remaining_only=True), [])
+
+    def test_select_first_options_and_amount(self):
+        rows = [
+            {
+                "line_no": 1,
+                "option_no": 1,
+                "package_qty": 2500,
+                "items": [{"item_code": "OFC", "unit_qty": 1, "unit_price": 450}],
+            },
+            {
+                "line_no": 2,
+                "option_no": 1,
+                "option_text": "Option A",
+                "package_qty": 1000,
+                "items": [{"item_code": "BEL", "unit_qty": 1, "unit_price": 1650}],
+            },
+            {
+                "line_no": 2,
+                "option_no": 2,
+                "option_text": "Option B",
+                "package_qty": 1000,
+                "items": [{"item_code": "DRA", "unit_qty": 1, "unit_price": 450}],
+            },
+        ]
+        first = select_first_options(rows)
+        self.assertEqual(len(first), 2)
+        self.assertEqual({(r["line_no"], r["option_no"]) for r in first}, {(1, 1), (2, 1)})
+        self.assertEqual(hierarchy_amount(rows, first_option_only=True), 2775000)
+        flat = flatten_commercial_options(rows, first_option_only=True)
+        self.assertEqual({r["item_code"] for r in flat}, {"OFC", "BEL"})
 
 
 class ARProfileTemplateTests(unittest.TestCase):

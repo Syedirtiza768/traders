@@ -361,6 +361,12 @@ export const opportunityApi = {
   createQuotation: (opportunity: string, data?: Record<string, any>) =>
     call('trader_app.api.opportunity.create_quotation_for_opportunity', { opportunity, data }),
 
+  getQuotationDefaults: (company?: string) =>
+    get('trader_app.api.opportunity.get_quotation_defaults', { company }),
+
+  createQuotationRevision: (name: string) =>
+    call('trader_app.api.opportunity.create_quotation_revision', { name }),
+
   createOrderConfirmation: (params: {
     opportunity: string;
     source_quotation?: string;

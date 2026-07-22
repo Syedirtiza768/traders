@@ -43,7 +43,7 @@ export default function OpportunityDetailPage() {
 
   const load = useCallback(async () => {
     if (!opportunityId) {
-      setError('Opportunity not found.');
+      setError('Project not found.');
       setLoading(false);
       return;
     }
@@ -63,7 +63,7 @@ export default function OpportunityDetailPage() {
       }
     } catch (err) {
       console.error(err);
-      setError(extractFrappeError(err, 'Could not load opportunity.'));
+      setError(extractFrappeError(err, 'Could not load project.'));
       setHub(null);
     } finally {
       setLoading(false);
@@ -113,10 +113,10 @@ export default function OpportunityDetailPage() {
     return (
       <div className="space-y-4">
         <button type="button" className="inline-flex items-center gap-2 text-sm text-brand-700" onClick={() => navigate(backPath)}>
-          <ArrowLeft className="h-4 w-4" /> Back to Opportunities
+          <ArrowLeft className="h-4 w-4" /> Back to Projects
         </button>
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error || 'Opportunity not found.'}
+          {error || 'Project not found.'}
         </div>
       </div>
     );
@@ -125,7 +125,7 @@ export default function OpportunityDetailPage() {
   return (
     <div className="space-y-4 sm:space-y-6">
       <button type="button" className="inline-flex items-center gap-2 text-sm text-brand-700" onClick={() => navigate(backPath)}>
-        <ArrowLeft className="h-4 w-4" /> Back to Opportunities
+        <ArrowLeft className="h-4 w-4" /> Back to Projects
       </button>
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -209,7 +209,7 @@ export default function OpportunityDetailPage() {
                 type="button"
                 className="btn-secondary"
                 disabled={busy}
-                onClick={() => runAction(() => opportunityApi.close(opp.name, closeStage), 'Opportunity closed.')}
+                onClick={() => runAction(() => opportunityApi.close(opp.name, closeStage), 'Project closed.')}
               >
                 Close
               </button>
@@ -219,7 +219,7 @@ export default function OpportunityDetailPage() {
               type="button"
               className="btn-primary"
               disabled={busy}
-              onClick={() => runAction(() => opportunityApi.reopen(opp.name), 'Opportunity reopened.')}
+              onClick={() => runAction(() => opportunityApi.reopen(opp.name), 'Project reopened.')}
             >
               Reopen
             </button>

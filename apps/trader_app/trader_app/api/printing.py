@@ -90,6 +90,13 @@ def get_print_data(doctype, name, view_mode="external", doc_format="tax_invoice"
 
     bank_payment = _get_bank_payment_info(doc, doctype)
 
+    commercial = []
+    if doctype == "Quotation" and getattr(doc, "trader_commercial_options", None):
+        from trader_app.api.hierarchy import serialize_commercial_options
+        commercial = serialize_commercial_options(doc)
+        if commercial:
+            items = _build_print_items_from_hierarchy(commercial, view_mode)
+
     return {
         "doc_title": doc_title,
         "doc_format": doc_format,
@@ -102,6 +109,11 @@ def get_print_data(doctype, name, view_mode="external", doc_format="tax_invoice"
         "currency": doc.currency or "PKR",
         "company": company_info,
         "party": party_info,
+        "customer_ref": getattr(doc, "trader_customer_ref", None) or "",
+        "revision_label": getattr(doc, "trader_revision_label", None) or "",
+        "revision_of": getattr(doc, "trader_revision_of", None) or "",
+        "project": getattr(doc, "trader_opportunity", None) or "",
+        "commercial_options": commercial,
         "items": items,
         "taxes": taxes,
         "net_total": flt(doc.net_total),
@@ -139,6 +151,10 @@ def _build_print_items(doc, view_mode):
             "uom": getattr(item, "uom", "") or getattr(item, "stock_uom", "") or "Nos",
             "is_bundle": 0,
             "bundle_items": [],
+            "line_no": None,
+            "option_no": None,
+            "option_text": "",
+            "is_alternate_option": 0,
         }
 
         # Check if this item has bundle metadata in custom fields
@@ -169,6 +185,83 @@ def _build_print_items(doc, view_mode):
 
         items.append(item_data)
 
+    return items
+
+
+def _build_print_items_from_hierarchy(commercial, view_mode):
+    """Print rows from Line→Option→Item. External keeps option text; internal expands items."""
+    from trader_app.api.hierarchy import copy_commercial_options, effective_item_qty, select_first_options
+
+    rows = copy_commercial_options(commercial)
+    first_by_line = {
+        r["line_no"]: r["option_no"] for r in select_first_options(rows)
+    }
+    items = []
+    for row in rows:
+        line_no = row.get("line_no")
+        option_no = row.get("option_no")
+        is_first = first_by_line.get(line_no) == option_no
+        package_qty = flt(row.get("package_qty") or 1)
+        option_label = row.get("option_text") or ("Option {0}".format(option_no) if option_no else "")
+        client_req = row.get("client_requirements") or ""
+
+        if view_mode == "external":
+            # One printable row per option (customer-facing)
+            amount = 0.0
+            rate = 0.0
+            qty = package_qty
+            desc_parts = []
+            if client_req:
+                desc_parts.append(client_req)
+            if option_label and option_no and option_no > 1 or (option_label and "Option" in str(option_label)):
+                desc_parts.append(option_label)
+            for it in row.get("items") or []:
+                unit_qty = flt(it.get("unit_qty") or 1)
+                unit_price = flt(it.get("unit_price") or 0)
+                discount = flt(it.get("discount_percent") or 0)
+                amount += unit_qty * package_qty * unit_price * (1.0 - discount / 100.0)
+                rate = unit_price
+                if it.get("description"):
+                    desc_parts.append(it.get("description"))
+                elif it.get("item_code"):
+                    desc_parts.append(it.get("item_code"))
+            items.append({
+                "item_code": "",
+                "item_name": option_label or client_req,
+                "description": "\n".join(desc_parts) if desc_parts else (option_label or client_req),
+                "qty": qty,
+                "rate": rate,
+                "amount": amount if is_first else 0.0,
+                "uom": "Nos",
+                "is_bundle": 1 if len(row.get("items") or []) > 1 else 0,
+                "bundle_items": [],
+                "line_no": line_no,
+                "option_no": option_no,
+                "option_text": option_label,
+                "is_alternate_option": 0 if is_first else 1,
+            })
+        else:
+            for it in row.get("items") or []:
+                unit_qty = flt(it.get("unit_qty") or 1)
+                qty = effective_item_qty(unit_qty, package_qty)
+                unit_price = flt(it.get("unit_price") or 0)
+                discount = flt(it.get("discount_percent") or 0)
+                amount = qty * unit_price * (1.0 - discount / 100.0)
+                items.append({
+                    "item_code": it.get("item_code") or "",
+                    "item_name": it.get("item_code") or "",
+                    "description": it.get("description") or it.get("item_code") or "",
+                    "qty": qty,
+                    "rate": unit_price,
+                    "amount": amount if is_first else 0.0,
+                    "uom": "Nos",
+                    "is_bundle": 0,
+                    "bundle_items": [],
+                    "line_no": line_no,
+                    "option_no": option_no,
+                    "option_text": option_label,
+                    "is_alternate_option": 0 if is_first else 1,
+                })
     return items
 
 

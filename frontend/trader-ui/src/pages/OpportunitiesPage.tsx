@@ -8,7 +8,7 @@ const STATUS_TABS = ['All', 'Open', 'Closed'] as const;
 const PAGE_SIZE = 15;
 const PRIORITIES = ['Low', 'Normal', 'High', 'Urgent'] as const;
 
-type OpportunityRow = {
+type ProjectRow = {
   name: string;
   opportunity_ref: string;
   title: string;
@@ -25,7 +25,7 @@ type OpportunityRow = {
 export default function OpportunitiesPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [items, setItems] = useState<OpportunityRow[]>([]);
+  const [items, setItems] = useState<ProjectRow[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -86,7 +86,7 @@ export default function OpportunitiesPage() {
     <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="page-title">Opportunities</h1>
+          <h1 className="page-title">Projects</h1>
           <p className="mt-1 text-sm text-gray-500">
             Enquiry hub for quotations, order confirmations, deliveries, and invoices.
           </p>
@@ -97,7 +97,7 @@ export default function OpportunitiesPage() {
           className="btn-primary inline-flex items-center gap-2 self-start"
         >
           <Plus className="h-4 w-4" />
-          New Opportunity
+          New Project
         </button>
       </div>
 
@@ -138,7 +138,7 @@ export default function OpportunitiesPage() {
         <table className="w-full">
           <thead>
             <tr className="bg-gray-50">
-              <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Opportunity</th>
+              <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Project</th>
               <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Customer</th>
               <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Enquiry</th>
               <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Stage</th>
@@ -155,7 +155,7 @@ export default function OpportunitiesPage() {
               </tr>
             ) : items.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-6 py-12 text-center text-gray-400">No opportunities found.</td>
+                <td colSpan={6} className="px-6 py-12 text-center text-gray-400">No projects found.</td>
               </tr>
             ) : (
               items.map((row) => (
@@ -195,7 +195,7 @@ export default function OpportunitiesPage() {
         {loading ? (
           <div className="py-12"><div className="spinner mx-auto" /></div>
         ) : items.length === 0 ? (
-          <div className="px-4 py-12 text-center text-gray-400">No opportunities found.</div>
+          <div className="px-4 py-12 text-center text-gray-400">No projects found.</div>
         ) : (
           items.map((row) => (
             <button
@@ -244,7 +244,7 @@ export default function OpportunitiesPage() {
       )}
 
       {showCreate ? (
-        <CreateOpportunityModal
+        <CreateProjectModal
           onClose={() => setShowCreate(false)}
           onCreated={(name) => {
             setShowCreate(false);
@@ -270,7 +270,7 @@ function StatCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-function CreateOpportunityModal({
+function CreateProjectModal({
   onClose,
   onCreated,
 }: {
@@ -317,10 +317,10 @@ function CreateOpportunityModal({
         description: description || undefined,
       });
       const name = res.data.message?.opportunity?.name;
-      if (!name) throw new Error('Missing opportunity name');
+      if (!name) throw new Error('Missing project name');
       onCreated(name);
     } catch (err) {
-      setError(extractFrappeError(err, 'Could not create opportunity.'));
+      setError(extractFrappeError(err, 'Could not create project.'));
     } finally {
       setSaving(false);
     }
@@ -330,7 +330,7 @@ function CreateOpportunityModal({
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center">
       <form onSubmit={handleSubmit} className="card w-full max-w-lg space-y-4 p-5 shadow-xl">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">New Opportunity</h2>
+          <h2 className="text-lg font-semibold text-gray-900">New Project</h2>
           <button type="button" className="text-sm text-gray-500 hover:text-gray-800" onClick={onClose}>
             Close
           </button>

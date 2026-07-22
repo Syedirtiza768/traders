@@ -27,11 +27,17 @@ export type CommercialOption = {
 };
 
 type Props = {
-  doctype: 'Quotation' | 'Sales Order' | 'Delivery Note' | 'Sales Invoice';
-  name: string;
+  doctype?: 'Quotation' | 'Sales Order' | 'Delivery Note' | 'Sales Invoice';
+  name?: string;
   initialOptions?: CommercialOption[] | null;
+  value?: CommercialOption[];
+  onChange?: (options: CommercialOption[]) => void;
+  /** When true, no API save — parent owns state (New Quotation). */
+  draft?: boolean;
   readOnly?: boolean;
   currency?: string;
+  itemOptions?: Array<{ item_code?: string; name?: string; description?: string; selling_price?: number; standard_rate?: number }>;
+  onQuickAddItem?: () => void;
   onSaved?: () => void;
 };
 
@@ -82,24 +88,46 @@ function itemAmount(it: CommercialItem, packageQty: number) {
 }
 
 export default function CommercialHierarchyEditor({
-  doctype,
-  name,
+  doctype = 'Quotation',
+  name = '',
   initialOptions,
+  value,
+  onChange,
+  draft = false,
   readOnly = false,
   currency,
+  itemOptions,
+  onQuickAddItem,
   onSaved,
 }: Props) {
   const opportunityEnabled = useCompanyStore((s) => s.opportunityEnabled);
-  const [options, setOptions] = useState<CommercialOption[]>(() => normalizeOptions(initialOptions));
+  const controlled = draft || typeof onChange === 'function';
+  const [options, setOptionsInternal] = useState<CommercialOption[]>(() =>
+    normalizeOptions(value ?? initialOptions),
+  );
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
+  const setOptions = (next: CommercialOption[] | ((prev: CommercialOption[]) => CommercialOption[])) => {
+    setOptionsInternal((prev) => {
+      const resolved = typeof next === 'function' ? next(prev) : next;
+      if (controlled) onChange?.(resolved);
+      return resolved;
+    });
+  };
+
   useEffect(() => {
-    setOptions(normalizeOptions(initialOptions));
-  }, [initialOptions]);
+    if (controlled && value) {
+      setOptionsInternal(normalizeOptions(value));
+      return;
+    }
+    if (!controlled) {
+      setOptionsInternal(normalizeOptions(initialOptions));
+    }
+  }, [initialOptions, value, controlled]);
 
   const hasData = options.length > 0;
-  const show = opportunityEnabled || hasData || Boolean(initialOptions?.length);
+  const show = opportunityEnabled || hasData || Boolean(initialOptions?.length) || draft || controlled;
 
   const total = useMemo(
     () =>
@@ -109,6 +137,19 @@ export default function CommercialHierarchyEditor({
       ),
     [options],
   );
+
+  // First-option-only total (Electrence external rule)
+  const billedTotal = useMemo(() => {
+    const firstByLine = new Map<number, CommercialOption>();
+    for (const opt of options) {
+      const cur = firstByLine.get(opt.line_no);
+      if (!cur || opt.option_no < cur.option_no) firstByLine.set(opt.line_no, opt);
+    }
+    return Array.from(firstByLine.values()).reduce(
+      (sum, opt) => sum + opt.items.reduce((s, it) => s + itemAmount(it, opt.package_qty), 0),
+      0,
+    );
+  }, [options]);
 
   if (!show) return null;
 
@@ -152,6 +193,7 @@ export default function CommercialHierarchyEditor({
   };
 
   const handleSave = async () => {
+    if (draft || !name) return;
     setSaving(true);
     setFeedback(null);
     try {
@@ -175,11 +217,12 @@ export default function CommercialHierarchyEditor({
         <div>
           <h2 className="text-lg font-semibold text-gray-900">Commercial Hierarchy</h2>
           <p className="text-sm text-gray-500">
-            Line → Option → Item. Effective qty = unit qty × package qty.
+            Line → Option → Item. Effective qty = unit qty × package qty. External total uses first option per line.
           </p>
         </div>
-        <div className="text-sm font-medium text-gray-800">
-          Hierarchy total: {formatCurrency(total, currency)}
+        <div className="text-sm font-medium text-gray-800 space-y-0.5 text-right">
+          <div>All options: {formatCurrency(total, currency)}</div>
+          <div className="text-green-700">Billed (1st options): {formatCurrency(billedTotal, currency)}</div>
         </div>
       </div>
 
@@ -288,12 +331,41 @@ export default function CommercialHierarchyEditor({
                     <div key={`it-${optIndex}-${itemIndex}`} className="grid grid-cols-1 gap-2 rounded-lg border border-gray-200 bg-white p-3 md:grid-cols-12">
                       <label className="md:col-span-3 block space-y-1">
                         <span className="text-xs text-gray-500">Item code</span>
-                        <input
-                          className="input-field"
-                          disabled={readOnly}
-                          value={it.item_code}
-                          onChange={(e) => updateItem(optIndex, itemIndex, { item_code: e.target.value })}
-                        />
+                        {itemOptions && itemOptions.length > 0 && !readOnly ? (
+                          <select
+                            className="input-field"
+                            value={it.item_code}
+                            onChange={(e) => {
+                              const code = e.target.value;
+                              const selected = itemOptions.find(
+                                (row) => (row.item_code || row.name) === code,
+                              );
+                              updateItem(optIndex, itemIndex, {
+                                item_code: code,
+                                description: selected?.description || it.description || '',
+                                unit_price:
+                                  selected?.selling_price ?? selected?.standard_rate ?? it.unit_price,
+                              });
+                            }}
+                          >
+                            <option value="">Select item</option>
+                            {itemOptions.map((row) => {
+                              const code = row.item_code || row.name || '';
+                              return (
+                                <option key={code} value={code}>
+                                  {code}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        ) : (
+                          <input
+                            className="input-field"
+                            disabled={readOnly}
+                            value={it.item_code}
+                            onChange={(e) => updateItem(optIndex, itemIndex, { item_code: e.target.value })}
+                          />
+                        )}
                       </label>
                       <label className="md:col-span-2 block space-y-1">
                         <span className="text-xs text-gray-500">Unit qty</span>
@@ -371,9 +443,16 @@ export default function CommercialHierarchyEditor({
             <button type="button" className="btn-secondary inline-flex items-center gap-2" onClick={addOption}>
               <Plus className="h-4 w-4" /> Add option
             </button>
-            <button type="button" className="btn-primary" disabled={saving} onClick={handleSave}>
-              {saving ? 'Saving…' : 'Save hierarchy'}
-            </button>
+            {onQuickAddItem ? (
+              <button type="button" className="btn-secondary inline-flex items-center gap-2" onClick={onQuickAddItem}>
+                <Plus className="h-4 w-4" /> New item
+              </button>
+            ) : null}
+            {!draft && name ? (
+              <button type="button" className="btn-primary" disabled={saving} onClick={handleSave}>
+                {saving ? 'Saving…' : 'Save hierarchy'}
+              </button>
+            ) : null}
           </div>
         ) : null}
       </div>
