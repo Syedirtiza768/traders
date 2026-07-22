@@ -1,8 +1,5 @@
-fix: day-book entry panel — rate validation, button flash, settlement account, purchase description
+feat: close Sahamid makequotation gaps for Electrence quotes
 
-1. Validate rate > 0 before submitting sale/purchase lines.
-2. Move setSaving(true) after all validation to prevent button flash.
-3. Default settlement account to pay_account for payment_out, receive_account otherwise.
-4. Include description field in purchase invoice line creation.
-
-Co-authored-by: CommandCodeBot <noreply@commandcode.ai>
+Add same-line alternate options, group discount, full Order Details
+(delivery/contact/FX rates), and wire GST/WHT/FX into commercial
+totals and print so quotation UX matches SA Hamid makequotation.

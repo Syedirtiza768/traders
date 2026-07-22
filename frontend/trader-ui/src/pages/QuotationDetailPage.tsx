@@ -18,6 +18,7 @@ import QuotationOrderDetailsForm, {
   orderDetailsFromQuotation,
   type OrderDetails,
 } from '../components/QuotationOrderDetailsForm';
+import { computeCommercialTotals } from '../lib/commercialTotals';
 import useQuickAdd from '../components/useQuickAdd';
 import QuickAddProvider from '../components/QuickAddProvider';
 
@@ -39,6 +40,7 @@ export default function QuotationDetailPage() {
   const [items, setItems] = useState<any[]>([]);
   const [createdHierarchyItem, setCreatedHierarchyItem] = useState<CreatedHierarchyItem | null>(null);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
   const quickAdd = useQuickAdd();
 
   useEffect(() => {
@@ -164,6 +166,45 @@ export default function QuotationDetailPage() {
   const itemRows = useMemo(() => (Array.isArray(quotation?.items) ? quotation.items : []), [quotation]);
   const linkedOrders = useMemo(() => (Array.isArray(quotation?.linked_sales_orders) ? quotation.linked_sales_orders : []), [quotation]);
   const statusLabel = quotation?.status || (quotation?.docstatus === 0 ? 'Draft' : 'Open');
+  const commercialPreview = useMemo(() => {
+    const opts = Array.isArray(quotation?.trader_commercial_options) ? quotation.trader_commercial_options : [];
+    if (!opts.length) {
+      return computeCommercialTotals({
+        net: Number(quotation?.net_total) || 0,
+        gst_mode: orderDetails.gst_mode,
+        services: orderDetails.services,
+        wht_percent: orderDetails.wht_percent,
+        rate_clause: orderDetails.rate_clause,
+        print_exchange: orderDetails.print_exchange,
+        clause_rates: orderDetails.clause_rates,
+      });
+    }
+    const firstByLine = new Map<number, any>();
+    for (const opt of opts) {
+      const line = Number(opt.line_no) || 1;
+      const cur = firstByLine.get(line);
+      if (!cur || Number(opt.option_no) < Number(cur.option_no)) firstByLine.set(line, opt);
+    }
+    let net = 0;
+    for (const opt of firstByLine.values()) {
+      const packageQty = Number(opt.package_qty) || 1;
+      for (const it of opt.items || []) {
+        const qty = (Number(it.unit_qty) || 0) * packageQty;
+        const rate = Number(it.unit_price ?? it.rate) || 0;
+        const discount = Number(it.discount_percent) || 0;
+        net += qty * rate * (1 - discount / 100);
+      }
+    }
+    return computeCommercialTotals({
+      net,
+      gst_mode: orderDetails.gst_mode,
+      services: orderDetails.services,
+      wht_percent: orderDetails.wht_percent,
+      rate_clause: orderDetails.rate_clause,
+      print_exchange: orderDetails.print_exchange,
+      clause_rates: orderDetails.clause_rates,
+    });
+  }, [quotation, orderDetails]);
   const listSearch = searchParams.get('list');
   const backToListPath = listSearch
     ? isOperationsContext(listSearch)
@@ -217,6 +258,13 @@ export default function QuotationDetailPage() {
           >
             <Printer className="h-4 w-4" /> Print / Preview
           </button>
+          <button
+            type="button"
+            onClick={() => setShowPreview((v) => !v)}
+            className="btn-secondary inline-flex items-center gap-2"
+          >
+            {showPreview ? 'Hide inline preview' : 'Inline preview'}
+          </button>
           {quotation.customer && (
             <button
               onClick={() => navigate(`/sales/orders/new?customer=${encodeURIComponent(quotation.customer)}&transactionDate=${encodeURIComponent(quotation.transaction_date || '')}&deliveryDate=${encodeURIComponent(quotation.valid_till || quotation.transaction_date || '')}&sourceType=quotation&sourceName=${encodeURIComponent(quotation.name || '')}&lines=${encodedLines}`)}
@@ -250,7 +298,7 @@ export default function QuotationDetailPage() {
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <DetailKPI icon={ReceiptText} label="Grand Total" value={formatCurrency(quotation.grand_total, quotation.currency)} tone="green" />
+        <DetailKPI icon={ReceiptText} label="Grand Total" value={formatCurrency(commercialPreview.grand_total, quotation.currency)} tone="green" />
         <DetailKPI icon={Package} label="Items" value={String(itemRows.length)} tone="blue" />
         <DetailKPI icon={ClipboardCheck} label="Order Type" value={quotation.order_type || 'Sales'} tone="purple" />
         <DetailKPI icon={FileText} label="Currency" value={quotation.currency || getActiveCurrency()} tone="amber" />
@@ -279,26 +327,51 @@ export default function QuotationDetailPage() {
         <div className="card">
           <div className="card-header">
             <h2 className="text-lg font-semibold text-gray-900">Totals Summary</h2>
-            <p className="text-sm text-gray-500">Commercial totals from the quotation</p>
+            <p className="text-sm text-gray-500">Commercial totals (GST/WHT/FX from Order Details)</p>
           </div>
           <div className="card-body space-y-4">
-            <SummaryLine label="Net Total" value={formatCurrency(quotation.net_total, quotation.currency)} />
-            {(quotation.taxes || []).length > 0 ? (
-              (quotation.taxes as any[]).map((tax: any, i: number) => (
-                <SummaryLine
-                  key={i}
-                  label={`${tax.description || 'Tax'} (${tax.rate || 0}%)${tax.included_in_print_rate ? ' incl.' : ''}`}
-                  value={formatCurrency(tax.tax_amount, quotation.currency)}
-                />
-              ))
+            <SummaryLine label="Net (1st options)" value={formatCurrency(commercialPreview.net, quotation.currency)} />
+            {commercialPreview.gst_amount > 0 ? (
+              <SummaryLine
+                label={`GST ${commercialPreview.gst_mode} (${commercialPreview.gst_rate}%)`}
+                value={formatCurrency(commercialPreview.gst_amount, quotation.currency)}
+              />
             ) : (
-              <SummaryLine label="Taxes" value={formatCurrency(quotation.total_taxes_and_charges, quotation.currency)} />
+              <SummaryLine label="Taxes (ERPNext)" value={formatCurrency(quotation.total_taxes_and_charges, quotation.currency)} />
             )}
-            <SummaryLine label="Grand Total" value={formatCurrency(quotation.grand_total, quotation.currency)} />
-            <SummaryLine label="Rounded Total" value={formatCurrency(quotation.rounded_total, quotation.currency)} />
+            {commercialPreview.wht_amount > 0 ? (
+              <SummaryLine
+                label={`WHT (${commercialPreview.wht_percent}%)`}
+                value={`− ${formatCurrency(commercialPreview.wht_amount, quotation.currency)}`}
+              />
+            ) : null}
+            <SummaryLine label="Grand Total" value={formatCurrency(commercialPreview.grand_total, quotation.currency)} />
+            {commercialPreview.fx_grand != null && commercialPreview.print_exchange !== '0' ? (
+              <SummaryLine
+                label={`FX Grand (${commercialPreview.rate_clause.toUpperCase()})`}
+                value={commercialPreview.fx_grand.toFixed(2)}
+              />
+            ) : null}
+            <SummaryLine label="Doc Rounded" value={formatCurrency(quotation.rounded_total, quotation.currency)} />
           </div>
         </div>
       </div>
+
+      {showPreview ? (
+        <div className="card">
+          <div className="card-header">
+            <h2 className="text-lg font-semibold text-gray-900">Preview</h2>
+            <p className="text-sm text-gray-500">Sahamid-style inline print preview (save Order Details / hierarchy first).</p>
+          </div>
+          <div className="card-body p-0">
+            <iframe
+              title="Quotation preview"
+              className="h-[70vh] w-full rounded-b-xl border-0 bg-white"
+              src={`/print?doctype=Quotation&name=${encodeURIComponent(quotation.name)}`}
+            />
+          </div>
+        </div>
+      ) : null}
 
       <QuotationOrderDetailsForm
         value={orderDetails}
