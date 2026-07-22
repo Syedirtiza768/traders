@@ -101,7 +101,7 @@ def _sample_hierarchy():
             "option_no": 1,
             "option_text": "",
             "package_qty": 2500,
-            "stock_status": "Ex-Stock",
+            "stock_status": "Ex-Stock (Subject to Prior Sale)",
             "items": [
                 {
                     "item_code": "OFC-12C-SM-GYXTW",
@@ -118,7 +118,7 @@ def _sample_hierarchy():
             "option_no": 1,
             "option_text": "Option A",
             "package_qty": 1000,
-            "stock_status": "Ex-Stock",
+            "stock_status": "Ex-Stock (Subject to Prior Sale)",
             "items": [
                 {
                     "item_code": "BELDEN-9842NH",
@@ -135,7 +135,7 @@ def _sample_hierarchy():
             "option_no": 2,
             "option_text": "Option B",
             "package_qty": 1000,
-            "stock_status": "Ex-Stock",
+            "stock_status": "Ex-Stock (Subject to Prior Sale)",
             "items": [
                 {
                     "item_code": "DRAKA-RS485-24AWG",
@@ -147,6 +147,104 @@ def _sample_hierarchy():
             ],
         },
     ]
+
+
+def populate(name="SAL-QTN-2026-00010", company="Electrence"):
+    """Repair/populate an existing draft quotation with the full EQFCCL250326 hierarchy.
+
+    Writes durable items_json + nested option items, syncs flat rendered lines,
+    and applies Order Details / Customer Ref / terms.
+    """
+    from trader_app.api.hierarchy import (
+        hierarchy_amount,
+        persist_nested_commercial_items,
+        serialize_commercial_options,
+    )
+    from trader_app.api.quotation_defaults import apply_order_details_to_quotation
+    from trader_app.api.opportunity import save_commercial_options
+
+    ensure_custom_fields()
+    for spec in SAMPLE_ITEMS:
+        _ensure_item(spec, company)
+
+    if not frappe.db.exists("Quotation", name):
+        frappe.throw("Quotation {0} not found".format(name))
+
+    doc = frappe.get_doc("Quotation", name)
+    if company and doc.company != company:
+        frappe.throw("Quotation {0} belongs to {1}, expected {2}".format(name, doc.company, company))
+    if cint(doc.docstatus) != 0:
+        frappe.throw("Only draft quotations can be populated (got docstatus={0})".format(doc.docstatus))
+
+    hierarchy = _sample_hierarchy()
+    expected_net = hierarchy_amount(hierarchy, first_option_only=True)
+
+    # Prefer API path so persist + sync stay consistent with UI Save hierarchy
+    saved = save_commercial_options("Quotation", name, hierarchy, company=company)
+    doc = frappe.get_doc("Quotation", name)
+
+    if frappe.db.has_column("Quotation", "trader_customer_ref"):
+        doc.trader_customer_ref = CUSTOMER_REF
+    doc.terms = ELECTRENCE_QUOTATION_TERMS
+    doc.transaction_date = doc.transaction_date or "2026-03-25"
+    doc.valid_till = doc.valid_till or "2026-04-01"
+    apply_order_details_to_quotation(
+        doc,
+        order_details={
+            "validity_days": 5,
+            "pay_advance_pct": 50,
+            "pay_after_pct": 50,
+            "pay_after_days": 30,
+            "gst_mode": "exclusive",
+            "freight_clause": "EXW",
+            "rate_clause": "usd",
+        },
+        company=company,
+    )
+    tax_template = frappe.db.get_value(
+        "Sales Taxes and Charges Template",
+        {"company": company, "is_default": 1},
+        "name",
+    ) or frappe.db.get_value("Sales Taxes and Charges Template", {"company": company}, "name")
+    if tax_template and not doc.taxes_and_charges:
+        doc.taxes_and_charges = tax_template
+        doc.run_method("set_taxes")
+    doc.save(ignore_permissions=False)
+    persist_nested_commercial_items(doc)
+    frappe.db.commit()
+
+    doc.reload()
+    ser = serialize_commercial_options(doc)
+    item_counts = [len(r.get("items") or []) for r in ser]
+    result = {
+        "ok": True,
+        "quotation": name,
+        "company": doc.company,
+        "customer_ref": getattr(doc, "trader_customer_ref", None),
+        "commercial_options": len(ser),
+        "option_item_counts": item_counts,
+        "flat_items": len(doc.items or []),
+        "net_total": flt(doc.net_total),
+        "grand_total": flt(doc.grand_total),
+        "expected_net": expected_net,
+        "hierarchy_descriptions": [
+            {
+                "line_no": r.get("line_no"),
+                "option_no": r.get("option_no"),
+                "item_code": (r.get("items") or [{}])[0].get("item_code"),
+                "desc_len": len(((r.get("items") or [{}])[0].get("description") or "")),
+            }
+            for r in ser
+        ],
+        "save_api": saved,
+    }
+    if any(c < 1 for c in item_counts):
+        result["ok"] = False
+        result["error"] = "hierarchy options missing nested items after populate"
+    if abs(flt(doc.net_total) - expected_net) > 1:
+        result["ok"] = False
+        result["error"] = (result.get("error") or "") + " net_total mismatch"
+    return result
 
 
 def run(company="Electrence", submit=0):

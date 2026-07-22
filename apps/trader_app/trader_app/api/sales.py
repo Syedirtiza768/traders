@@ -306,11 +306,17 @@ def get_quotations(company=None, customer=None, status=None,
 
 @frappe.whitelist()
 def get_quotation_detail(name):
-    """Full Quotation with items."""
+    """Full Quotation with items + fully serialized commercial hierarchy."""
+    from trader_app.api.hierarchy import serialize_commercial_options
+
     doc = frappe.get_doc("Quotation", name)
     doc.check_permission("read")
     assert_document_company_access(doc.company)
     data = doc.as_dict()
+    # Nested option items under Custom Field parents often omit from as_dict —
+    # always return the durable serialize path (items_json / nested / SQL).
+    data["trader_commercial_options"] = serialize_commercial_options(doc)
+    data["hierarchy_is_source"] = 1
     # ERPNext v15: tabSales Order has no 'quotation' header field.
     # Link is through tabSales Order Item.prevdoc_docname.
     data["linked_sales_orders"] = frappe.db.sql("""
