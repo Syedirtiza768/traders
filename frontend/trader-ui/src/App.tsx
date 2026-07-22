@@ -25,6 +25,7 @@ const QuotationDetailPage = lazy(() => import('./pages/QuotationDetailPage'));
 const CreateSalesInvoicePage = lazy(() => import('./pages/CreateSalesInvoicePage'));
 const CreateSalesOrderPage = lazy(() => import('./pages/CreateSalesOrderPage'));
 const CreateQuotationPage = lazy(() => import('./pages/CreateQuotationPage'));
+const MakeQuotationPage = lazy(() => import('./pages/MakeQuotationPage'));
 const CreateSalesReturnPage = lazy(() => import('./pages/CreateSalesReturnPage'));
 const CreateSalesDispatchPage = lazy(() => import('./pages/CreateSalesDispatchPage'));
 const CreateSalesDocumentHubPage = lazy(() => import('./pages/CreateSalesDocumentHubPage'));
@@ -182,6 +183,8 @@ export default function App() {
         <Route path="sales/opportunities/:opportunityId" element={<GatedRoute capability="sales:view" module="opportunity" requiresOpportunity navFeature="opportunities"><OpportunityDetailPage /></GatedRoute>} />
         <Route path="sales/quotations" element={<GatedRoute capability="sales:view" module="sales"><QuotationsPage /></GatedRoute>} />
         <Route path="sales/quotations/new" element={<GatedRoute capability="sales:view" module="sales"><CreateQuotationPage /></GatedRoute>} />
+        <Route path="sales/quotations/make" element={<GatedRoute capability="sales:view" module="sales"><MakeQuotationPage /></GatedRoute>} />
+        <Route path="sales/quotations/:quotationId/edit" element={<GatedRoute capability="sales:view" module="sales"><MakeQuotationPage /></GatedRoute>} />
         <Route path="sales/quotations/:quotationId" element={<GatedRoute capability="sales:view" module="sales"><QuotationDetailPage /></GatedRoute>} />
         <Route path="sales/:invoiceId" element={<GatedRoute capability="sales:view" module="sales"><SalesInvoiceDetailPage /></GatedRoute>} />
 

@@ -157,7 +157,7 @@ export default function OpportunityDetailPage() {
                     className="btn-primary"
                     disabled={busy}
                     onClick={() =>
-                      navigate(`/sales/quotations/${encodeURIComponent(hub.open_quotation_draft.name)}`)
+                      navigate(`/sales/quotations/${encodeURIComponent(hub.open_quotation_draft.name)}/edit`)
                     }
                   >
                     Continue Quotation
@@ -183,7 +183,7 @@ export default function OpportunityDetailPage() {
                   className="btn-primary"
                   disabled={busy}
                   onClick={() =>
-                    navigate(`/sales/quotations/new?opportunity=${encodeURIComponent(opp.name)}`)
+                    navigate(`/sales/quotations/make?opportunity=${encodeURIComponent(opp.name)}`)
                   }
                 >
                   Make Quotation
@@ -506,9 +506,8 @@ export default function OpportunityDetailPage() {
               </ul>
             )}
             <p className="text-xs text-gray-500">
-              Use Make Quotation above (create form with hierarchy — no empty seed), or Continue / Discard
-              when a draft exists. Hierarchy (Line → Option → Item) copies Quote → OC → DN; first option
-              per line is billed.
+              Use Make Quotation above for the full-page tabbed editor (Sahamid-style), or Continue /
+              Discard when a draft exists. Hierarchy copies Quote → OC → DN; first option per line is billed.
             </p>
           </div>
         </div>

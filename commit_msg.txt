@@ -1,5 +1,5 @@
-feat: close Sahamid makequotation gaps for Electrence quotes
+feat: Sahamid-style full-page tabbed Make Quotation editor
 
-Add same-line alternate options, group discount, full Order Details
-(delivery/contact/FX rates), and wire GST/WHT/FX into commercial
-totals and print so quotation UX matches SA Hamid makequotation.
+Add MakeQuotationPage with Basic / BoQ / Description / Group Discount /
+Quotation Details / Preview / Save tabs; route create and draft continue
+through it for opportunity-enabled tenants (Electrence).
