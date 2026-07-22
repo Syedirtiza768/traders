@@ -906,7 +906,12 @@ export const bundlingApi = {
 
 export const printApi = {
   getPrintData: (doctype: string, name: string, viewMode?: string, format?: string) =>
-    get('trader_app.api.printing.get_print_data', { doctype, name, view_mode: viewMode, format }),
+    get('trader_app.api.printing.get_print_data', {
+      doctype,
+      name,
+      view_mode: viewMode,
+      doc_format: format || 'auto',
+    }),
 };
 
 // ─── Catalog API (Components feature) ────────────────────────────
