@@ -56,7 +56,7 @@ def get_print_data(doctype, name, view_mode="external", doc_format="tax_invoice"
     # Build structured items — applying view mode filtering
     items = _build_print_items(doc, view_mode)
 
-    # Company info
+    # Company info + optional letterhead from tenant branding
     company_info = {
         "name": company_doc.name,
         "abbr": company_doc.abbr,
@@ -67,6 +67,8 @@ def get_print_data(doctype, name, view_mode="external", doc_format="tax_invoice"
         "tax_id": company_doc.tax_id or "",
         "country": company_doc.country or "Pakistan",
     }
+    letterhead = _get_company_letterhead(company_doc)
+    company_info.update(letterhead)
 
     # Customer/Party info
     party_info = _get_party_info(doc, doctype)
@@ -267,6 +269,52 @@ def _get_company_address(company):
         ]
         return ", ".join(p for p in parts if p)
     return ""
+
+
+def _public_file_url(path):
+    """Normalize a File URL for browser/print use."""
+    if not path:
+        return ""
+    path = str(path).strip()
+    if path.startswith("http://") or path.startswith("https://") or path.startswith("/"):
+        return path
+    return "/" + path.lstrip("/")
+
+
+def _get_company_letterhead(company_doc):
+    """Optional letterhead images from Trader Tenant branding / logo.
+
+    Branding keys (JSON on Trader Tenant.branding):
+      - letterhead_header: wide wordmark for print header
+      - letterhead_footer: contact strip for print footer
+    Logo (Trader Tenant.logo): compact mark for SPA + optional print fallback.
+    """
+    out = {
+        "logo": "",
+        "letterhead_header": "",
+        "letterhead_footer": "",
+    }
+    tenant = getattr(company_doc, "trader_tenant", None)
+    if not tenant or not frappe.db.exists("Trader Tenant", tenant):
+        return out
+
+    logo = frappe.db.get_value("Trader Tenant", tenant, "logo") or ""
+    branding_raw = frappe.db.get_value("Trader Tenant", tenant, "branding") or {}
+    if isinstance(branding_raw, str):
+        try:
+            branding_raw = json.loads(branding_raw) if branding_raw else {}
+        except Exception:
+            branding_raw = {}
+    branding = branding_raw if isinstance(branding_raw, dict) else {}
+
+    out["logo"] = _public_file_url(logo)
+    out["letterhead_header"] = _public_file_url(
+        branding.get("letterhead_header") or branding.get("header_image") or ""
+    )
+    out["letterhead_footer"] = _public_file_url(
+        branding.get("letterhead_footer") or branding.get("footer_image") or ""
+    )
+    return out
 
 
 def _get_document_title(doctype, doc_format, doc_name):

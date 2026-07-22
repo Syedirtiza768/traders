@@ -2,7 +2,7 @@
 """Trader App — Customer AR & Document Prints (AR-DOC PRD).
 
 Opt-in per company via ``Company.trader_ar_enabled`` and an active
-``Trader AR Profile``. Electrance is a *template key* for seeding, not a
+``Trader AR Profile``. Electrence is a *template key* for seeding, not a
 runtime company-name branch.
 """
 
@@ -30,8 +30,8 @@ PROFILE_TEMPLATES = {
         "secure_internal_prints": 1,
         "shop_sale_enabled": 0,
     },
-    # Project-led AR + print personas (Electrance go-live shape).
-    "electrance": {
+    # Project-led AR + print personas (Electrence go-live shape).
+    "electrence": {
         "settle_tolerance": 5.0,
         "auto_allocate_on_receipt": 0,
         "require_explicit_allocation": 1,
@@ -60,8 +60,11 @@ INTERNAL_PRINT_ROLES = frozenset({
 })
 
 
+_TEMPLATE_ALIASES = {"electrance": "electrence"}
+
+
 def build_profile_defaults(template="minimal"):
-    key = (template or "minimal").strip().lower()
+    key = _TEMPLATE_ALIASES.get((template or "minimal").strip().lower(), (template or "minimal").strip().lower())
     if key not in PROFILE_TEMPLATES:
         raise ValueError("Unknown AR template: {0}".format(template))
     out = dict(PROFILE_TEMPLATES[key])

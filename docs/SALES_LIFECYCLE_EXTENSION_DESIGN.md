@@ -1,7 +1,7 @@
 # Configurable Sales Lifecycle Extension — Grounded Design
 
 **Feature theme:** Quotation → Delivery Challan → Grouped Invoice → Posting
-**Target tenant:** Electrance (`TNT-0015`), then reusable across all tenants
+**Target tenant:** Electrence (`TNT-0015`), then reusable across all tenants
 **Status:** Design / gap analysis (pre-implementation)
 **Author:** Engineering
 **Companion to:** the product PRD "Configurable Sales Lifecycle Extension"
@@ -148,7 +148,7 @@ Recommendations, grounded in what Frappe gives us for free:
 | Posting strictness | **Fail-fast + dry-run preview + dual-control approval** | PRD §11 finance risk; ERPNext GL is transactional — partial posts corrupt AR. Preview first, then atomic submit |
 | FX snapshot timing default | **Snapshot on finalize; optionally also on create** (per-policy) | Matches ERPNext's `conversion_rate` lock at submit; quotations can hold an indicative create-time rate under a clause |
 | Template engine | **Frappe Print Format (HTML + Jinja tokens)** — no new designer UI in Phase 1 | Already the renderer; `print_format_for_doc` exists; avoids building a parallel engine |
-| Backward-compat for existing tenants | **Ship every config pack with a "legacy-equivalent" default**, feature-flagged off; migrate per tenant via a mapping script | PRD §10 Phase 5 + §11 migration parity; new tenants (Electrance) start clean, existing tenants unchanged until opted in |
+| Backward-compat for existing tenants | **Ship every config pack with a "legacy-equivalent" default**, feature-flagged off; migrate per tenant via a mapping script | PRD §10 Phase 5 + §11 migration parity; new tenants (Electrence) start clean, existing tenants unchanged until opted in |
 
 ---
 
@@ -243,10 +243,10 @@ Aligned to PRD §10, but ordered so the **durability fixes** and **foundation** 
     tenant is unchanged until it activates.
   - `migration_status(company)` — which packs exist and how many are enabled.
   - `parity_report(company)` — compares migrated packs vs the legacy defaults they replace
-    (tax template, grouping same-debtor). **Verified passing on Electrance.**
+    (tax template, grouping same-debtor). **Verified passing on Electrence.**
   - `audit_hardcoded_branches()` — the "no tenant logic in core" gate (PRD §11): scans the API
     layer for `company ==` / `tenant ==` literals. **Verified clean (0 hits)** across Phases 0–5.
-  Verified: provisioned Electrance's packs (all inert), status shows 0 enabled, parity passed,
+  Verified: provisioned Electrence's packs (all inert), status shows 0 enabled, parity passed,
   re-provision is idempotent (creates nothing).
 
 ---
@@ -306,9 +306,9 @@ Companion PRD: SA Hamid `PRD-Commercial-Opportunity-Module.md` (Opportunity → 
 - `Trader Opportunity Profile` DocType (company-scoped gates, stages, hierarchy, COGS model)
 - [`api/opportunity.py`](apps/trader_app/trader_app/api/opportunity.py) — guard, settings resolver, templates
 - `provision_opportunity_pack(company, template, activate)` in [`migration_toolkit.py`](apps/trader_app/trader_app/api/migration_toolkit.py)
-  - `template="electrance"` = reference pack (not a company-name branch)
+  - `template="electrence"` = reference pack (not a company-name branch)
   - `activate=0` (default) = inert profile; other tenants unchanged
-  - `activate=1` = turn on company flag + active profile (Electrance / new-client opt-in)
+  - `activate=1` = turn on company flag + active profile (Electrence / new-client opt-in)
 
 **Hub shipped (2026-07-21 cont.):**
 
@@ -339,4 +339,4 @@ Companion PRD: SA Hamid `PRD-Commercial-Opportunity-Module.md` (Opportunity → 
 - Grouped invoicing copies remaining commercial hierarchy onto SI + advances DN option `qty_invoiced`
 - Provision helper: `trader_app.scripts.provision_opportunity.run`
 
-**Still owed:** site `bench migrate` + Electrance activate (`template=electrance`, `activate=1`).
+**Still owed:** site `bench migrate` + Electrence activate (`template=electrence`, `activate=1`).

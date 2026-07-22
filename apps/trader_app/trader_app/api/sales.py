@@ -481,6 +481,13 @@ def create_sales_order(customer, items, company=None, transaction_date=None,
     so.transaction_date = transaction_date or nowdate()
     so.delivery_date = delivery_date or so.transaction_date
 
+    from trader_app.api.currency import apply_document_currency
+    apply_document_currency(
+        so,
+        posting_date=so.transaction_date,
+        for_selling=True,
+    )
+
     for item in items:
         row = {
             "item_code": item.get("item_code"),
@@ -572,6 +579,13 @@ def create_quotation(customer, items, company=None, transaction_date=None,
     q.party_name = customer
     q.transaction_date = transaction_date or nowdate()
     q.valid_till = valid_till or q.transaction_date
+
+    from trader_app.api.currency import apply_document_currency
+    apply_document_currency(
+        q,
+        posting_date=q.transaction_date,
+        for_selling=True,
+    )
 
     type_key = invoice_type or "quotation"
     set_trader_invoice_type(q, invoice_type=type_key)

@@ -2,7 +2,7 @@
 """Trader App — Customer master pack (SA Hamid customer-entity subset).
 
 Opt-in per company via ``Company.trader_customer_pack_enabled`` and an active
-``Trader Customer Profile``. Electrance is a template key, not a runtime branch.
+``Trader Customer Profile``. Electrence is a template key, not a runtime branch.
 """
 
 from __future__ import unicode_literals
@@ -28,7 +28,7 @@ PROFILE_TEMPLATES = {
         "credit_limit_enabled": 0,
         "enforce_credit_hold": 0,
     },
-    "electrance": {
+    "electrence": {
         "extended_master_fields": 1,
         "require_tax_id": 0,
         "require_billing_address": 1,
@@ -44,9 +44,11 @@ PROFILE_TEMPLATES = {
 
 DEFAULT_INACTIVE_PROFILE = dict(PROFILE_TEMPLATES["minimal"])
 
+_TEMPLATE_ALIASES = {"electrance": "electrence"}
+
 
 def build_profile_defaults(template="minimal"):
-    key = (template or "minimal").strip().lower()
+    key = _TEMPLATE_ALIASES.get((template or "minimal").strip().lower(), (template or "minimal").strip().lower())
     if key not in PROFILE_TEMPLATES:
         raise ValueError("Unknown Customer pack template: {0}".format(template))
     out = dict(PROFILE_TEMPLATES[key])

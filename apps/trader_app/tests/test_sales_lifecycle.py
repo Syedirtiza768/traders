@@ -264,9 +264,9 @@ class PostingPreviewTests(unittest.TestCase):
 
 
 class OpportunityProfileTemplateTests(unittest.TestCase):
-    def test_electrance_template_is_full_lifecycle(self):
-        d = build_profile_defaults("electrance")
-        self.assertEqual(d["template_key"], "electrance")
+    def test_electrence_template_is_full_lifecycle(self):
+        d = build_profile_defaults("electrence")
+        self.assertEqual(d["template_key"], "electrence")
         self.assertEqual(d["require_opportunity_for_quotation"], 1)
         self.assertEqual(d["enable_order_confirmation"], 1)
         self.assertEqual(d["hierarchy_on_oc"], 1)
@@ -274,6 +274,11 @@ class OpportunityProfileTemplateTests(unittest.TestCase):
         self.assertEqual(d["invoice_from_dn_only"], 1)
         self.assertEqual(d["stock_posting_moment"], "delivery_note")
         self.assertEqual(d["cogs_model"], "A")
+
+    def test_legacy_electrance_alias_maps_to_electrence(self):
+        d = build_profile_defaults("electrance")
+        self.assertEqual(d["template_key"], "electrence")
+        self.assertEqual(d, build_profile_defaults("electrence"))
 
     def test_minimal_template_skips_oc_and_full_hierarchy(self):
         d = build_profile_defaults("minimal")
@@ -289,7 +294,7 @@ class OpportunityProfileTemplateTests(unittest.TestCase):
     def test_inactive_defaults_are_safe_noops(self):
         self.assertEqual(DEFAULT_INACTIVE_PROFILE["require_opportunity_for_quotation"], 0)
         self.assertEqual(DEFAULT_INACTIVE_PROFILE["hierarchy_on_quotation"], 0)
-        self.assertIn("electrance", PROFILE_TEMPLATES)
+        self.assertIn("electrence", PROFILE_TEMPLATES)
         self.assertIn("minimal", PROFILE_TEMPLATES)
 
 
@@ -362,9 +367,9 @@ class CommercialHierarchyTests(unittest.TestCase):
 
 
 class ARProfileTemplateTests(unittest.TestCase):
-    def test_electrance_template_has_personas_and_tolerance(self):
-        d = build_ar_profile_defaults("electrance")
-        self.assertEqual(d["template_key"], "electrance")
+    def test_electrence_template_has_personas_and_tolerance(self):
+        d = build_ar_profile_defaults("electrence")
+        self.assertEqual(d["template_key"], "electrence")
         self.assertEqual(d["settle_tolerance"], 5.0)
         self.assertEqual(d["auto_allocate_on_receipt"], 0)
         self.assertEqual(d["require_explicit_allocation"], 1)
@@ -385,7 +390,7 @@ class ARProfileTemplateTests(unittest.TestCase):
 
     def test_inactive_defaults_safe(self):
         self.assertEqual(AR_DEFAULT_INACTIVE["require_explicit_allocation"], 1)
-        self.assertIn("electrance", AR_PROFILE_TEMPLATES)
+        self.assertIn("electrence", AR_PROFILE_TEMPLATES)
         self.assertIn("minimal", AR_PROFILE_TEMPLATES)
 
 
@@ -424,9 +429,9 @@ class ARInternalPrintAccessTests(unittest.TestCase):
 
 
 class CustomerPackTemplateTests(unittest.TestCase):
-    def test_electrance_template_enables_extended_master(self):
-        d = build_customer_pack_defaults("electrance")
-        self.assertEqual(d["template_key"], "electrance")
+    def test_electrence_template_enables_extended_master(self):
+        d = build_customer_pack_defaults("electrence")
+        self.assertEqual(d["template_key"], "electrence")
         self.assertEqual(d["extended_master_fields"], 1)
         self.assertEqual(d["contacts_enabled"], 1)
         self.assertEqual(d["require_billing_address"], 1)
@@ -444,7 +449,7 @@ class CustomerPackTemplateTests(unittest.TestCase):
 
     def test_inactive_defaults_safe(self):
         self.assertEqual(CUSTOMER_PACK_INACTIVE["extended_master_fields"], 0)
-        self.assertIn("electrance", CUSTOMER_PACK_TEMPLATES)
+        self.assertIn("electrence", CUSTOMER_PACK_TEMPLATES)
 
 
 if __name__ == "__main__":

@@ -4,7 +4,7 @@
  "creation": "2026-07-21 00:00:00.000000",
  "doctype": "DocType",
  "engine": "InnoDB",
- "description": "Company-scoped Customer AR & Document Prints pack (AR-DOC PRD). OPT-IN via Company.trader_ar_enabled + is_active. Electrance is a seed template, not a code branch.",
+ "description": "Company-scoped Customer AR & Document Prints pack (AR-DOC PRD). OPT-IN via Company.trader_ar_enabled + is_active. Electrence is a seed template, not a code branch.",
  "field_order": [
   "profile_name",
   "company",
@@ -156,7 +156,7 @@
    "fieldname": "shop_sale_enabled",
    "fieldtype": "Check",
    "label": "Shop Sale (SS) Path Enabled",
-   "description": "Optional POS cash/credit AR behaviour. Keep off for project-only Electrance."
+   "description": "Optional POS cash/credit AR behaviour. Keep off for project-only Electrence."
   }
  ],
  "links": [],
