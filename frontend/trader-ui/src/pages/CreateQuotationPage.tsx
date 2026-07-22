@@ -58,7 +58,7 @@ export default function CreateQuotationPage() {
   const [taxTemplates, setTaxTemplates] = useState<any[]>([]);
   const [taxTemplate, setTaxTemplate] = useState('');
   const [taxRate, setTaxRate] = useState(0);
-  const [taxInclusive, setTaxInclusive] = useState(false);
+  const taxInclusive = false;
   const listSearch = searchParams.get('list');
   const quickAdd = useQuickAdd();
   const quickAddItemLine = useRef<number>(-1);
@@ -428,21 +428,12 @@ export default function CreateQuotationPage() {
       </div>
 
       <QuickAddProvider
-        state={quickAdd.state}
-        onClose={quickAdd.close}
-        onCreated={(opt, raw) => {
-          if (quickAdd.state.entityType === 'customer') {
-            quickAdd.onCreated(opt, setCustomers, setCustomer, raw);
-          } else if (quickAdd.state.entityType === 'item') {
-            quickAdd.onCreated(
-              opt,
-              setItems,
-              (value) => {
-                if (quickAddItemLine.current >= 0) handleItemChange(quickAddItemLine.current, value);
-              },
-              raw,
-            );
-          }
+        quickAdd={quickAdd}
+        customersSetter={setCustomers}
+        customerValueSetter={setCustomer}
+        itemsSetter={setItems}
+        itemValueSetter={(value) => {
+          if (quickAddItemLine.current >= 0) handleItemChange(quickAddItemLine.current, value);
         }}
       />
     </div>
