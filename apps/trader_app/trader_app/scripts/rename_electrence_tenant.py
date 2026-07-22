@@ -83,7 +83,27 @@ def _upload_public(filename, filepath, attached_to_doctype, attached_to_name):
     return f.file_url
 
 
+def _ensure_address_template():
+    """ERPNext Address insert requires a default Address Template."""
+    if frappe.db.exists("Address Template", {"is_default": 1}):
+        return frappe.db.get_value("Address Template", {"is_default": 1}, "name")
+    # Prefer Pakistan if present without default flag
+    existing = frappe.db.get_value("Address Template", {"country": "Pakistan"}, "name")
+    if existing:
+        frappe.db.set_value("Address Template", existing, "is_default", 1)
+        return existing
+    tmpl = frappe.get_doc({
+        "doctype": "Address Template",
+        "country": "Pakistan",
+        "is_default": 1,
+        "template": "{{ address_line1 }}<br>{% if address_line2 %}{{ address_line2 }}<br>{% endif %}{{ city }}{% if state %}, {{ state }}{% endif %}<br>{{ country }}{% if pincode %} - {{ pincode }}{% endif %}",
+    })
+    tmpl.insert(ignore_permissions=True)
+    return tmpl.name
+
+
 def _ensure_company_address(company):
+    _ensure_address_template()
     addr_name = frappe.db.get_value(
         "Dynamic Link",
         {"link_doctype": "Company", "link_name": company, "parenttype": "Address"},
