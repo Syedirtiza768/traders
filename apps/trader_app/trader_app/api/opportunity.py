@@ -746,8 +746,20 @@ def _profile_or_defaults(company):
 
 
 def _default_warehouse(company):
+    """Prefer an existing company warehouse; fall back to naming convention only if present."""
+    existing = frappe.db.get_value(
+        "Warehouse",
+        {"company": company, "is_group": 0},
+        "name",
+        order_by="is_group asc, name asc",
+    )
+    if existing:
+        return existing
     abbr = frappe.get_cached_value("Company", company, "abbr") or "CO"
-    return "Main Warehouse - {0}".format(abbr)
+    candidate = "Main Warehouse - {0}".format(abbr)
+    if frappe.db.exists("Warehouse", candidate):
+        return candidate
+    return None
 
 
 def _list_final_quotations(opportunity_name):
