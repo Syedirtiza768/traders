@@ -128,12 +128,25 @@ CUSTOM_FIELDS = [
             "Behaviour is driven by Trader AR Profile, not company name."
         ),
     },
+    # ── Customer master pack (SA Hamid customer-entity subset) ────
+    {
+        "dt": "Company",
+        "fieldname": "trader_customer_pack_enabled",
+        "label": "Customer Master Pack",
+        "fieldtype": "Check",
+        "default": "0",
+        "insert_after": "trader_ar_enabled",
+        "description": (
+            "When ON: extended Customer create/edit (DBA, tax ID, payment terms, credit limit, "
+            "billing address) and contacts on Customer detail. Driven by Trader Customer Profile."
+        ),
+    },
     {
         "dt": "Company",
         "fieldname": "trader_sku_taxonomy",
         "label": "SKU Attribute Taxonomy (JSON)",
         "fieldtype": "Long Text",
-        "insert_after": "trader_ar_enabled",
+        "insert_after": "trader_customer_pack_enabled",
         "description": (
             "Company-specific SKU attribute templates (category → form factors, capacities, grades). "
             "Merged with system seed and values from existing items."
@@ -217,11 +230,19 @@ CUSTOM_FIELDS = [
     },
     {
         "dt": "Customer",
+        "fieldname": "trader_dba",
+        "label": "Doing Business As",
+        "fieldtype": "Data",
+        "insert_after": "trader_short_code",
+        "description": "Trading / DBA name for commercial prints (SA Hamid dba).",
+    },
+    {
+        "dt": "Customer",
         "fieldname": "trader_opening_balance",
         "label": "Opening AR Balance",
         "fieldtype": "Currency",
         "default": "0",
-        "insert_after": "trader_short_code",
+        "insert_after": "trader_dba",
         "description": "Opening receivable balance imported when Components feature is first enabled.",
     },
     {

@@ -1,0 +1,189 @@
+{
+ "actions": [],
+ "autoname": "format:CUSTP-{#####}",
+ "creation": "2026-07-22 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "description": "Company-scoped Customer master pack (SA Hamid customer entity subset). OPT-IN via Company.trader_customer_pack_enabled + is_active. Electrance is a seed template, not a code branch.",
+ "field_order": [
+  "profile_name",
+  "company",
+  "column_break_head",
+  "is_active",
+  "template_key",
+  "section_fields",
+  "extended_master_fields",
+  "require_tax_id",
+  "require_billing_address",
+  "require_payment_terms",
+  "column_break_fields",
+  "contacts_enabled",
+  "ship_to_sites_enabled",
+  "notes_enabled",
+  "require_customer_po",
+  "section_credit",
+  "credit_limit_enabled",
+  "enforce_credit_hold"
+ ],
+ "fields": [
+  {
+   "fieldname": "profile_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Profile Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_head",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Active"
+  },
+  {
+   "fieldname": "template_key",
+   "fieldtype": "Data",
+   "label": "Template Key",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_fields",
+   "fieldtype": "Section Break",
+   "label": "Master Fields"
+  },
+  {
+   "default": "1",
+   "fieldname": "extended_master_fields",
+   "fieldtype": "Check",
+   "label": "Extended Master Fields",
+   "description": "Show DBA, tax ID, payment terms, credit limit, billing address on create/edit."
+  },
+  {
+   "default": "0",
+   "fieldname": "require_tax_id",
+   "fieldtype": "Check",
+   "label": "Require Tax ID"
+  },
+  {
+   "default": "0",
+   "fieldname": "require_billing_address",
+   "fieldtype": "Check",
+   "label": "Require Billing Address"
+  },
+  {
+   "default": "0",
+   "fieldname": "require_payment_terms",
+   "fieldtype": "Check",
+   "label": "Require Payment Terms"
+  },
+  {
+   "fieldname": "column_break_fields",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "contacts_enabled",
+   "fieldtype": "Check",
+   "label": "Contacts on Customer Detail"
+  },
+  {
+   "default": "0",
+   "fieldname": "ship_to_sites_enabled",
+   "fieldtype": "Check",
+   "label": "Ship-To Sites (light branch)",
+   "description": "P1 — keep off until site picker is wired on Quote/OC/DN."
+  },
+  {
+   "default": "1",
+   "fieldname": "notes_enabled",
+   "fieldtype": "Check",
+   "label": "Customer Notes"
+  },
+  {
+   "default": "0",
+   "fieldname": "require_customer_po",
+   "fieldtype": "Check",
+   "label": "Require Customer PO on OC",
+   "description": "Hint for Opportunity OC gate; OPP profile remains authoritative when opportunity is on."
+  },
+  {
+   "fieldname": "section_credit",
+   "fieldtype": "Section Break",
+   "label": "Credit"
+  },
+  {
+   "default": "1",
+   "fieldname": "credit_limit_enabled",
+   "fieldtype": "Check",
+   "label": "Credit Limit Field"
+  },
+  {
+   "default": "0",
+   "fieldname": "enforce_credit_hold",
+   "fieldtype": "Check",
+   "label": "Enforce Credit Hold on Invoice",
+   "description": "P2 — block SI submit when over limit / on hold."
+  }
+ ],
+ "links": [],
+ "modified": "2026-07-22 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Trader",
+ "name": "Trader Customer Profile",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Trader Super Admin",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Trader Admin",
+   "write": 1
+  },
+  {
+   "read": 1,
+   "report": 1,
+   "role": "Trader Sales Manager"
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "title_field": "profile_name",
+ "track_changes": 1
+}

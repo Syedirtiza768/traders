@@ -124,6 +124,7 @@ def _company_payload(company_name):
     components = getattr(doc, "trader_components_enabled", None)
     opportunity = getattr(doc, "trader_opportunity_enabled", None)
     ar = getattr(doc, "trader_ar_enabled", None)
+    customer_pack = getattr(doc, "trader_customer_pack_enabled", None)
     return {
         "company": doc.name,
         "abbr": doc.abbr,
@@ -133,6 +134,7 @@ def _company_payload(company_name):
         "components_enabled": bool(components),
         "opportunity_enabled": bool(opportunity),
         "ar_enabled": bool(ar),
+        "customer_pack_enabled": bool(customer_pack),
     }
 
 

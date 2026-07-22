@@ -318,6 +318,74 @@ def provision_ar_pack(company=None, template="minimal", activate=0):
     }
 
 
+@frappe.whitelist()
+def provision_customer_pack(company=None, template="minimal", activate=0):
+    """Idempotently create a Trader Customer Profile for ``company``.
+
+    ``template`` is a pack name (``electrance`` / ``minimal``), not a company
+    identity — never branches on tenant name.
+    """
+    from trader_app.api.customer_pack import build_profile_defaults
+    from trader_app.setup.custom_fields import ensure_custom_fields
+
+    ensure_custom_fields()
+    company = resolve_active_company(company)
+    activate = cint(activate)
+    template = (template or "minimal").strip().lower()
+    defaults = build_profile_defaults(template)
+
+    created = None
+    existing = frappe.db.get_value(
+        "Trader Customer Profile", {"company": company}, "name"
+    )
+    if not existing:
+        doc = frappe.get_doc({
+            "doctype": "Trader Customer Profile",
+            "profile_name": "{0} — Customer ({1})".format(company, template),
+            "company": company,
+            "is_active": 1 if activate else 0,
+            **defaults,
+        }).insert(ignore_permissions=True)
+        created = doc.name
+        existing = doc.name
+    elif activate:
+        frappe.db.set_value(
+            "Trader Customer Profile", existing, "is_active", 1, update_modified=False
+        )
+
+    if activate:
+        frappe.db.set_value(
+            "Company", company, "trader_customer_pack_enabled", 1, update_modified=False
+        )
+
+    log_decision(
+        "other",
+        company=company,
+        outcome="applied",
+        message="Provisioned customer pack template={0} activate={1}".format(
+            template, activate
+        ),
+        output={
+            "profile": existing,
+            "created": created,
+            "template": template,
+            "activated": bool(activate),
+        },
+        policy="customer_pack_provision",
+    )
+    frappe.db.commit()
+    return {
+        "company": company,
+        "profile": existing,
+        "created": created,
+        "template": template,
+        "activated": bool(activate),
+        "customer_pack_enabled": bool(
+            cint(frappe.db.get_value("Company", company, "trader_customer_pack_enabled") or 0)
+        ),
+    }
+
+
 # ────────────────────────────────────────────────────────────────
 # Status & parity
 # ────────────────────────────────────────────────────────────────
@@ -335,6 +403,8 @@ def migration_status(company=None):
         ("posting", "Trader Posting Profile", "is_active"),
         ("process", "Trader Process Profile", "enforce_states"),
         ("opportunity", "Trader Opportunity Profile", "is_active"),
+        ("ar", "Trader AR Profile", "is_active"),
+        ("customer_pack", "Trader Customer Profile", "is_active"),
     ]
     for label, dt, flag in specs:
         rows = frappe.get_all(dt, filters={"company": company}, fields=["name", flag])

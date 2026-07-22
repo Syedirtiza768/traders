@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Building2, Users, Shield, Globe, RefreshCw, SlidersHorizontal, Save, ScrollText, Layers, Percent, Calendar, Warehouse, BookOpen, Briefcase, Receipt } from 'lucide-react';
+import { Building2, Users, Shield, Globe, RefreshCw, SlidersHorizontal, Save, ScrollText, Layers, Percent, Calendar, Warehouse, BookOpen, Briefcase, Receipt, Contact } from 'lucide-react';
 import CurrencySettingsPanel from '../components/CurrencySettingsPanel';
 import SkuConfigEditor from '../components/SkuConfigEditor';
-import { settingsApi, catalogApi, opportunityApi, arApi } from '../lib/api';
+import { settingsApi, catalogApi, opportunityApi, arApi, customerPackApi } from '../lib/api';
 import { applyTraderUiTheme, normaliseUiPrefs, type TraderUiPrefs } from '../lib/traderUiTheme';
 import { useCompanyStore } from '../stores/companyStore';
 import { useAuthStore } from '../stores/authStore';
@@ -46,7 +46,7 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  const { componentsEnabled, setComponentsEnabled, opportunityEnabled, setOpportunityEnabled, arEnabled, setArEnabled } = useCompanyStore();
+  const { componentsEnabled, setComponentsEnabled, opportunityEnabled, setOpportunityEnabled, arEnabled, setArEnabled, customerPackEnabled, setCustomerPackEnabled } = useCompanyStore();
   const roles_ = useAuthStore((s) => s.roles);
   const tenant = useTenantStore((s) => s.tenant);
   const multitenantEnabled = useTenantStore((s) => s.enabled);
@@ -54,6 +54,7 @@ export default function SettingsPage() {
   const [togglingComponents, setTogglingComponents] = useState(false);
   const [togglingOpportunity, setTogglingOpportunity] = useState(false);
   const [togglingAr, setTogglingAr] = useState(false);
+  const [togglingCustomerPack, setTogglingCustomerPack] = useState(false);
   const [skuCategoryCount, setSkuCategoryCount] = useState<number | null>(null);
 
   useEffect(() => {
@@ -120,6 +121,24 @@ export default function SettingsPage() {
       setFeedback({ type: 'error', message: err?.response?.data?.exception || 'Failed to toggle AR feature.' });
     } finally {
       setTogglingAr(false);
+    }
+  };
+
+  const handleToggleCustomerPack = async (enabled: boolean) => {
+    setTogglingCustomerPack(true);
+    try {
+      await customerPackApi.toggleFeature(enabled);
+      setCustomerPackEnabled(enabled);
+      setFeedback({
+        type: 'success',
+        message: enabled
+          ? 'Customer Master Pack enabled. Create/Edit Customer shows tax, terms, address, and contacts.'
+          : 'Customer Master Pack disabled. Profiles and customer data are preserved.',
+      });
+    } catch (err: any) {
+      setFeedback({ type: 'error', message: err?.response?.data?.exception || 'Failed to toggle Customer Master Pack.' });
+    } finally {
+      setTogglingCustomerPack(false);
     }
   };
 
@@ -654,6 +673,48 @@ export default function SettingsPage() {
                     : 'bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-slate-300'
                 }`}>
                   {arEnabled ? 'Enabled' : 'Disabled'}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-start justify-between gap-4 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/40 p-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <Contact size={16} className="text-brand-600 dark:text-brand-400" />
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Customer Master Pack</h3>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-slate-400 leading-relaxed">
+                Extended Customer create/edit (DBA, tax ID, payment terms, credit limit, billing address)
+                and contacts on Customer detail. Driven by Trader Customer Profile — not company name.
+                Provision the electrance template for project-led defaults.
+              </p>
+            </div>
+            <div className="flex-shrink-0">
+              {isAdmin ? (
+                <button
+                  onClick={() => handleToggleCustomerPack(!customerPackEnabled)}
+                  disabled={togglingCustomerPack}
+                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 disabled:opacity-60 ${
+                    customerPackEnabled ? 'bg-brand-600' : 'bg-gray-200 dark:bg-slate-700'
+                  }`}
+                  role="switch"
+                  aria-checked={customerPackEnabled}
+                  title={customerPackEnabled ? 'Disable Customer Master Pack' : 'Enable Customer Master Pack'}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      customerPackEnabled ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              ) : (
+                <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${
+                  customerPackEnabled
+                    ? 'bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400'
+                    : 'bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-slate-300'
+                }`}>
+                  {customerPackEnabled ? 'Enabled' : 'Disabled'}
                 </span>
               )}
             </div>
