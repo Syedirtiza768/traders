@@ -134,9 +134,9 @@ def provision_opportunity_pack(company=None, template="minimal", activate=0):
 
     Defaults to inactive + master switch OFF so other tenants stay unchanged.
     Pass ``activate=1`` to turn on the company flag and activate the profile
-    (used for Electrance go-live or any new client opt-in).
+    (used for Electrence go-live or any new client opt-in).
 
-    ``template`` is a pack name (``electrance`` / ``minimal``), not a company
+    ``template`` is a pack name (``electrence`` / ``minimal``), not a company
     identity — never branches on tenant name.
     """
     from trader_app.api.opportunity import build_profile_defaults
@@ -243,7 +243,7 @@ def provision_ar_pack(company=None, template="minimal", activate=0):
     Defaults to inactive + master switch OFF. Pass ``activate=1`` to turn on
     ``Company.trader_ar_enabled`` and activate the profile.
 
-    ``template`` is a pack name (``electrance`` / ``minimal``), not a company
+    ``template`` is a pack name (``electrence`` / ``minimal``), not a company
     identity — never branches on tenant name.
     """
     from trader_app.api.ar import build_profile_defaults
@@ -322,7 +322,7 @@ def provision_ar_pack(company=None, template="minimal", activate=0):
 def provision_customer_pack(company=None, template="minimal", activate=0):
     """Idempotently create a Trader Customer Profile for ``company``.
 
-    ``template`` is a pack name (``electrance`` / ``minimal``), not a company
+    ``template`` is a pack name (``electrence`` / ``minimal``), not a company
     identity — never branches on tenant name.
     """
     from trader_app.api.customer_pack import build_profile_defaults

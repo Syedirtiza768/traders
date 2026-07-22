@@ -2,7 +2,7 @@
 """Ensure Trader roles can manage ERPNext master doctypes used by the SPA.
 
 ERPNext ships Customer/Supplier/Item permissions for Sales User / Purchase User /
-Stock User only. Trader tenants often assign solely Trader* roles (e.g. Electrance
+Stock User only. Trader tenants often assign solely Trader* roles (e.g. Electrence
 Trader Admin), so create/update fails with PermissionError even though the SPA
 exposes those screens.
 

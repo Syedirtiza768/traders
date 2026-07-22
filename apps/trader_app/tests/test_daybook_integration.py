@@ -36,7 +36,7 @@ import unittest
 import frappe
 from frappe.utils import add_days, flt
 
-COMPANY = "Electrance"
+COMPANY = "Electrence"
 WAREHOUSE = "Stores - ELECT"
 ITEM = "_ITEST DB Widget"
 CUST = "_ITEST DB Customer"

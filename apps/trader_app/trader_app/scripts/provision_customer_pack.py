@@ -5,13 +5,13 @@
 Usage::
 
   bench --site <site> execute trader_app.scripts.provision_customer_pack.run \\
-    --kwargs "{'company': 'Electrance', 'template': 'electrance', 'activate': 1}"
+    --kwargs "{'company': 'Electrence', 'template': 'electrence', 'activate': 1}"
 """
 
 from __future__ import unicode_literals
 
 
-def run(company=None, template="electrance", activate=1):
+def run(company=None, template="electrence", activate=1):
     from trader_app.api.migration_toolkit import provision_customer_pack
     from trader_app.setup.custom_fields import ensure_custom_fields
 

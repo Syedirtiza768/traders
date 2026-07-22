@@ -4,7 +4,7 @@
  "creation": "2026-07-21 00:00:00.000000",
  "doctype": "DocType",
  "engine": "InnoDB",
- "description": "Company-scoped Commercial Opportunity pack (OPP PRD). OPT-IN: APIs and UI only act when Company.trader_opportunity_enabled is on AND this profile is_active. No tenant-name branching — Electrance is a seed template, not a code path.",
+ "description": "Company-scoped Commercial Opportunity pack (OPP PRD). OPT-IN: APIs and UI only act when Company.trader_opportunity_enabled is on AND this profile is_active. No tenant-name branching — Electrence is a seed template, not a code path.",
  "field_order": [
   "profile_name",
   "company",
@@ -69,7 +69,7 @@
    "fieldname": "template_key",
    "fieldtype": "Data",
    "label": "Template Key",
-   "description": "Seed template used to create this profile (e.g. electrance, minimal).",
+   "description": "Seed template used to create this profile (e.g. electrence, minimal).",
    "read_only": 1
   },
   {

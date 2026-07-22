@@ -4,7 +4,7 @@
  "creation": "2026-07-22 00:00:00.000000",
  "doctype": "DocType",
  "engine": "InnoDB",
- "description": "Company-scoped Customer master pack (SA Hamid customer entity subset). OPT-IN via Company.trader_customer_pack_enabled + is_active. Electrance is a seed template, not a code branch.",
+ "description": "Company-scoped Customer master pack (SA Hamid customer entity subset). OPT-IN via Company.trader_customer_pack_enabled + is_active. Electrence is a seed template, not a code branch.",
  "field_order": [
   "profile_name",
   "company",

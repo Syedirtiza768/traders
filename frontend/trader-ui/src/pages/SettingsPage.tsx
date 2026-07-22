@@ -594,7 +594,7 @@ export default function SettingsPage() {
               <p className="text-xs text-gray-500 dark:text-slate-400 leading-relaxed">
                 Enables the Opportunity hub (enquiry → quotation → order confirmation → delivery → invoice)
                 for project/tender sales. Behaviour is driven by Trader Opportunity Profile — not company name.
-                Default off so other tenants stay unchanged. Provision a pack for full Electrance-shaped defaults.
+                Default off so other tenants stay unchanged. Provision a pack for full Electrence-shaped defaults.
                 <br />
                 <span className="text-brand-600 dark:text-brand-400 font-medium">
                   Disabling hides Sales → Opportunities but preserves opportunities and profiles.
@@ -641,7 +641,7 @@ export default function SettingsPage() {
                 Enables multi-invoice payment allocation, settle tolerance, print personas
                 (Internal / External / Commercial / Tax), and withhold reporting adjustments.
                 Behaviour is driven by Trader AR Profile — not company name.
-                Provision a pack for Electrance-shaped defaults.
+                Provision a pack for Electrence-shaped defaults.
                 <br />
                 <span className="text-brand-600 dark:text-brand-400 font-medium">
                   Disabling hides AR allocation UI extras but preserves profiles and template maps.
@@ -687,7 +687,7 @@ export default function SettingsPage() {
               <p className="text-xs text-gray-500 dark:text-slate-400 leading-relaxed">
                 Extended Customer create/edit (DBA, tax ID, payment terms, credit limit, billing address)
                 and contacts on Customer detail. Driven by Trader Customer Profile — not company name.
-                Provision the electrance template for project-led defaults.
+                Provision the electrence template for project-led defaults.
               </p>
             </div>
             <div className="flex-shrink-0">

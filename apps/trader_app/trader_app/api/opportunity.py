@@ -2,7 +2,7 @@
 """Trader App — Commercial Opportunity module (OPP PRD).
 
 Opt-in per company via ``Company.trader_opportunity_enabled`` and an active
-``Trader Opportunity Profile``. No tenant/company-name branching: Electrance
+``Trader Opportunity Profile``. No tenant/company-name branching: Electrence
 is a *template key* for seeding, not a runtime ``if`` in core.
 """
 
@@ -41,8 +41,8 @@ PROFILE_TEMPLATES = {
         "stock_posting_moment": "delivery_note",
         "cogs_model": "A",
     },
-    # Reference pack for project/tender sales (Electrance go-live shape).
-    "electrance": {
+    # Reference pack for project/tender sales (Electrence go-live shape).
+    "electrence": {
         "require_opportunity_for_quotation": 1,
         "dn_requires_oc_if_quotations_exist": 1,
         "invoice_from_dn_only": 1,
@@ -94,9 +94,12 @@ CHILD_DOC_TYPES = (
 )
 
 
+_TEMPLATE_ALIASES = {"electrance": "electrence"}
+
+
 def build_profile_defaults(template="minimal"):
     """Return field defaults for a named seed template (pure; no DB)."""
-    key = (template or "minimal").strip().lower()
+    key = _TEMPLATE_ALIASES.get((template or "minimal").strip().lower(), (template or "minimal").strip().lower())
     if key not in PROFILE_TEMPLATES:
         raise ValueError("Unknown opportunity template: {0}".format(template))
     out = dict(PROFILE_TEMPLATES[key])
@@ -809,6 +812,13 @@ def create_quotation_for_opportunity(opportunity, data=None, company=None):
     quotation.valid_till = payload.get("valid_till")
     if _has_opportunity_link("Quotation"):
         quotation.trader_opportunity = doc.name
+
+    from trader_app.api.currency import apply_document_currency
+    apply_document_currency(
+        quotation,
+        posting_date=quotation.transaction_date,
+        for_selling=True,
+    )
 
     commercial = payload.get("commercial_options") or []
     if commercial and _has_commercial_field("Quotation"):

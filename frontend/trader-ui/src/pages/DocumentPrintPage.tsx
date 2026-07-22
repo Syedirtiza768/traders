@@ -34,7 +34,18 @@ type PrintData = {
   date: string;
   due_date: string;
   currency: string;
-  company: { name: string; abbr: string; address: string; phone: string; email: string; website: string; tax_id: string };
+  company: {
+    name: string;
+    abbr: string;
+    address: string;
+    phone: string;
+    email: string;
+    website: string;
+    tax_id: string;
+    logo?: string;
+    letterhead_header?: string;
+    letterhead_footer?: string;
+  };
   party: { name: string; display_name: string; address: string; tax_id: string };
   items: PrintItem[];
   taxes: Tax[];
@@ -211,17 +222,43 @@ export default function DocumentPrintPage() {
       <div className="card">
         <div ref={printRef}>
           <div style={{ maxWidth: 800, margin: '0 auto', padding: '40px', fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
+            {/* Letterhead header (tenant branding) */}
+            {printData.company.letterhead_header ? (
+              <div style={{ marginBottom: 24 }}>
+                <img
+                  src={printData.company.letterhead_header}
+                  alt={printData.company.name}
+                  style={{ width: '100%', maxHeight: 72, objectFit: 'contain', objectPosition: 'left center' }}
+                />
+              </div>
+            ) : null}
+
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 32, borderBottom: '3px solid #1a365d', paddingBottom: 20 }}>
-              <div>
-                <h1 style={{ fontSize: 28, fontWeight: 800, color: '#1a365d', margin: 0, letterSpacing: 1 }}>{printData.doc_title}</h1>
-                <p style={{ fontSize: 14, color: '#666', marginTop: 4 }}>{printData.name}</p>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                {!printData.company.letterhead_header && printData.company.logo ? (
+                  <img
+                    src={printData.company.logo}
+                    alt=""
+                    style={{ width: 48, height: 48, objectFit: 'contain' }}
+                  />
+                ) : null}
+                <div>
+                  <h1 style={{ fontSize: 28, fontWeight: 800, color: '#1a365d', margin: 0, letterSpacing: 1 }}>{printData.doc_title}</h1>
+                  <p style={{ fontSize: 14, color: '#666', marginTop: 4 }}>{printData.name}</p>
+                </div>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <h2 style={{ fontSize: 16, fontWeight: 700, color: '#1a365d', margin: 0 }}>{printData.company.name}</h2>
-                {printData.company.address && <p style={{ fontSize: 12, color: '#666', margin: '4px 0 0' }}>{printData.company.address}</p>}
-                {printData.company.phone && <p style={{ fontSize: 12, color: '#666', margin: '2px 0 0' }}>Tel: {printData.company.phone}</p>}
-                {printData.company.email && <p style={{ fontSize: 12, color: '#666', margin: '2px 0 0' }}>{printData.company.email}</p>}
+                {!printData.company.letterhead_footer && printData.company.address && (
+                  <p style={{ fontSize: 12, color: '#666', margin: '4px 0 0' }}>{printData.company.address}</p>
+                )}
+                {!printData.company.letterhead_footer && printData.company.phone && (
+                  <p style={{ fontSize: 12, color: '#666', margin: '2px 0 0' }}>Tel: {printData.company.phone}</p>
+                )}
+                {!printData.company.letterhead_footer && printData.company.email && (
+                  <p style={{ fontSize: 12, color: '#666', margin: '2px 0 0' }}>{printData.company.email}</p>
+                )}
                 {printData.company.tax_id && <p style={{ fontSize: 12, color: '#666', margin: '2px 0 0' }}>NTN: {printData.company.tax_id}</p>}
               </div>
             </div>
@@ -344,10 +381,24 @@ export default function DocumentPrintPage() {
             )}
 
             {/* Footer */}
-            <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 16, marginTop: 32, display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#999' }}>
-              <span>Generated on {formatDate(printData.printed_on)}</span>
-              <span>{printData.company.name}</span>
-            </div>
+            {printData.company.letterhead_footer ? (
+              <div style={{ marginTop: 32 }}>
+                <img
+                  src={printData.company.letterhead_footer}
+                  alt=""
+                  style={{ width: '100%', maxHeight: 96, objectFit: 'contain', objectPosition: 'left center' }}
+                />
+                <div style={{ paddingTop: 8, display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#999' }}>
+                  <span>Generated on {formatDate(printData.printed_on)}</span>
+                  <span>{printData.company.name}</span>
+                </div>
+              </div>
+            ) : (
+              <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 16, marginTop: 32, display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#999' }}>
+                <span>Generated on {formatDate(printData.printed_on)}</span>
+                <span>{printData.company.name}</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
