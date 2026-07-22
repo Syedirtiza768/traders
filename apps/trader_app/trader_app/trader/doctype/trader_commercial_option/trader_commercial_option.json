@@ -14,7 +14,8 @@
   "stock_status",
   "package_price",
   "qty_invoiced",
-  "items"
+  "items",
+  "items_json"
  ],
  "fields": [
   {
@@ -75,6 +76,14 @@
    "fieldtype": "Table",
    "label": "Items",
    "options": "Trader Commercial Option Item"
+  },
+  {
+   "fieldname": "items_json",
+   "fieldtype": "Code",
+   "options": "JSON",
+   "label": "Items JSON",
+   "hidden": 1,
+   "description": "Durable item payload (nested child tables on Custom Field parents often fail to persist)."
   }
  ],
  "links": [],

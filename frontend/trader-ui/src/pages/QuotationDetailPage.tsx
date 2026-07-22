@@ -314,68 +314,6 @@ export default function QuotationDetailPage() {
         </div>
       ) : null}
 
-      <div className="card">
-        <div className="card-header">
-          <h2 className="text-lg font-semibold text-gray-900">Quotation Items</h2>
-          <p className="text-sm text-gray-500">Line items included in this quotation</p>
-        </div>
-        {/* Desktop table */}
-        <div className="hidden md:block">
-          <div className="table-container">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gray-50">
-                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Item</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Description</th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Qty</th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Rate</th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Amount</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {itemRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-10 text-center text-gray-400">No quotation items found.</td>
-                  </tr>
-                ) : (
-                  itemRows.map((item, index) => (
-                    <tr key={`${item.item_code || item.item_name || 'item'}-${index}`} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-3 text-sm font-medium text-gray-900">{item.item_code || '—'}</td>
-                      <td className="px-6 py-3 text-sm text-gray-600">{item.description || item.item_name || '—'}</td>
-                      <td className="px-6 py-3 text-right text-sm text-gray-900">{item.qty ?? 0}</td>
-                      <td className="px-6 py-3 text-right text-sm text-gray-900">{formatCurrency(item.rate, quotation.currency)}</td>
-                      <td className="px-6 py-3 text-right text-sm font-medium text-gray-900">{formatCurrency(item.amount, quotation.currency)}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-        {/* Mobile cards */}
-        <div className="md:hidden divide-y divide-gray-100">
-          {itemRows.length === 0 ? (
-            <p className="px-4 py-8 text-center text-sm text-gray-400">No quotation items found.</p>
-          ) : (
-            itemRows.map((item, index) => (
-              <div key={`m-${item.item_code || index}`} className="px-4 py-3">
-                <div className="flex justify-between items-start gap-2">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{item.item_code || '—'}</p>
-                    <p className="text-xs text-gray-500 truncate">{item.description || item.item_name || '—'}</p>
-                  </div>
-                  <p className="text-sm font-semibold text-gray-900 whitespace-nowrap">{formatCurrency(item.amount, quotation.currency)}</p>
-                </div>
-                <div className="flex gap-4 mt-1 text-xs text-gray-500">
-                  <span>Qty: {item.qty ?? 0}</span>
-                  <span>Rate: {formatCurrency(item.rate, quotation.currency)}</span>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-
       <CommercialHierarchyEditor
         doctype="Quotation"
         name={quotation.name}
@@ -393,6 +331,70 @@ export default function QuotationDetailPage() {
         }
         onSaved={() => { void reloadQuotation(); }}
       />
+
+      <div className="card">
+        <div className="card-header">
+          <h2 className="text-lg font-semibold text-gray-900">Rendered from hierarchy</h2>
+          <p className="text-sm text-gray-500">
+            Read-only ERPNext lines (first option per line). Edit the Commercial Hierarchy above — this panel only mirrors it.
+          </p>
+        </div>
+        <div className="hidden md:block">
+          <div className="table-container">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Item</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Description</th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Qty</th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Rate</th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Amount</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {itemRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-10 text-center text-gray-400">
+                      No rendered lines yet — add hierarchy options/items above.
+                    </td>
+                  </tr>
+                ) : (
+                  itemRows.map((item, index) => (
+                    <tr key={`${item.item_code || item.item_name || 'item'}-${index}`} className="bg-gray-50/40">
+                      <td className="px-6 py-3 text-sm font-medium text-gray-900">{item.item_code || '—'}</td>
+                      <td className="px-6 py-3 text-sm text-gray-600 whitespace-pre-wrap">{item.description || item.item_name || '—'}</td>
+                      <td className="px-6 py-3 text-right text-sm text-gray-900">{item.qty ?? 0}</td>
+                      <td className="px-6 py-3 text-right text-sm text-gray-900">{formatCurrency(item.rate, quotation.currency)}</td>
+                      <td className="px-6 py-3 text-right text-sm font-medium text-gray-900">{formatCurrency(item.amount, quotation.currency)}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div className="md:hidden divide-y divide-gray-100">
+          {itemRows.length === 0 ? (
+            <p className="px-4 py-8 text-center text-sm text-gray-400">No rendered lines yet.</p>
+          ) : (
+            itemRows.map((item, index) => (
+              <div key={`m-${item.item_code || index}`} className="px-4 py-3 bg-gray-50/40">
+                <div className="flex justify-between items-start gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900">{item.item_code || '—'}</p>
+                    <p className="text-xs text-gray-500 whitespace-pre-wrap">{item.description || item.item_name || '—'}</p>
+                  </div>
+                  <p className="text-sm font-semibold text-gray-900 whitespace-nowrap">{formatCurrency(item.amount, quotation.currency)}</p>
+                </div>
+                <div className="flex gap-4 mt-1 text-xs text-gray-500">
+                  <span>Qty: {item.qty ?? 0}</span>
+                  <span>Rate: {formatCurrency(item.rate, quotation.currency)}</span>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
 
       <QuickAddProvider
         quickAdd={quickAdd}

@@ -945,6 +945,8 @@ def create_quotation_for_opportunity(opportunity, data=None, company=None):
         quotation.run_method("set_taxes")
 
     quotation.insert(ignore_permissions=False)
+    from trader_app.api.hierarchy import persist_nested_commercial_items
+    persist_nested_commercial_items(quotation)
     frappe.db.commit()
     log_decision(
         "other",
@@ -1133,6 +1135,8 @@ def create_quotation_revision(name, company=None):
         frappe.throw(_("Could not create revision: source quotation has no item lines."))
 
     revision.insert(ignore_permissions=False)
+    from trader_app.api.hierarchy import persist_nested_commercial_items
+    persist_nested_commercial_items(revision)
     frappe.db.commit()
     return {
         "name": revision.name,
@@ -1257,6 +1261,8 @@ def create_order_confirmation(
             )
 
     so.insert(ignore_permissions=False)
+    from trader_app.api.hierarchy import persist_nested_commercial_items
+    persist_nested_commercial_items(so)
     frappe.db.commit()
     log_decision(
         "other",
@@ -1365,6 +1371,8 @@ def create_delivery_note_for_opportunity(opportunity, source_oc=None, company=No
         )
 
     dn.insert(ignore_permissions=False)
+    from trader_app.api.hierarchy import persist_nested_commercial_items
+    persist_nested_commercial_items(dn)
     frappe.db.commit()
     log_decision(
         "other",
@@ -1389,6 +1397,7 @@ def save_commercial_options(doctype, name, commercial_options, company=None):
     """Persist hierarchy on a draft Quote/SO/DN/SI and sync flat items."""
     from trader_app.api.hierarchy import (
         apply_commercial_options,
+        persist_nested_commercial_items,
         serialize_commercial_options,
         sync_flat_items_from_hierarchy,
     )
@@ -1412,7 +1421,9 @@ def save_commercial_options(doctype, name, commercial_options, company=None):
     apply_commercial_options(child, rows)
     sync_flat_items_from_hierarchy(child, warehouse=_default_warehouse(child.company))
     child.save()
+    persist_nested_commercial_items(child)
     frappe.db.commit()
+    child.reload()
     return {
         "name": child.name,
         "doctype": doctype,

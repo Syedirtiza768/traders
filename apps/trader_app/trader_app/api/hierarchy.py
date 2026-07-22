@@ -3,9 +3,16 @@
 
 Pure decision cores live here so they can be unit-tested without a site.
 Document attach/copy helpers use Frappe when available.
+
+Persistence note:
+  Nested child tables under Custom Field parents often fail to save in Frappe.
+  We therefore store items in ``items_json`` on each option row and also try to
+  write ``Trader Commercial Option Item`` rows after the parent document saves.
 """
 
 from __future__ import unicode_literals
+
+import json
 
 from frappe.utils import flt
 
@@ -23,6 +30,87 @@ def remaining_package_qty(package_qty, qty_invoiced):
     return rem if rem > 0 else 0.0
 
 
+def _normalize_item_dict(it, remaining_only=False):
+    if isinstance(it, dict):
+        unit_qty = flt(it.get("unit_qty", 1))
+        unit_price = flt(it.get("unit_price", 0))
+        discount = flt(it.get("discount_percent", 0))
+        item_code = it.get("item_code")
+        description = it.get("description") or ""
+        item_invoiced = 0.0 if remaining_only else flt(it.get("qty_invoiced", 0))
+    else:
+        unit_qty = flt(getattr(it, "unit_qty", 1))
+        unit_price = flt(getattr(it, "unit_price", 0))
+        discount = flt(getattr(it, "discount_percent", 0))
+        item_code = getattr(it, "item_code", None)
+        description = getattr(it, "description", None) or ""
+        item_invoiced = 0.0 if remaining_only else flt(getattr(it, "qty_invoiced", 0))
+    if not item_code:
+        return None
+    amount = unit_qty * unit_price * (1.0 - (discount / 100.0))
+    return {
+        "item_code": item_code,
+        "description": description,
+        "unit_qty": unit_qty,
+        "unit_price": unit_price,
+        "discount_percent": discount,
+        "amount": amount,
+        "qty_invoiced": item_invoiced,
+    }
+
+
+def _parse_items_json(raw):
+    if not raw:
+        return []
+    if isinstance(raw, (list, tuple)):
+        return list(raw)
+    if isinstance(raw, str):
+        try:
+            data = json.loads(raw)
+        except Exception:
+            return []
+        return data if isinstance(data, list) else []
+    return []
+
+
+def _items_from_row(row, remaining_only=False):
+    """Resolve items from nested table, items_json, or DB (in that order)."""
+    items_src = []
+    if isinstance(row, dict):
+        items_src = row.get("items") or []
+        if not items_src:
+            items_src = _parse_items_json(row.get("items_json"))
+    else:
+        items_src = list(getattr(row, "items", None) or [])
+        if not items_src:
+            items_src = _parse_items_json(getattr(row, "items_json", None))
+        if not items_src and getattr(row, "name", None):
+            try:
+                import frappe
+                items_src = frappe.get_all(
+                    "Trader Commercial Option Item",
+                    filters={"parent": row.name},
+                    fields=[
+                        "item_code",
+                        "description",
+                        "unit_qty",
+                        "unit_price",
+                        "discount_percent",
+                        "qty_invoiced",
+                    ],
+                    order_by="idx",
+                )
+            except Exception:
+                items_src = []
+
+    items = []
+    for it in items_src or []:
+        normalized = _normalize_item_dict(it, remaining_only=remaining_only)
+        if normalized:
+            items.append(normalized)
+    return items
+
+
 def option_row_to_dict(row, remaining_only=False):
     """Serialize a commercial option (dict or DocType row) for copy/append."""
     package_qty = flt(row.get("package_qty") if isinstance(row, dict) else row.package_qty)
@@ -33,36 +121,7 @@ def option_row_to_dict(row, remaining_only=False):
             return None
         qty_invoiced = 0.0
 
-    items_src = row.get("items") if isinstance(row, dict) else (row.items or [])
-    items = []
-    for it in items_src or []:
-        if isinstance(it, dict):
-            unit_qty = flt(it.get("unit_qty", 1))
-            unit_price = flt(it.get("unit_price", 0))
-            discount = flt(it.get("discount_percent", 0))
-            item_code = it.get("item_code")
-            description = it.get("description")
-            item_invoiced = 0.0 if remaining_only else flt(it.get("qty_invoiced", 0))
-        else:
-            unit_qty = flt(it.unit_qty)
-            unit_price = flt(it.unit_price)
-            discount = flt(it.discount_percent)
-            item_code = it.item_code
-            description = it.description
-            item_invoiced = 0.0 if remaining_only else flt(getattr(it, "qty_invoiced", 0))
-        if not item_code:
-            continue
-        amount = unit_qty * unit_price * (1.0 - (discount / 100.0))
-        items.append({
-            "item_code": item_code,
-            "description": description,
-            "unit_qty": unit_qty,
-            "unit_price": unit_price,
-            "discount_percent": discount,
-            "amount": amount,
-            "qty_invoiced": item_invoiced,
-        })
-
+    items = _items_from_row(row, remaining_only=remaining_only)
     get = (lambda k, d=None: row.get(k, d)) if isinstance(row, dict) else (lambda k, d=None: getattr(row, k, d))
     return {
         "line_no": cint_safe(get("line_no", 1)),
@@ -74,6 +133,7 @@ def option_row_to_dict(row, remaining_only=False):
         "package_price": flt(get("package_price")),
         "qty_invoiced": qty_invoiced,
         "items": items,
+        "items_json": json.dumps(items),
     }
 
 
@@ -162,9 +222,60 @@ def apply_commercial_options(doc, rows, clear_existing=True):
         doc.set(COMMERCIAL_FIELD, [])
     for row in copy_commercial_options(rows):
         items = row.pop("items", [])
+        row["items_json"] = json.dumps(items)
         child = doc.append(COMMERCIAL_FIELD, row)
         for it in items:
             child.append("items", it)
+        if hasattr(child, "items_json"):
+            child.items_json = json.dumps(items)
+
+
+def persist_nested_commercial_items(doc):
+    """Persist option items to items_json + nested child table after parent save.
+
+    Nested Table under Custom Field parents often does not cascade. Calling this
+    after insert/save ensures hierarchy items survive reload.
+    """
+    import frappe
+
+    if not doc or not getattr(doc, "name", None) or not hasattr(doc, COMMERCIAL_FIELD):
+        return 0
+
+    written = 0
+    for row in getattr(doc, COMMERCIAL_FIELD) or []:
+        if not getattr(row, "name", None):
+            continue
+        items = _items_from_row(row)
+        payload = json.dumps(items)
+        if hasattr(row, "items_json"):
+            frappe.db.set_value(
+                "Trader Commercial Option",
+                row.name,
+                "items_json",
+                payload,
+                update_modified=False,
+            )
+            row.items_json = payload
+
+        frappe.db.delete("Trader Commercial Option Item", {"parent": row.name})
+        for idx, it in enumerate(items):
+            child = frappe.get_doc({
+                "doctype": "Trader Commercial Option Item",
+                "parent": row.name,
+                "parenttype": "Trader Commercial Option",
+                "parentfield": "items",
+                "idx": idx + 1,
+                "item_code": it.get("item_code"),
+                "description": it.get("description") or "",
+                "unit_qty": flt(it.get("unit_qty") or 1),
+                "unit_price": flt(it.get("unit_price") or 0),
+                "discount_percent": flt(it.get("discount_percent") or 0),
+                "amount": flt(it.get("amount") or 0),
+                "qty_invoiced": flt(it.get("qty_invoiced") or 0),
+            })
+            child.db_insert()
+            written += 1
+    return written
 
 
 def sync_flat_items_from_hierarchy(doc, warehouse=None, clear_items=True, first_option_only=None):
