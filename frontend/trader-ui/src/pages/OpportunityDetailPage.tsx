@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ComponentType, type ReactNode } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
   FileText,
@@ -506,16 +506,10 @@ export default function OpportunityDetailPage() {
               </ul>
             )}
             <p className="text-xs text-gray-500">
-              Use Make Quotation (create form with hierarchy — no empty seed) or Continue/Discard when a
-              draft exists. Hierarchy (Line → Option → Item) copies Quote → OC → DN; effective qty = unit ×
-              package.
+              Use Make Quotation above (create form with hierarchy — no empty seed), or Continue / Discard
+              when a draft exists. Hierarchy (Line → Option → Item) copies Quote → OC → DN; first option
+              per line is billed.
             </p>
-            <Link
-              to={`/sales/quotations/new?opportunity=${encodeURIComponent(opp.name)}`}
-              className="btn-secondary inline-flex self-start"
-            >
-              New quotation with hierarchy
-            </Link>
           </div>
         </div>
       )}

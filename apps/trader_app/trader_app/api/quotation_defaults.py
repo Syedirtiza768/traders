@@ -100,6 +100,17 @@ ORDER_DETAIL_FIELD_MAP = {
     "clause_rates": "trader_clause_rates",
     "print_exchange": "trader_print_exchange",
     "warehouse": "trader_warehouse",
+    "gst_clause": "trader_gst_clause",
+    "deliver_to": "trader_deliver_to",
+    "delivery_address": "trader_delivery_address",
+    "contact_person": "trader_contact_person",
+    "contact_phone": "trader_contact_phone",
+    "contact_email": "trader_contact_email",
+    "delivery_date": "trader_delivery_date",
+    "quote_date": "trader_quote_date",
+    "use_quote_date": "trader_use_quote_date",
+    "confirmed_date": "trader_confirmed_date",
+    "order_comments": "trader_order_comments",
 }
 
 
@@ -110,9 +121,16 @@ def get_default_quotation_terms(company=None):
 
 def get_default_order_details(company=None):
     """Return Order Details defaults (payment %, GST/WHT, freight, FX)."""
+    from trader_app.api.commercial_totals import snapshot_clause_rates
+
     details = dict(ELECTRENCE_ORDER_DETAILS)
     details["rate_validity"] = add_days(nowdate(), 15)
-    details["clause_rates"] = json.dumps({"usd": 1.0, "note": "snapshot-placeholder"})
+    details["quote_date"] = nowdate()
+    details["use_quote_date"] = 0
+    try:
+        details["clause_rates"] = json.dumps(snapshot_clause_rates(company=company))
+    except Exception:
+        details["clause_rates"] = json.dumps({"usd": 1.0, "note": "snapshot-fallback"})
     return details
 
 
@@ -134,7 +152,7 @@ def apply_order_details_to_quotation(quotation, order_details=None, company=None
         if not frappe.db.has_column("Quotation", fieldname):
             continue
         value = payload.get(key)
-        if key == "services":
+        if key == "services" or key == "use_quote_date":
             value = cint(value)
         elif key in (
             "validity_days",

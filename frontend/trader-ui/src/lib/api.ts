@@ -364,6 +364,16 @@ export const opportunityApi = {
   getQuotationDefaults: (company?: string) =>
     get('trader_app.api.opportunity.get_quotation_defaults', { company }),
 
+  getClauseRateSnapshot: (as_of?: string, company?: string) =>
+    get('trader_app.api.commercial_totals.get_clause_rate_snapshot', { as_of, company }),
+
+  getCustomerCreditCheck: (customer: string, quote_amount?: number, company?: string) =>
+    get('trader_app.api.commercial_totals.get_customer_credit_check', {
+      customer,
+      quote_amount,
+      company,
+    }),
+
   discardQuotationDraft: (name: string) =>
     call('trader_app.api.opportunity.discard_quotation_draft', { name }),
 

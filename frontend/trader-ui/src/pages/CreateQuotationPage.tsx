@@ -14,6 +14,7 @@ import QuotationOrderDetailsForm, {
   EMPTY_ORDER_DETAILS,
   type OrderDetails,
 } from '../components/QuotationOrderDetailsForm';
+import { computeCommercialTotals } from '../lib/commercialTotals';
 import { useCompanyStore } from '../stores/companyStore';
 
 type QuotationLine = {
@@ -76,6 +77,7 @@ export default function CreateQuotationPage() {
   const [taxTemplate, setTaxTemplate] = useState('');
   const [taxRate, setTaxRate] = useState(0);
   const taxInclusive = false;
+  const [creditWarn, setCreditWarn] = useState<string | null>(null);
   const listSearch = searchParams.get('list');
   const quickAdd = useQuickAdd();
   const quickAddItemLine = useRef<number>(-1);
@@ -195,12 +197,52 @@ export default function CreateQuotationPage() {
   }, [hierarchy]);
 
   const total = useHierarchy ? hierarchyBilled : flatTotal;
+  const commercial = useMemo(
+    () =>
+      useHierarchy
+        ? computeCommercialTotals({
+            net: total,
+            gst_mode: orderDetails.gst_mode,
+            services: orderDetails.services,
+            wht_percent: orderDetails.wht_percent,
+            rate_clause: orderDetails.rate_clause,
+            print_exchange: orderDetails.print_exchange,
+            clause_rates: orderDetails.clause_rates,
+          })
+        : null,
+    [useHierarchy, total, orderDetails],
+  );
   const taxAmount = useMemo(() => {
+    if (commercial) return commercial.gst_amount;
     if (!taxRate) return 0;
     if (taxInclusive) return total - total / (1 + taxRate / 100);
     return (total * taxRate) / 100;
-  }, [total, taxRate, taxInclusive]);
-  const grandTotal = useMemo(() => (taxInclusive ? total : total + taxAmount), [total, taxAmount, taxInclusive]);
+  }, [total, taxRate, taxInclusive, commercial]);
+  const grandTotal = useMemo(
+    () => (commercial ? commercial.grand_total : taxInclusive ? total : total + taxAmount),
+    [total, taxAmount, taxInclusive, commercial],
+  );
+
+  useEffect(() => {
+    if (!customer || !useHierarchy) {
+      setCreditWarn(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await opportunityApi.getCustomerCreditCheck(customer, grandTotal);
+        if (cancelled) return;
+        const msg = res.data.message;
+        setCreditWarn(msg?.over_limit ? msg.message || 'Over credit limit.' : null);
+      } catch {
+        if (!cancelled) setCreditWarn(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [customer, grandTotal, useHierarchy]);
 
   const validLineCount = useMemo(
     () => lines.filter((l) => l.item_code && Number(l.qty) > 0).length,
@@ -526,9 +568,24 @@ export default function CreateQuotationPage() {
       <div className="card">
         <div className="card-body flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-sm text-gray-600 space-y-1">
-            <div>Net: {formatCurrency(total)}</div>
-            {taxRate > 0 ? <div>Tax ({taxRate}%): {formatCurrency(taxAmount)}</div> : null}
+            <div>Net (1st options): {formatCurrency(total)}</div>
+            {commercial && commercial.gst_amount > 0 ? (
+              <div>
+                GST {commercial.gst_mode} ({commercial.gst_rate}%): {formatCurrency(commercial.gst_amount)}
+              </div>
+            ) : taxRate > 0 && !useHierarchy ? (
+              <div>Tax ({taxRate}%): {formatCurrency(taxAmount)}</div>
+            ) : null}
+            {commercial && commercial.wht_amount > 0 ? (
+              <div>WHT ({commercial.wht_percent}%): −{formatCurrency(commercial.wht_amount)}</div>
+            ) : null}
             <div className="text-base font-semibold text-gray-900">Grand Total: {formatCurrency(grandTotal)}</div>
+            {commercial && commercial.fx_grand != null && commercial.print_exchange !== '0' ? (
+              <div className="text-xs text-gray-500">
+                FX ({commercial.rate_clause.toUpperCase()} @ {commercial.fx_rate}): {commercial.fx_grand.toFixed(2)}
+              </div>
+            ) : null}
+            {creditWarn ? <div className="text-xs text-amber-700">{creditWarn}</div> : null}
           </div>
           <button type="button" className="btn-primary inline-flex items-center gap-2" disabled={!isReadyToSave || saving} onClick={handleSubmit}>
             <Save className="h-4 w-4" />

@@ -20,6 +20,9 @@ type PrintItem = {
   is_bundle: number;
   bundle_description?: string;
   bundle_items?: Array<{ item_code: string; qty: number; rate: number; amount: number }>;
+  is_alternate_option?: number;
+  line_no?: number;
+  option_no?: number;
 };
 
 type Tax = { description: string; rate: number; tax_amount: number; total: number };
@@ -51,15 +54,40 @@ type PrintData = {
   project?: string;
   order_details?: {
     pay_advance_pct?: number;
+    pay_delivery_pct?: number;
+    pay_commissioning_pct?: number;
     pay_after_pct?: number;
     pay_after_days?: number;
     freight_clause?: string;
     gst_mode?: string;
+    gst_clause?: string;
     wht_percent?: number;
     rate_clause?: string;
+    rate_validity?: string;
+    print_exchange?: string;
     validity_days?: number;
+    deliver_to?: string;
+    delivery_address?: string;
+    contact_person?: string;
+    contact_phone?: string;
+    contact_email?: string;
+    order_comments?: string;
   };
   commercial_options?: unknown[];
+  commercial_totals?: {
+    net: number;
+    gst_mode: string;
+    gst_rate: number;
+    gst_amount: number;
+    wht_percent: number;
+    wht_amount: number;
+    grand_total: number;
+    print_exchange: string;
+    rate_clause: string;
+    fx_rate: number | null;
+    fx_net: number | null;
+    fx_grand: number | null;
+  } | null;
   party: { name: string; display_name: string; address: string; tax_id: string };
   items: PrintItem[];
   taxes: Tax[];
@@ -303,6 +331,21 @@ export default function DocumentPrintPage() {
                 <h3 style={{ fontSize: 11, fontWeight: 600, color: '#999', textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 6px' }}>Bill To</h3>
                 <p style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a', margin: 0 }}>{printData.party.display_name}</p>
                 {printData.party.address && <p style={{ fontSize: 12, color: '#666', margin: '4px 0 0' }}>{printData.party.address}</p>}
+                {doctype === 'Quotation' && printData.order_details?.deliver_to ? (
+                  <div style={{ marginTop: 12 }}>
+                    <h3 style={{ fontSize: 11, fontWeight: 600, color: '#999', textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 6px' }}>Deliver To</h3>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', margin: 0 }}>{printData.order_details.deliver_to}</p>
+                    {printData.order_details.delivery_address ? (
+                      <p style={{ fontSize: 12, color: '#666', margin: '4px 0 0', whiteSpace: 'pre-wrap' }}>{printData.order_details.delivery_address}</p>
+                    ) : null}
+                    {printData.order_details.contact_person ? (
+                      <p style={{ fontSize: 12, color: '#666', margin: '4px 0 0' }}>
+                        {printData.order_details.contact_person}
+                        {printData.order_details.contact_phone ? ` · ${printData.order_details.contact_phone}` : ''}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>
@@ -331,9 +374,29 @@ export default function DocumentPrintPage() {
                 {doctype === 'Quotation' && printData.order_details?.pay_advance_pct != null ? (
                   <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>
                     <strong>Payment:</strong>{' '}
-                    {printData.order_details.pay_advance_pct}% Adv
-                    {printData.order_details.pay_after_pct
-                      ? ` / ${printData.order_details.pay_after_pct}% after ${printData.order_details.pay_after_days || 0}d`
+                    {[
+                      printData.order_details.pay_advance_pct ? `${printData.order_details.pay_advance_pct}% Adv` : null,
+                      printData.order_details.pay_delivery_pct ? `${printData.order_details.pay_delivery_pct}% Delivery` : null,
+                      printData.order_details.pay_commissioning_pct ? `${printData.order_details.pay_commissioning_pct}% Commissioning` : null,
+                      printData.order_details.pay_after_pct
+                        ? `${printData.order_details.pay_after_pct}% after ${printData.order_details.pay_after_days || 0}d`
+                        : null,
+                    ].filter(Boolean).join(' / ')}
+                  </div>
+                ) : null}
+                {doctype === 'Quotation' && printData.order_details?.gst_clause ? (
+                  <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>
+                    <strong>GST:</strong> {printData.order_details.gst_clause}
+                  </div>
+                ) : null}
+                {doctype === 'Quotation' && printData.order_details?.rate_clause ? (
+                  <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>
+                    <strong>FX Clause:</strong> {String(printData.order_details.rate_clause).toUpperCase()}
+                    {printData.commercial_totals?.fx_rate
+                      ? ` @ ${printData.commercial_totals.fx_rate}`
+                      : ''}
+                    {printData.order_details.rate_validity
+                      ? ` (valid ${formatDate(printData.order_details.rate_validity)})`
                       : ''}
                   </div>
                 ) : null}
@@ -350,17 +413,38 @@ export default function DocumentPrintPage() {
                   <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#666', textTransform: 'uppercase' }}>#</th>
                   <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#666', textTransform: 'uppercase' }}>Description</th>
                   <th style={{ padding: '10px 12px', textAlign: 'center', fontSize: 11, fontWeight: 600, color: '#666', textTransform: 'uppercase' }}>Qty</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 600, color: '#666', textTransform: 'uppercase' }}>Rate</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 600, color: '#666', textTransform: 'uppercase' }}>Amount</th>
+                  {(printData.commercial_totals?.print_exchange === '2') ? null : (
+                    <>
+                      <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 600, color: '#666', textTransform: 'uppercase' }}>Rate</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 600, color: '#666', textTransform: 'uppercase' }}>Amount</th>
+                    </>
+                  )}
+                  {doctype === 'Quotation' && printData.commercial_totals && ['1', '2'].includes(String(printData.commercial_totals.print_exchange)) && printData.commercial_totals.fx_rate ? (
+                    <>
+                      <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 600, color: '#666', textTransform: 'uppercase' }}>
+                        Rate ({String(printData.commercial_totals.rate_clause).toUpperCase()})
+                      </th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: 11, fontWeight: 600, color: '#666', textTransform: 'uppercase' }}>
+                        Amt ({String(printData.commercial_totals.rate_clause).toUpperCase()})
+                      </th>
+                    </>
+                  ) : null}
                 </tr>
               </thead>
               <tbody>
-                {printData.items.map((item, idx) => (
+                {printData.items.map((item, idx) => {
+                  const fxRate = printData.commercial_totals?.fx_rate || 0;
+                  const showLocal = printData.commercial_totals?.print_exchange !== '2';
+                  const showFx = doctype === 'Quotation' && printData.commercial_totals && ['1', '2'].includes(String(printData.commercial_totals.print_exchange)) && fxRate > 0;
+                  return (
                   <>
-                    <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9', backgroundColor: item.is_alternate_option ? '#fffbeb' : undefined }}>
                       <td style={{ padding: '10px 12px', fontSize: 13, color: '#666' }}>{idx + 1}</td>
                       <td style={{ padding: '10px 12px', fontSize: 13 }}>
-                        <div style={{ fontWeight: item.is_bundle ? 600 : 400, color: '#1a1a1a' }}>
+                        {item.is_alternate_option ? (
+                          <div style={{ fontSize: 10, fontWeight: 700, color: '#b45309', textTransform: 'uppercase', marginBottom: 4 }}>Alternate option</div>
+                        ) : null}
+                        <div style={{ fontWeight: item.is_bundle ? 600 : 400, color: '#1a1a1a', whiteSpace: 'pre-wrap' }}>
                           {item.is_bundle && viewMode === 'external'
                             ? (item.bundle_description || item.description)
                             : item.is_bundle
@@ -372,8 +456,22 @@ export default function DocumentPrintPage() {
                         )}
                       </td>
                       <td style={{ padding: '10px 12px', fontSize: 13, textAlign: 'center', color: '#1a1a1a' }}>{item.qty} {item.uom}</td>
-                      <td style={{ padding: '10px 12px', fontSize: 13, textAlign: 'right', color: '#1a1a1a' }}>{formatCurrency(item.rate, printData.currency)}</td>
-                      <td style={{ padding: '10px 12px', fontSize: 13, textAlign: 'right', fontWeight: 500, color: '#1a1a1a' }}>{formatCurrency(item.amount, printData.currency)}</td>
+                      {showLocal ? (
+                        <>
+                          <td style={{ padding: '10px 12px', fontSize: 13, textAlign: 'right', color: '#1a1a1a' }}>{formatCurrency(item.rate, printData.currency)}</td>
+                          <td style={{ padding: '10px 12px', fontSize: 13, textAlign: 'right', fontWeight: 500, color: '#1a1a1a' }}>{formatCurrency(item.amount, printData.currency)}</td>
+                        </>
+                      ) : null}
+                      {showFx ? (
+                        <>
+                          <td style={{ padding: '10px 12px', fontSize: 13, textAlign: 'right', color: '#1a1a1a' }}>
+                            {item.amount && fxRate ? (item.rate / fxRate).toFixed(2) : '—'}
+                          </td>
+                          <td style={{ padding: '10px 12px', fontSize: 13, textAlign: 'right', fontWeight: 500, color: '#1a1a1a' }}>
+                            {item.amount && fxRate ? (item.amount / fxRate).toFixed(2) : '—'}
+                          </td>
+                        </>
+                      ) : null}
                     </tr>
                     {/* Internal mode: show bundle sub-items */}
                     {viewMode === 'internal' && item.is_bundle && item.bundle_items && item.bundle_items.map((sub, si) => (
@@ -381,28 +479,72 @@ export default function DocumentPrintPage() {
                         <td style={{ padding: '4px 12px' }}></td>
                         <td style={{ padding: '4px 12px', fontSize: 11, color: '#888', paddingLeft: 32 }}>↳ {sub.item_code}</td>
                         <td style={{ padding: '4px 12px', fontSize: 11, textAlign: 'center', color: '#888' }}>{sub.qty}</td>
-                        <td style={{ padding: '4px 12px', fontSize: 11, textAlign: 'right', color: '#888' }}>{formatCurrency(sub.rate, printData.currency)}</td>
-                        <td style={{ padding: '4px 12px', fontSize: 11, textAlign: 'right', color: '#888' }}>{formatCurrency(sub.amount, printData.currency)}</td>
+                        {showLocal ? (
+                          <>
+                            <td style={{ padding: '4px 12px', fontSize: 11, textAlign: 'right', color: '#888' }}>{formatCurrency(sub.rate, printData.currency)}</td>
+                            <td style={{ padding: '4px 12px', fontSize: 11, textAlign: 'right', color: '#888' }}>{formatCurrency(sub.amount, printData.currency)}</td>
+                          </>
+                        ) : null}
+                        {showFx ? (
+                          <>
+                            <td style={{ padding: '4px 12px', fontSize: 11, textAlign: 'right', color: '#888' }}>—</td>
+                            <td style={{ padding: '4px 12px', fontSize: 11, textAlign: 'right', color: '#888' }}>—</td>
+                          </>
+                        ) : null}
                       </tr>
                     ))}
                   </>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
 
             {/* Totals */}
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 24 }}>
-              <div style={{ width: 280 }}>
-                <TotalRow label="Net Total" value={formatCurrency(printData.net_total, printData.currency)} />
-                {printData.taxes.map((tax, i) => (
-                  <TotalRow key={i} label={`${tax.description} (${tax.rate}%)`} value={formatCurrency(tax.tax_amount, printData.currency)} />
-                ))}
-                {printData.total_taxes > 0 && (
-                  <TotalRow label="Total Taxes" value={formatCurrency(printData.total_taxes, printData.currency)} />
-                )}
-                <div style={{ borderTop: '2px solid #1a365d', marginTop: 8, paddingTop: 8 }}>
-                  <TotalRow label="Grand Total" value={formatCurrency(printData.grand_total, printData.currency)} bold />
-                </div>
+              <div style={{ width: 320 }}>
+                {(() => {
+                  const ct = printData.commercial_totals;
+                  const showLocal = !ct || ct.print_exchange !== '2';
+                  const showFx = ct && ['1', '2'].includes(String(ct.print_exchange)) && ct.fx_rate;
+                  return (
+                    <>
+                      {showLocal ? (
+                        <>
+                          <TotalRow label="Net Total" value={formatCurrency(ct?.net ?? printData.net_total, printData.currency)} />
+                          {ct && ct.gst_amount > 0 ? (
+                            <TotalRow
+                              label={`GST ${ct.gst_mode} (${ct.gst_rate}%)`}
+                              value={formatCurrency(ct.gst_amount, printData.currency)}
+                            />
+                          ) : (
+                            printData.taxes.map((tax, i) => (
+                              <TotalRow key={i} label={`${tax.description} (${tax.rate}%)`} value={formatCurrency(tax.tax_amount, printData.currency)} />
+                            ))
+                          )}
+                          {ct && ct.wht_amount > 0 ? (
+                            <TotalRow label={`WHT (${ct.wht_percent}%)`} value={`- ${formatCurrency(ct.wht_amount, printData.currency)}`} />
+                          ) : null}
+                          <div style={{ borderTop: '2px solid #1a365d', marginTop: 8, paddingTop: 8 }}>
+                            <TotalRow label="Grand Total" value={formatCurrency(ct?.grand_total ?? printData.grand_total, printData.currency)} bold />
+                          </div>
+                        </>
+                      ) : null}
+                      {showFx ? (
+                        <div style={{ marginTop: showLocal ? 12 : 0 }}>
+                          <TotalRow
+                            label={`Net (${String(ct.rate_clause).toUpperCase()})`}
+                            value={(ct.fx_net ?? 0).toFixed(2)}
+                          />
+                          <TotalRow
+                            label={`Grand (${String(ct.rate_clause).toUpperCase()})`}
+                            value={(ct.fx_grand ?? 0).toFixed(2)}
+                            bold
+                          />
+                        </div>
+                      ) : null}
+                    </>
+                  );
+                })()}
                 {printData.paid_amount > 0 && (
                   <TotalRow label="Paid Amount" value={formatCurrency(printData.paid_amount, printData.currency)} />
                 )}
@@ -411,6 +553,12 @@ export default function DocumentPrintPage() {
                 )}
               </div>
             </div>
+
+            {doctype === 'Quotation' && printData.order_details?.order_comments ? (
+              <div style={{ marginBottom: 16, fontSize: 12, color: '#666', whiteSpace: 'pre-wrap' }}>
+                <strong>Comments:</strong> {printData.order_details.order_comments}
+              </div>
+            ) : null}
 
             {printData.bank_payment && (
               <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '12px 14px', marginBottom: 16, fontSize: 12, color: '#1e3a5f' }}>

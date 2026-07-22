@@ -1049,6 +1049,17 @@ def save_quotation_order_details(name, data=None, company=None):
                 "clause_rates",
                 "print_exchange",
                 "warehouse",
+                "gst_clause",
+                "deliver_to",
+                "delivery_address",
+                "contact_person",
+                "contact_phone",
+                "contact_email",
+                "delivery_date",
+                "quote_date",
+                "use_quote_date",
+                "confirmed_date",
+                "order_comments",
             )
             if k in payload
         }
@@ -1421,7 +1432,8 @@ def save_commercial_options(doctype, name, commercial_options, company=None):
     if isinstance(rows, dict):
         rows = rows.get("commercial_options") or rows.get("options") or []
     apply_commercial_options(child, rows)
-    sync_flat_items_from_hierarchy(child, warehouse=_default_warehouse(child.company))
+    warehouse = getattr(child, "trader_warehouse", None) or _default_warehouse(child.company)
+    sync_flat_items_from_hierarchy(child, warehouse=warehouse)
     child.save()
     persist_nested_commercial_items(child)
     frappe.db.commit()

@@ -99,23 +99,12 @@ def get_print_data(doctype, name, view_mode="external", doc_format=None, format=
         if commercial:
             items = _build_print_items_from_hierarchy(commercial, view_mode)
 
-    return {
-        "doc_title": doc_title,
-        "doc_format": doc_format,
-        "view_mode": view_mode,
-        "doctype": doctype,
-        "name": doc.name,
-        "status": _get_doc_status(doc),
-        "date": str(doc.posting_date if hasattr(doc, "posting_date") else doc.transaction_date),
-        "due_date": str(getattr(doc, "due_date", "") or getattr(doc, "valid_till", "") or ""),
-        "currency": doc.currency or "PKR",
-        "company": company_info,
-        "party": party_info,
-        "customer_ref": getattr(doc, "trader_customer_ref", None) or "",
-        "revision_label": getattr(doc, "trader_revision_label", None) or "",
-        "revision_of": getattr(doc, "trader_revision_of", None) or "",
-        "project": getattr(doc, "trader_opportunity", None) or "",
-        "order_details": {
+    commercial_totals = None
+    order_details = {}
+    if doctype == "Quotation":
+        from trader_app.api.commercial_totals import commercial_totals_for_quotation
+
+        order_details = {
             "validity_days": getattr(doc, "trader_validity_days", None),
             "pay_advance_pct": getattr(doc, "trader_pay_advance_pct", None),
             "pay_delivery_pct": getattr(doc, "trader_pay_delivery_pct", None),
@@ -130,13 +119,57 @@ def get_print_data(doctype, name, view_mode="external", doc_format=None, format=
             "rate_validity": str(getattr(doc, "trader_rate_validity", "") or ""),
             "print_exchange": str(getattr(doc, "trader_print_exchange", "0") or "0"),
             "warehouse": getattr(doc, "trader_warehouse", None) or "",
-        } if doctype == "Quotation" else {},
+            "gst_clause": getattr(doc, "trader_gst_clause", None) or "",
+            "deliver_to": getattr(doc, "trader_deliver_to", None) or "",
+            "delivery_address": getattr(doc, "trader_delivery_address", None) or "",
+            "contact_person": getattr(doc, "trader_contact_person", None) or "",
+            "contact_phone": getattr(doc, "trader_contact_phone", None) or "",
+            "contact_email": getattr(doc, "trader_contact_email", None) or "",
+            "delivery_date": str(getattr(doc, "trader_delivery_date", "") or ""),
+            "quote_date": str(getattr(doc, "trader_quote_date", "") or ""),
+            "use_quote_date": cint(getattr(doc, "trader_use_quote_date", 0) or 0),
+            "confirmed_date": str(getattr(doc, "trader_confirmed_date", "") or ""),
+            "order_comments": getattr(doc, "trader_order_comments", None) or "",
+            "clause_rates": getattr(doc, "trader_clause_rates", None) or "",
+        }
+        try:
+            commercial_totals = commercial_totals_for_quotation(doc)
+        except Exception:
+            frappe.log_error(frappe.get_traceback(), "commercial_totals_for_quotation")
+            commercial_totals = None
+
+    print_date = str(doc.posting_date if hasattr(doc, "posting_date") else doc.transaction_date)
+    if doctype == "Quotation" and cint(order_details.get("use_quote_date")) and order_details.get("quote_date"):
+        print_date = order_details["quote_date"]
+
+    return {
+        "doc_title": doc_title,
+        "doc_format": doc_format,
+        "view_mode": view_mode,
+        "doctype": doctype,
+        "name": doc.name,
+        "status": _get_doc_status(doc),
+        "date": print_date,
+        "due_date": str(getattr(doc, "due_date", "") or getattr(doc, "valid_till", "") or ""),
+        "currency": doc.currency or "PKR",
+        "company": company_info,
+        "party": party_info,
+        "customer_ref": getattr(doc, "trader_customer_ref", None) or "",
+        "revision_label": getattr(doc, "trader_revision_label", None) or "",
+        "revision_of": getattr(doc, "trader_revision_of", None) or "",
+        "project": getattr(doc, "trader_opportunity", None) or "",
+        "order_details": order_details,
         "commercial_options": commercial,
+        "commercial_totals": commercial_totals,
         "items": items,
         "taxes": taxes,
-        "net_total": flt(doc.net_total),
-        "total_taxes": flt(getattr(doc, "total_taxes_and_charges", 0)),
-        "grand_total": flt(doc.grand_total),
+        "net_total": flt(commercial_totals["net"]) if commercial_totals else flt(doc.net_total),
+        "total_taxes": (
+            flt(commercial_totals["gst_amount"]) if commercial_totals else flt(getattr(doc, "total_taxes_and_charges", 0))
+        ),
+        "grand_total": (
+            flt(commercial_totals["grand_total"]) if commercial_totals else flt(doc.grand_total)
+        ),
         "rounded_total": flt(getattr(doc, "rounded_total", 0)),
         "outstanding_amount": flt(getattr(doc, "outstanding_amount", 0)),
         "paid_amount": flt(getattr(doc, "paid_amount", 0)),
@@ -231,24 +264,27 @@ def _build_print_items_from_hierarchy(commercial, view_mode):
             desc_parts = []
             if client_req:
                 desc_parts.append(client_req)
-            if option_label and option_no and option_no > 1 or (option_label and "Option" in str(option_label)):
+            if option_label and ((option_no and option_no > 1) or ("Option" in str(option_label))):
                 desc_parts.append(option_label)
+            if not is_first:
+                desc_parts.insert(0, "ALTERNATE OPTION (not billed)")
             for it in row.get("items") or []:
                 unit_qty = flt(it.get("unit_qty") or 1)
                 unit_price = flt(it.get("unit_price") or 0)
                 discount = flt(it.get("discount_percent") or 0)
                 amount += unit_qty * package_qty * unit_price * (1.0 - discount / 100.0)
-                rate = unit_price
                 if it.get("description"):
                     desc_parts.append(it.get("description"))
                 elif it.get("item_code"):
                     desc_parts.append(it.get("item_code"))
+            if qty:
+                rate = amount / qty if is_first else 0.0
             items.append({
                 "item_code": "",
                 "item_name": option_label or client_req,
                 "description": "\n".join(desc_parts) if desc_parts else (option_label or client_req),
                 "qty": qty,
-                "rate": rate,
+                "rate": rate if is_first else 0.0,
                 "amount": amount if is_first else 0.0,
                 "uom": "Nos",
                 "is_bundle": 1 if len(row.get("items") or []) > 1 else 0,
