@@ -900,7 +900,7 @@ def get_quotation_defaults(company=None):
 @frappe.whitelist()
 def create_quotation_revision(name, company=None):
     """Create a draft revision (R1, R2, …) from a submitted quotation (FR-Q-07)."""
-    from trader_app.api.hierarchy import apply_commercial_options, serialize_commercial_options, sync_flat_items_from_hierarchy
+    from trader_app.api.hierarchy import apply_commercial_options, serialize_commercial_options
     from trader_app.setup.custom_fields import ensure_custom_fields
 
     ensure_custom_fields()
@@ -937,11 +937,22 @@ def create_quotation_revision(name, company=None):
     if frappe.db.has_column("Quotation", "trader_revision_label"):
         revision.trader_revision_label = label
 
-    # Re-apply hierarchy if present so flat items stay first-option synced
+    # Re-apply hierarchy from source and rebuild flat lines (first-option rule).
+    # Use the serialized payload directly so nested option items are not lost
+    # on an unsaved copy_doc.
     commercial = serialize_commercial_options(source)
     if commercial and _has_commercial_field("Quotation"):
+        from trader_app.api.hierarchy import flatten_commercial_options
+
         apply_commercial_options(revision, commercial)
-        sync_flat_items_from_hierarchy(revision, first_option_only=True)
+        flat = flatten_commercial_options(commercial, first_option_only=True)
+        if flat:
+            revision.set("items", [])
+            for entry in flat:
+                revision.append("items", entry)
+
+    if not revision.get("items"):
+        frappe.throw(_("Could not create revision: source quotation has no item lines."))
 
     revision.insert(ignore_permissions=False)
     frappe.db.commit()
