@@ -209,7 +209,14 @@ def set_trader_invoice_type(doc, invoice_type=None, is_return=0):
 
 
 def print_format_for_doc(doc):
-    """Suggest print format key from stored classification."""
+    """Suggest print format key from stored classification / doctype."""
+    if getattr(doc, "doctype", None) == "Quotation":
+        return "quotation"
+    if getattr(doc, "doctype", None) == "Sales Order":
+        return "sales_order"
+    if getattr(doc, "doctype", None) == "Delivery Note":
+        return "delivery_challan"
+
     label = getattr(doc, "trader_invoice_type", None) or ""
     if doc.get("is_return"):
         if doc.doctype == "Purchase Invoice":
@@ -223,7 +230,7 @@ def print_format_for_doc(doc):
         "Bill of Supply": "bill_of_supply",
         "Proforma Invoice": "proforma_invoice",
         "Delivery Challan": "delivery_challan",
-        "Quotation": "proforma_invoice",
+        "Quotation": "quotation",
         "Credit Note": "credit_note",
         "Debit Note": "debit_note",
     }
@@ -231,12 +238,21 @@ def print_format_for_doc(doc):
 
 
 def print_title_for_format(doc_format, doctype=None):
+    if doctype == "Quotation":
+        return "QUOTATION"
+    if doctype == "Sales Order":
+        return "ORDER CONFIRMATION"
+    if doctype == "Delivery Note":
+        return "DELIVERY CHALLAN"
+
     titles = {
         "tax_invoice": "TAX INVOICE",
         "commercial_invoice": "COMMERCIAL INVOICE",
         "non_gst_invoice": "NON-GST INVOICE",
         "bill_of_supply": "BILL OF SUPPLY",
         "proforma_invoice": "PROFORMA INVOICE",
+        "quotation": "QUOTATION",
+        "sales_order": "ORDER CONFIRMATION",
         "delivery_challan": "DELIVERY CHALLAN",
         "credit_note": "CREDIT NOTE",
         "debit_note": "DEBIT NOTE",

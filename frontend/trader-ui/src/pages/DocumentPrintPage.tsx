@@ -83,7 +83,7 @@ type PrintData = {
   } | null;
 };
 
-type DocFormat = 'tax_invoice' | 'commercial_invoice' | 'proforma_invoice';
+type DocFormat = 'tax_invoice' | 'commercial_invoice' | 'proforma_invoice' | 'quotation' | 'sales_order' | 'auto';
 type ViewMode = 'external' | 'internal';
 
 const FORMAT_OPTIONS: { value: DocFormat; label: string }[] = [
@@ -91,6 +91,20 @@ const FORMAT_OPTIONS: { value: DocFormat; label: string }[] = [
   { value: 'commercial_invoice', label: 'Commercial Invoice' },
   { value: 'proforma_invoice', label: 'Proforma Invoice' },
 ];
+
+function defaultFormatForDoctype(doctype: string): DocFormat {
+  if (doctype === 'Quotation') return 'quotation';
+  if (doctype === 'Sales Order') return 'sales_order';
+  if (doctype === 'Delivery Note') return 'auto';
+  return 'tax_invoice';
+}
+
+function resolveAssetUrl(path?: string) {
+  if (!path) return '';
+  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) return path;
+  if (path.startsWith('/')) return path;
+  return `/${path}`;
+}
 
 export default function DocumentPrintPage() {
   const navigate = useNavigate();
@@ -104,8 +118,12 @@ export default function DocumentPrintPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('external');
-  const [docFormat, setDocFormat] = useState<DocFormat>('tax_invoice');
+  const [docFormat, setDocFormat] = useState<DocFormat>(() => defaultFormatForDoctype(doctype));
   const printRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setDocFormat(defaultFormatForDoctype(doctype));
+  }, [doctype]);
 
   const loadPrintData = useCallback(async () => {
     if (!docName) { setError('Document name not specified.'); setLoading(false); return; }
@@ -238,11 +256,11 @@ export default function DocumentPrintPage() {
           <div style={{ maxWidth: 800, margin: '0 auto', padding: '40px', fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
             {/* Letterhead header (tenant branding) */}
             {printData.company.letterhead_header ? (
-              <div style={{ marginBottom: 24 }}>
+              <div style={{ marginBottom: 20 }}>
                 <img
-                  src={printData.company.letterhead_header}
+                  src={resolveAssetUrl(printData.company.letterhead_header)}
                   alt={printData.company.name}
-                  style={{ width: '100%', maxHeight: 72, objectFit: 'contain', objectPosition: 'left center' }}
+                  style={{ width: '100%', maxHeight: 160, objectFit: 'contain', objectPosition: 'left center', display: 'block' }}
                 />
               </div>
             ) : null}
@@ -252,9 +270,9 @@ export default function DocumentPrintPage() {
               <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                 {!printData.company.letterhead_header && printData.company.logo ? (
                   <img
-                    src={printData.company.logo}
+                    src={resolveAssetUrl(printData.company.logo)}
                     alt=""
-                    style={{ width: 48, height: 48, objectFit: 'contain' }}
+                    style={{ width: 64, height: 64, objectFit: 'contain' }}
                   />
                 ) : null}
                 <div>
@@ -263,7 +281,9 @@ export default function DocumentPrintPage() {
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <h2 style={{ fontSize: 16, fontWeight: 700, color: '#1a365d', margin: 0 }}>{printData.company.name}</h2>
+                {!printData.company.letterhead_header ? (
+                  <h2 style={{ fontSize: 16, fontWeight: 700, color: '#1a365d', margin: 0 }}>{printData.company.name}</h2>
+                ) : null}
                 {!printData.company.letterhead_footer && printData.company.address && (
                   <p style={{ fontSize: 12, color: '#666', margin: '4px 0 0' }}>{printData.company.address}</p>
                 )}
@@ -422,9 +442,9 @@ export default function DocumentPrintPage() {
             {printData.company.letterhead_footer ? (
               <div style={{ marginTop: 32 }}>
                 <img
-                  src={printData.company.letterhead_footer}
+                  src={resolveAssetUrl(printData.company.letterhead_footer)}
                   alt=""
-                  style={{ width: '100%', maxHeight: 96, objectFit: 'contain', objectPosition: 'left center' }}
+                  style={{ width: '100%', maxHeight: 140, objectFit: 'contain', objectPosition: 'left center', display: 'block' }}
                 />
                 <div style={{ paddingTop: 8, display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#999' }}>
                   <span>Generated on {formatDate(printData.printed_on)}</span>

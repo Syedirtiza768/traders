@@ -30,7 +30,7 @@ from trader_app.api.invoice_types import print_format_for_doc, print_title_for_f
 # ────────────────────────────────────────────────────────────────
 
 @frappe.whitelist()
-def get_print_data(doctype, name, view_mode="external", doc_format="tax_invoice"):
+def get_print_data(doctype, name, view_mode="external", doc_format=None, format=None):
     """Return structured data for printing a document.
 
     Parameters
@@ -38,7 +38,8 @@ def get_print_data(doctype, name, view_mode="external", doc_format="tax_invoice"
     doctype : str     — "Quotation", "Sales Order", or "Sales Invoice"
     name : str        — Document name
     view_mode : str   — "external" or "internal"
-    doc_format : str  — "tax_invoice", "commercial_invoice", or "proforma_invoice"
+    doc_format : str  — format key, or "auto" to infer from doctype/classification
+    format : str      — alias for doc_format (SPA historically sent this name)
     """
     if doctype not in ("Quotation", "Sales Order", "Sales Invoice", "Delivery Note", "Purchase Invoice"):
         frappe.throw(_("Unsupported document type: {0}").format(doctype))
@@ -47,6 +48,7 @@ def get_print_data(doctype, name, view_mode="external", doc_format="tax_invoice"
     doc.check_permission("read")
     assert_document_company_access(doc.company)
 
+    doc_format = doc_format or format or "auto"
     if not doc_format or doc_format == "auto":
         doc_format = print_format_for_doc(doc)
 
@@ -427,17 +429,16 @@ def _get_company_letterhead(company_doc):
 
 
 def _get_document_title(doctype, doc_format, doc_name):
-    """Return the appropriate document title based on format."""
-    title = print_title_for_format(doc_format, doctype)
-    if title:
-        return title
+    """Return the appropriate document title based on doctype / format."""
+    # Doctype wins for commercial docs so Quotation never prints as TAX INVOICE.
     if doctype == "Quotation":
         return "QUOTATION"
     if doctype == "Sales Order":
-        return "SALES ORDER"
+        return "ORDER CONFIRMATION"
     if doctype == "Delivery Note":
         return "DELIVERY CHALLAN"
-    return "INVOICE"
+    title = print_title_for_format(doc_format, doctype)
+    return title or "INVOICE"
 
 
 def _get_doc_status(doc):
