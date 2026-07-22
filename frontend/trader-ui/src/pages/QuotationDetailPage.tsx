@@ -11,9 +11,13 @@ import {
   ShoppingCart,
   User,
 } from 'lucide-react';
-import { salesApi, opportunityApi } from '../lib/api';
+import { salesApi, opportunityApi, inventoryApi } from '../lib/api';
 import { appendPreservedListQuery, classNames, extractFrappeError, formatCurrency, formatDate, getActiveCurrency, getStatusColor, isOperationsContext } from '../lib/utils';
 import CommercialHierarchyEditor from '../components/CommercialHierarchyEditor';
+import QuotationOrderDetailsForm, {
+  orderDetailsFromQuotation,
+  type OrderDetails,
+} from '../components/QuotationOrderDetailsForm';
 
 type QuotationDetail = Record<string, any>;
 
@@ -27,6 +31,9 @@ export default function QuotationDetailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [revising, setRevising] = useState(false);
+  const [savingOrder, setSavingOrder] = useState(false);
+  const [orderDetails, setOrderDetails] = useState<OrderDetails>(orderDetailsFromQuotation(null));
+  const [warehouses, setWarehouses] = useState<any[]>([]);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   useEffect(() => {
@@ -43,8 +50,17 @@ export default function QuotationDetailPage() {
 
       try {
         const decodedId = decodeURIComponent(quotationId);
-        const response = await salesApi.getQuotationDetail(decodedId);
+        const [response, whRes] = await Promise.all([
+          salesApi.getQuotationDetail(decodedId),
+          inventoryApi.getWarehouses().catch(() => null),
+        ]);
         setQuotation(response.data.message);
+        setOrderDetails(orderDetailsFromQuotation(response.data.message));
+        setWarehouses(
+          Array.isArray(whRes?.data?.message)
+            ? whRes.data.message
+            : whRes?.data?.message?.data || [],
+        );
       } catch (err) {
         console.error('Failed to load quotation detail:', err);
         setError('Could not load quotation details at the moment.');
@@ -61,6 +77,26 @@ export default function QuotationDetailPage() {
     const decodedId = decodeURIComponent(quotationId);
     const response = await salesApi.getQuotationDetail(decodedId);
     setQuotation(response.data.message);
+    setOrderDetails(orderDetailsFromQuotation(response.data.message));
+  };
+
+  const handleSaveOrderDetails = async () => {
+    if (!quotation?.name || quotation.docstatus !== 0) return;
+    setSavingOrder(true);
+    setFeedback(null);
+    try {
+      await opportunityApi.saveQuotationOrderDetails(quotation.name, {
+        customer_ref: quotation.trader_customer_ref,
+        terms: quotation.terms,
+        order_details: orderDetails,
+      });
+      await reloadQuotation();
+      setFeedback({ type: 'success', message: 'Order Details saved.' });
+    } catch (err) {
+      setFeedback({ type: 'error', message: extractFrappeError(err, 'Could not save Order Details.') });
+    } finally {
+      setSavingOrder(false);
+    }
   };
 
   const handleSubmitQuotation = async () => {
@@ -257,6 +293,20 @@ export default function QuotationDetailPage() {
         </div>
       </div>
 
+      <QuotationOrderDetailsForm
+        value={orderDetails}
+        onChange={setOrderDetails}
+        warehouses={warehouses}
+        readOnly={quotation.docstatus !== 0}
+      />
+      {quotation.docstatus === 0 ? (
+        <div className="flex justify-end">
+          <button type="button" className="btn-secondary" disabled={savingOrder} onClick={handleSaveOrderDetails}>
+            {savingOrder ? 'Saving…' : 'Save Order Details'}
+          </button>
+        </div>
+      ) : null}
+
       <div className="card">
         <div className="card-header">
           <h2 className="text-lg font-semibold text-gray-900">Quotation Items</h2>
@@ -325,6 +375,7 @@ export default function QuotationDetailPage() {
         initialOptions={quotation.trader_commercial_options}
         readOnly={quotation.docstatus !== 0}
         currency={quotation.currency}
+        warehouse={orderDetails.warehouse || quotation.trader_warehouse}
         onSaved={() => { void reloadQuotation(); }}
       />
 

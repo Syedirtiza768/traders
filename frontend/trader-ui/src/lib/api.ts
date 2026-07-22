@@ -364,6 +364,12 @@ export const opportunityApi = {
   getQuotationDefaults: (company?: string) =>
     get('trader_app.api.opportunity.get_quotation_defaults', { company }),
 
+  discardQuotationDraft: (name: string) =>
+    call('trader_app.api.opportunity.discard_quotation_draft', { name }),
+
+  saveQuotationOrderDetails: (name: string, data: Record<string, any>) =>
+    call('trader_app.api.opportunity.save_quotation_order_details', { name, data }),
+
   createQuotationRevision: (name: string) =>
     call('trader_app.api.opportunity.create_quotation_revision', { name }),
 
@@ -507,6 +513,13 @@ export const inventoryApi = {
 
   getWarehouseItemQty: (item_code: string, warehouse: string, company?: string) =>
     get('trader_app.api.inventory.get_warehouse_item_qty', { item_code, warehouse, company }),
+
+  getItemsQoh: (item_codes: string[], warehouse: string, company?: string) =>
+    get('trader_app.api.inventory.get_items_qoh', {
+      item_codes: JSON.stringify(item_codes),
+      warehouse,
+      company,
+    }),
 
   validateSerialForItem: (params: { item_code: string; serial_no: string; warehouse?: string; company?: string }) =>
     get('trader_app.api.inventory.validate_serial_for_item', params),

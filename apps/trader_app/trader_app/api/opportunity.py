@@ -267,6 +267,35 @@ def _list_linked_docs(opportunity_name, doctype, fields=None, limit=50):
     )
 
 
+def _find_open_quotation_draft(opportunity_name, company=None):
+    """One open draft Quotation per Project (docstatus=0, not cancelled)."""
+    if not _has_opportunity_link("Quotation"):
+        return None
+    filters = {
+        "trader_opportunity": opportunity_name,
+        "docstatus": 0,
+    }
+    if company:
+        filters["company"] = company
+    rows = frappe.get_all(
+        "Quotation",
+        filters=filters,
+        fields=[
+            "name",
+            "transaction_date",
+            "status",
+            "docstatus",
+            "grand_total",
+            "currency",
+            "modified",
+            "trader_customer_ref",
+        ],
+        order_by="modified desc",
+        limit_page_length=1,
+    )
+    return rows[0] if rows else None
+
+
 def _child_counts(doc):
     name = doc.name
     return {
@@ -445,11 +474,19 @@ def get_opportunity(name, company=None):
     doc = _load_opportunity(name, company)
     summary = _opportunity_summary(doc)
 
-    quotations = _list_linked_docs(
-        doc.name,
-        "Quotation",
-        fields=["name", "transaction_date", "status", "docstatus", "grand_total", "currency", "modified"],
-    )
+    quotation_fields = [
+        "name",
+        "transaction_date",
+        "status",
+        "docstatus",
+        "grand_total",
+        "currency",
+        "modified",
+    ]
+    if frappe.db.has_column("Quotation", "trader_customer_ref"):
+        quotation_fields.append("trader_customer_ref")
+    quotations = _list_linked_docs(doc.name, "Quotation", fields=quotation_fields)
+    open_draft = _find_open_quotation_draft(doc.name, company=doc.company)
     order_confirmations = _list_linked_docs(
         doc.name,
         "Sales Order",
@@ -510,6 +547,7 @@ def get_opportunity(name, company=None):
             ],
         },
         "quotations": quotations,
+        "open_quotation_draft": open_draft,
         "order_confirmations": order_confirmations,
         "delivery_notes": delivery_notes,
         "invoices": invoices,
@@ -801,9 +839,17 @@ def list_source_quotations(opportunity, company=None):
 
 @frappe.whitelist()
 def create_quotation_for_opportunity(opportunity, data=None, company=None):
-    """Create a draft Quotation linked to the Project (Opportunity) with optional hierarchy."""
+    """Create a draft Quotation linked to the Project with hierarchy + Order Details.
+
+    Enforces one open draft per Project unless ``force_new=1`` (after discard).
+    Does not seed an empty placeholder quotation — commercial options required
+    when hierarchy is enabled (or a single item_code for flat fallback).
+    """
     from trader_app.api.hierarchy import apply_commercial_options, sync_flat_items_from_hierarchy
-    from trader_app.api.quotation_defaults import get_default_quotation_terms
+    from trader_app.api.quotation_defaults import (
+        apply_order_details_to_quotation,
+        get_default_quotation_terms,
+    )
     from trader_app.setup.custom_fields import ensure_custom_fields
 
     ensure_custom_fields()
@@ -816,7 +862,30 @@ def create_quotation_for_opportunity(opportunity, data=None, company=None):
         frappe.throw(_("Quotations are disabled in the Project profile."))
 
     payload = _parse_payload(data)
-    warehouse = payload.get("warehouse") or _default_warehouse(doc.company)
+    force_new = cint(payload.get("force_new"))
+    existing = _find_open_quotation_draft(doc.name, company=doc.company)
+    if existing and not force_new:
+        return {
+            "name": existing.name,
+            "doctype": "Quotation",
+            "existing_draft": 1,
+            "opportunity": get_opportunity(doc.name, company=doc.company),
+            "message": _("An open draft quotation already exists. Continue or discard it first."),
+        }
+
+    order_details = payload.get("order_details") or {}
+    warehouse = (
+        payload.get("warehouse")
+        or order_details.get("warehouse")
+        or _default_warehouse(doc.company)
+    )
+
+    commercial = payload.get("commercial_options") or []
+    has_commercial = bool(commercial) and _has_commercial_field("Quotation")
+    if not has_commercial and not payload.get("item_code") and not payload.get("items"):
+        frappe.throw(
+            _("Add commercial Line → Option → Item hierarchy before creating the quotation.")
+        )
 
     quotation = frappe.new_doc("Quotation")
     quotation.quotation_to = "Customer"
@@ -831,13 +900,21 @@ def create_quotation_for_opportunity(opportunity, data=None, company=None):
         quotation.trader_opportunity = doc.name
 
     if frappe.db.has_column("Quotation", "trader_customer_ref"):
-        quotation.trader_customer_ref = (payload.get("customer_ref") or payload.get("trader_customer_ref") or "").strip() or None
+        quotation.trader_customer_ref = (
+            payload.get("customer_ref") or payload.get("trader_customer_ref") or ""
+        ).strip() or None
 
     terms = payload.get("terms")
     if terms is None:
         terms = get_default_quotation_terms(doc.company)
     if terms:
         quotation.terms = terms
+
+    apply_order_details_to_quotation(
+        quotation,
+        order_details={**order_details, "warehouse": warehouse},
+        company=doc.company,
+    )
 
     from trader_app.api.currency import apply_document_currency
     apply_document_currency(
@@ -846,10 +923,12 @@ def create_quotation_for_opportunity(opportunity, data=None, company=None):
         for_selling=True,
     )
 
-    commercial = payload.get("commercial_options") or []
-    if commercial and _has_commercial_field("Quotation"):
+    if has_commercial:
         apply_commercial_options(quotation, commercial)
         sync_flat_items_from_hierarchy(quotation, warehouse=warehouse, first_option_only=True)
+    elif payload.get("items"):
+        for row in payload.get("items") or []:
+            quotation.append("items", row)
     else:
         quotation.append(
             "items",
@@ -879,20 +958,119 @@ def create_quotation_for_opportunity(opportunity, data=None, company=None):
     return {
         "name": quotation.name,
         "doctype": "Quotation",
+        "existing_draft": 0,
         "opportunity": get_opportunity(doc.name, company=doc.company),
         "customer_ref": getattr(quotation, "trader_customer_ref", None),
     }
 
 
 @frappe.whitelist()
+def discard_quotation_draft(name, company=None):
+    """Delete an open draft Quotation (Continue/Discard hub rule)."""
+    doc = frappe.get_doc("Quotation", name)
+    doc.check_permission("delete")
+    assert_document_company_access(doc.company)
+    if company and doc.company != company:
+        frappe.throw(_("Company mismatch."))
+    if cint(doc.docstatus) != 0:
+        frappe.throw(_("Only draft quotations can be discarded."))
+    opportunity = getattr(doc, "trader_opportunity", None)
+    doc_name = doc.name
+    frappe.delete_doc("Quotation", doc_name, ignore_permissions=False, force=1)
+    frappe.db.commit()
+    log_decision(
+        "other",
+        company=doc.company,
+        outcome="applied",
+        message="Discarded draft Quotation {0}".format(doc_name),
+        reference_doctype="Quotation",
+        reference_name=doc_name,
+        policy="opportunity_hub",
+    )
+    hub = None
+    if opportunity:
+        hub = get_opportunity(opportunity, company=doc.company)
+    return {"deleted": doc_name, "opportunity": hub}
+
+
+@frappe.whitelist()
+def save_quotation_order_details(name, data=None, company=None):
+    """Update Order Details + Customer Ref / terms on a draft Quotation."""
+    from trader_app.api.quotation_defaults import apply_order_details_to_quotation
+    from trader_app.setup.custom_fields import ensure_custom_fields
+
+    ensure_custom_fields()
+    doc = frappe.get_doc("Quotation", name)
+    doc.check_permission("write")
+    assert_document_company_access(doc.company)
+    if company and doc.company != company:
+        frappe.throw(_("Company mismatch."))
+    if cint(doc.docstatus) != 0:
+        frappe.throw(_("Only draft quotations can update Order Details."))
+
+    payload = _parse_payload(data)
+    if "customer_ref" in payload or "trader_customer_ref" in payload:
+        if frappe.db.has_column("Quotation", "trader_customer_ref"):
+            doc.trader_customer_ref = (
+                payload.get("customer_ref") or payload.get("trader_customer_ref") or ""
+            ).strip() or None
+    if "terms" in payload and payload.get("terms") is not None:
+        doc.terms = payload.get("terms")
+    if payload.get("valid_till"):
+        doc.valid_till = payload.get("valid_till")
+    if payload.get("transaction_date"):
+        doc.transaction_date = payload.get("transaction_date")
+    if payload.get("taxes_and_charges"):
+        doc.taxes_and_charges = payload.get("taxes_and_charges")
+        doc.run_method("set_taxes")
+
+    order_details = payload.get("order_details")
+    if order_details is None:
+        # Allow flat payload keys as order details
+        order_details = {
+            k: payload.get(k)
+            for k in (
+                "validity_days",
+                "pay_advance_pct",
+                "pay_delivery_pct",
+                "pay_commissioning_pct",
+                "pay_after_pct",
+                "pay_after_days",
+                "gst_mode",
+                "services",
+                "wht_percent",
+                "freight_clause",
+                "rate_clause",
+                "rate_validity",
+                "clause_rates",
+                "print_exchange",
+                "warehouse",
+            )
+            if k in payload
+        }
+    if order_details:
+        apply_order_details_to_quotation(doc, order_details=order_details, company=doc.company)
+
+    doc.save(ignore_permissions=False)
+    frappe.db.commit()
+    return doc.as_dict()
+
+
+@frappe.whitelist()
 def get_quotation_defaults(company=None):
-    """Default terms and helpers for the New Quotation form."""
-    from trader_app.api.quotation_defaults import get_default_quotation_terms
+    """Default terms, Order Details, and warehouse helpers for New Quotation."""
+    from trader_app.api.quotation_defaults import (
+        get_default_order_details,
+        get_default_quotation_terms,
+    )
 
     company = resolve_active_company(company)
+    warehouse = _default_warehouse(company)
     return {
         "company": company,
         "terms": get_default_quotation_terms(company),
+        "order_details": get_default_order_details(company),
+        "warehouse": warehouse,
         "require_project": bool(cint(_profile_or_defaults(company).get("require_opportunity_for_quotation"))),
     }
 
