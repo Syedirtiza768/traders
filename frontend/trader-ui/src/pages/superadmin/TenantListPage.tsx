@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { superAdminApi } from '../../lib/api';
+import {
+  PageHeader,
+  LoadingBlock,
+  EmptyState,
+  AlertBanner,
+  SearchField,
+  StatusBadge,
+} from '../../components/ui';
 
 type TenantRow = {
   name: string;
@@ -14,24 +22,17 @@ type TenantRow = {
   contact_email?: string;
 };
 
-const statusColors: Record<string, string> = {
-  Active: 'bg-emerald-100 text-emerald-800',
-  Suspended: 'bg-amber-100 text-amber-800',
-  Deactivated: 'bg-red-100 text-red-800',
-  Pending: 'bg-slate-100 text-slate-800',
-};
-
 export default function TenantListPage() {
   const [tenants, setTenants] = useState<TenantRow[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = async (query?: string) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await superAdminApi.listTenants({ search: search || undefined, page_size: 100 });
+      const res = await superAdminApi.listTenants({ search: query || undefined, page_size: 100 });
       setTenants(res.data.message?.data || []);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to load businesses');
@@ -44,27 +45,33 @@ export default function TenantListPage() {
     void load();
   }, []);
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    void load();
-  };
-
   return (
     <div className="space-y-4">
-      <form onSubmit={handleSearch} className="flex gap-3">
-        <input
-          type="search"
+      <PageHeader
+        title="Businesses"
+        description="Search and manage provisioned tenant businesses."
+      />
+
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void load(search);
+        }}
+        className="flex flex-col gap-3 sm:flex-row sm:items-center"
+      >
+        <SearchField
+          placeholder="Search businesses…"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search businesses..."
-          className="flex-1 rounded-lg border border-slate-300 px-4 py-2 text-sm"
+          onChange={setSearch}
+          className="flex-1 sm:max-w-md"
+          aria-label="Search businesses"
         />
-        <button type="submit" className="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm">
+        <button type="submit" className="btn-primary min-h-[44px] px-4">
           Search
         </button>
       </form>
 
-      {error && <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-700 text-sm">{error}</div>}
+      {error ? <AlertBanner tone="error">{error}</AlertBanner> : null}
 
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
         <table className="min-w-full text-sm">
@@ -80,11 +87,11 @@ export default function TenantListPage() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-slate-500">Loading...</td>
+                <td colSpan={5}><LoadingBlock compact label="Loading businesses…" /></td>
               </tr>
             ) : tenants.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-slate-500">No businesses found.</td>
+                <td colSpan={5}><EmptyState compact title="No businesses found" /></td>
               </tr>
             ) : (
               tenants.map((tenant) => (
@@ -96,9 +103,7 @@ export default function TenantListPage() {
                     <p className="text-xs text-slate-400">{tenant.name}</p>
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${statusColors[tenant.status] || statusColors.Pending}`}>
-                      {tenant.status}
-                    </span>
+                    <StatusBadge status={tenant.status || 'Pending'} />
                   </td>
                   <td className="px-4 py-3">{tenant.subscription_plan || '—'}</td>
                   <td className="px-4 py-3">

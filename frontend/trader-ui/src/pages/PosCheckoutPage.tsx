@@ -6,6 +6,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import { currencyApi, customersApi, financeApi, gstApi, inventoryApi, posApi } from '../lib/api';
 import { formatCurrency } from '../lib/utils';
 import { useCompanyStore } from '../stores/companyStore';
+import { PageHeader, AlertBanner } from '../components/ui';
 
 type CartLine = {
   item_code: string;
@@ -295,31 +296,31 @@ export default function PosCheckoutPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <button
-            type="button"
-            onClick={() => navigate('/sales')}
-            className="mb-2 inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800"
-          >
-            <ArrowLeft size={16} /> Back to Sales
-          </button>
-          <h1 className="page-title">POS Checkout</h1>
-          <p className="mt-1 text-sm text-gray-500">Scan barcodes, submit the invoice, and optionally record payment in one step.</p>
-        </div>
-        <button
-          type="button"
-          onClick={handleCheckout}
-          disabled={saving || loading || cart.length === 0}
-          className="btn-primary flex items-center gap-2 disabled:opacity-60"
-        >
-          <Save size={14} /> {saving ? 'Processing…' : recordPayment ? 'Complete & get paid' : 'Complete sale'}
-        </button>
-      </div>
+      <PageHeader
+        title="POS Checkout"
+        description="Scan barcodes, submit the invoice, and optionally record payment in one step."
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={() => navigate('/sales')}
+              className="btn-secondary inline-flex items-center gap-2"
+            >
+              <ArrowLeft size={16} /> Back to Sales
+            </button>
+            <button
+              type="button"
+              onClick={handleCheckout}
+              disabled={saving || loading || cart.length === 0}
+              className="btn-primary flex items-center gap-2 disabled:opacity-60"
+            >
+              <Save size={14} /> {saving ? 'Processing…' : recordPayment ? 'Complete & get paid' : 'Complete sale'}
+            </button>
+          </>
+        }
+      />
 
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
-      )}
+      {error ? <AlertBanner tone="error">{error}</AlertBanner> : null}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="card space-y-4 p-4 lg:col-span-2">

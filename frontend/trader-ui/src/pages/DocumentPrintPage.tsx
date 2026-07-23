@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { printApi } from '../lib/api';
 import { formatCurrency, formatDate } from '../lib/utils';
+import { PageHeader, LoadingBlock, AlertBanner } from '../components/ui';
 
 type PrintItem = {
   item_code: string;
@@ -208,16 +209,16 @@ export default function DocumentPrintPage() {
         : `/sales/${encodeURIComponent(docName)}`);
 
   if (loading) {
-    return <div className="flex justify-center py-16"><div className="spinner" /></div>;
+    return <LoadingBlock label="Loading print preview…" />;
   }
 
   if (error || !printData) {
     return (
       <div className="space-y-4">
-        <button onClick={() => navigate(-1)} className="btn-secondary inline-flex items-center gap-2">
+        <button type="button" onClick={() => navigate(-1)} className="btn-secondary inline-flex items-center gap-2">
           <ArrowLeft size={16} /> Go Back
         </button>
-        <div className="card p-8 text-center text-gray-500">{error || 'Document not found.'}</div>
+        <AlertBanner tone="error">{error || 'Document not found.'}</AlertBanner>
       </div>
     );
   }
@@ -226,56 +227,56 @@ export default function DocumentPrintPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Toolbar */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <button onClick={() => navigate(backPath)} className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
-            <ArrowLeft size={16} /> {returnTo === '/sales/pos' ? 'Back to POS' : 'Back to Document'}
-          </button>
-          <h1 className="page-title">Print Preview</h1>
-          <p className="mt-1 text-gray-500">{printData.doc_title} — {docName}</p>
-        </div>
-        <div className="flex flex-wrap gap-3">
-          {/* View Mode Toggle */}
-          <div className="flex rounded-lg border border-gray-200 overflow-hidden">
-            <button
-              onClick={() => setViewMode('external')}
-              className={`flex items-center gap-1.5 px-3 py-2 text-sm ${viewMode === 'external' ? 'bg-brand-50 text-brand-700 font-medium' : 'text-gray-600 hover:bg-gray-50'}`}
-            >
-              <EyeOff size={14} /> External
-            </button>
-            <button
-              onClick={() => setViewMode('internal')}
-              className={`flex items-center gap-1.5 px-3 py-2 text-sm border-l border-gray-200 ${viewMode === 'internal' ? 'bg-brand-50 text-brand-700 font-medium' : 'text-gray-600 hover:bg-gray-50'}`}
-            >
-              <Eye size={14} /> Internal
-            </button>
-          </div>
+      {/* Toolbar — screen only */}
+      <div className="no-print">
+        <PageHeader
+          title="Print Preview"
+          description={`${printData.doc_title} — ${docName}`}
+          actions={
+            <>
+              <button type="button" onClick={() => navigate(backPath)} className="btn-secondary inline-flex items-center gap-2">
+                <ArrowLeft size={16} /> {returnTo === '/sales/pos' ? 'Back to POS' : 'Back to Document'}
+              </button>
+              <div className="flex rounded-lg border border-gray-200 overflow-hidden dark:border-slate-700" role="group" aria-label="View mode">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('external')}
+                  className={`flex min-h-[44px] items-center gap-1.5 px-3 py-2 text-sm ${viewMode === 'external' ? 'bg-brand-50 text-brand-700 font-medium dark:bg-slate-800 dark:text-brand-300' : 'text-gray-600 hover:bg-gray-50 dark:text-slate-300 dark:hover:bg-slate-800'}`}
+                >
+                  <EyeOff size={14} aria-hidden="true" /> External
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('internal')}
+                  className={`flex min-h-[44px] items-center gap-1.5 border-l border-gray-200 px-3 py-2 text-sm dark:border-slate-700 ${viewMode === 'internal' ? 'bg-brand-50 text-brand-700 font-medium dark:bg-slate-800 dark:text-brand-300' : 'text-gray-600 hover:bg-gray-50 dark:text-slate-300 dark:hover:bg-slate-800'}`}
+                >
+                  <Eye size={14} aria-hidden="true" /> Internal
+                </button>
+              </div>
+              {showFormatToggle && (
+                <select
+                  value={docFormat}
+                  onChange={(e) => setDocFormat(e.target.value as DocFormat)}
+                  className="input-field text-sm"
+                  aria-label="Document format"
+                >
+                  {FORMAT_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              )}
+              <button type="button" onClick={handlePrint} className="btn-primary flex items-center gap-2">
+                <Printer size={14} aria-hidden="true" /> Print
+              </button>
+            </>
+          }
+        />
 
-          {/* Document Format Toggle (Invoices only) */}
-          {showFormatToggle && (
-            <select
-              value={docFormat}
-              onChange={(e) => setDocFormat(e.target.value as DocFormat)}
-              className="input-field text-sm"
-            >
-              {FORMAT_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          )}
-
-          <button onClick={handlePrint} className="btn-primary flex items-center gap-2">
-            <Printer size={14} /> Print
-          </button>
-        </div>
-      </div>
-
-      {/* View mode indicator */}
-      <div className={`rounded-lg px-4 py-2 text-sm ${viewMode === 'internal' ? 'bg-amber-50 border border-amber-200 text-amber-800' : 'bg-blue-50 border border-blue-200 text-blue-800'}`}>
-        {viewMode === 'internal'
-          ? 'Internal View — Shows bundled item details for staff reference. Do not share with clients.'
-          : 'External View — Client-facing view. Bundled items show only the overarching description.'}
+        <AlertBanner tone={viewMode === 'internal' ? 'warning' : 'info'} className="mt-4">
+          {viewMode === 'internal'
+            ? 'Internal View — Shows bundled item details for staff reference. Do not share with clients.'
+            : 'External View — Client-safe document without internal bundle breakdowns.'}
+        </AlertBanner>
       </div>
 
       {/* Print Content */}

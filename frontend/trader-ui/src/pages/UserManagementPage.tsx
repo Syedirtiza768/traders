@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Search, UserCheck, UserX, RefreshCw, X, Save, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Plus, UserCheck, UserX, RefreshCw, X, Save, ChevronLeft, ChevronRight } from 'lucide-react';
 import { adminApi, settingsApi } from '../lib/api';
 import { useAuthStore } from '../stores/authStore';
 import { useTenantStore } from '../stores/tenantStore';
+import { PageHeader, LoadingBlock, AlertBanner, SearchField, EmptyState } from '../components/ui';
 
 type User = {
   name: string;
@@ -169,26 +170,23 @@ export default function UserManagementPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Header */}
-      <div>
-        <button onClick={() => navigate('/settings')} className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 dark:text-brand-400 hover:text-brand-800">
-          <ArrowLeft size={16} /> Back to Settings
-        </button>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="page-title">User Management</h1>
-            <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">Create and manage system user accounts and their Trader role assignments</p>
-          </div>
-          <div className="flex items-center gap-2 self-start">
-            <button onClick={() => void loadUsers()} className="btn-secondary flex items-center gap-2">
+      <PageHeader
+        title="User Management"
+        description="Create and manage system user accounts and their Trader role assignments"
+        actions={
+          <>
+            <button type="button" onClick={() => navigate('/settings')} className="btn-secondary inline-flex items-center gap-2">
+              <ArrowLeft size={16} /> Back to Settings
+            </button>
+            <button type="button" onClick={() => void loadUsers()} className="btn-secondary flex items-center gap-2">
               <RefreshCw size={14} /> Refresh
             </button>
-            <button onClick={openCreate} className="btn-primary flex items-center gap-2">
+            <button type="button" onClick={openCreate} className="btn-primary flex items-center gap-2">
               <Plus size={14} /> New User
             </button>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {multitenantEnabled && tenant?.max_users ? (
         <div className={`rounded-lg border px-4 py-3 text-sm ${
@@ -203,36 +201,24 @@ export default function UserManagementPage() {
         </div>
       ) : null}
 
-      {/* Feedback */}
-      {feedback && (
-        <div className={`rounded-lg border px-4 py-3 text-sm flex items-start justify-between gap-3 ${
-          feedback.type === 'success'
-            ? 'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-100'
-            : 'border-red-200 bg-red-50 text-red-900 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-100'
-        }`}>
-          <span>{feedback.message}</span>
-          <button onClick={() => setFeedback(null)}><X size={14} /></button>
-        </div>
-      )}
+      {feedback ? (
+        <AlertBanner tone={feedback.type === 'success' ? 'success' : 'error'} onDismiss={() => setFeedback(null)}>
+          {feedback.message}
+        </AlertBanner>
+      ) : null}
 
-      {/* Search */}
-      <div className="relative">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          placeholder="Search by name or email…"
-          className="input-field pl-9"
-        />
-      </div>
+      <SearchField
+        placeholder="Search by name or email…"
+        value={search}
+        onChange={(value) => { setSearch(value); setPage(1); }}
+        aria-label="Search users"
+      />
 
-      {/* Table */}
       <div className="card overflow-hidden">
         {loading ? (
-          <div className="flex items-center justify-center h-48"><div className="spinner" /></div>
+          <LoadingBlock compact label="Loading users…" />
         ) : users.length === 0 ? (
-          <div className="py-12 text-center text-sm text-gray-500 dark:text-slate-400">No users found.</div>
+          <EmptyState compact title="No users found." />
         ) : (
           <>
             {/* Desktop */}

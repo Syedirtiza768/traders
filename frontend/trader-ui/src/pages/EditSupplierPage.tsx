@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save } from 'lucide-react';
 import { suppliersApi } from '../lib/api';
 import SearchableSelect from '../components/SearchableSelect';
+import { PageHeader, AlertBanner, LoadingBlock } from '../components/ui';
 
 export default function EditSupplierPage() {
   const navigate = useNavigate();
@@ -91,25 +92,26 @@ export default function EditSupplierPage() {
   };
 
   if (loading) {
-    return <div className="py-16 flex justify-center"><div className="spinner" /></div>;
+    return <LoadingBlock label="Loading supplier…" />;
   }
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <button onClick={() => navigate(`/suppliers/${encodeURIComponent(supplierId || '')}`)} className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
-            <ArrowLeft size={16} /> Back to Supplier
-          </button>
-          <h1 className="page-title">Edit Supplier</h1>
-          <p className="mt-1 text-gray-500">Update supplier record for <strong>{form.supplier_name || supplierId}</strong></p>
-        </div>
-        <button onClick={handleSave} disabled={saving} className="btn-primary flex items-center gap-2 disabled:opacity-60">
-          <Save size={14} /> {saving ? 'Saving…' : 'Save Changes'}
-        </button>
-      </div>
+      <button onClick={() => navigate(`/suppliers/${encodeURIComponent(supplierId || '')}`)} className="inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
+        <ArrowLeft size={16} /> Back to Supplier
+      </button>
 
-      {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+      <PageHeader
+        title="Edit Supplier"
+        description={<>Update supplier record for <strong>{form.supplier_name || supplierId}</strong></>}
+        actions={
+          <button onClick={handleSave} disabled={saving} className="btn-primary flex items-center gap-2 disabled:opacity-60">
+            <Save size={14} /> {saving ? 'Saving…' : 'Save Changes'}
+          </button>
+        }
+      />
+
+      {error && <AlertBanner tone="error">{error}</AlertBanner>}
 
       <div className="card p-6 grid grid-cols-1 gap-4 md:grid-cols-2">
         <Field label="Supplier Name">
@@ -146,7 +148,7 @@ export default function EditSupplierPage() {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">{label}</span>
+      <span className="label-field">{label}</span>
       {children}
     </label>
   );

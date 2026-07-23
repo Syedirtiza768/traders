@@ -9,7 +9,8 @@ import {
   Wallet,
 } from 'lucide-react';
 import { financeApi } from '../lib/api';
-import { classNames, extractFrappeError, formatCurrency, formatDate, getStatusColor, isFilterListContext, isOperationsContext, isReportContext, isWorkflowContext } from '../lib/utils';
+import { extractFrappeError, formatCurrency, formatDate, isFilterListContext, isOperationsContext, isReportContext, isWorkflowContext } from '../lib/utils';
+import { PageHeader, LoadingBlock, AlertBanner, StatusBadge } from '../components/ui';
 
 type PaymentEntryDetail = Record<string, any>;
 
@@ -143,7 +144,7 @@ export default function PaymentEntryDetailPage() {
               : 'Back to Payment Entries';
 
   if (loading) {
-    return <div className="flex justify-center py-16"><div className="spinner" /></div>;
+    return <LoadingBlock label="Loading payment entry…" />;
   }
 
   if (error || !payment) {
@@ -152,42 +153,39 @@ export default function PaymentEntryDetailPage() {
         <button onClick={() => navigate(backToPath)} className="btn-secondary inline-flex items-center gap-2">
           <ArrowLeft className="h-4 w-4" /> {backLabel}
         </button>
-        <div className="card p-8 text-center text-gray-500">{error || 'Payment entry not found.'}</div>
+        <AlertBanner tone="error">{error || 'Payment entry not found.'}</AlertBanner>
       </div>
     );
   }
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <button onClick={() => navigate(backToPath)} className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
-            <ArrowLeft className="h-4 w-4" /> {backLabel}
-          </button>
-          <h1 className="page-title">{payment.name}</h1>
-          <p className="mt-1 text-gray-500">Payment entry detail, party context, and allocated references</p>
-        </div>
-        <div className="flex flex-col items-start gap-3 sm:items-end">
-          <span className={classNames('inline-flex rounded-full px-3 py-1 text-sm font-medium', getStatusColor(statusLabel))}>
-            {statusLabel}
-          </span>
-          {payment.docstatus === 0 && (
-            <button onClick={handleSubmitPayment} disabled={submitting} className="btn-primary disabled:opacity-60">
-              {submitting ? 'Submitting…' : 'Submit Payment'}
-            </button>
-          )}
-          {payment.docstatus === 1 && (
-            <button onClick={handleCancelPayment} disabled={cancelling} className="btn-danger disabled:opacity-60">
-              {cancelling ? 'Cancelling…' : 'Cancel Payment'}
-            </button>
-          )}
-        </div>
-      </div>
+      <button onClick={() => navigate(backToPath)} className="inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
+        <ArrowLeft className="h-4 w-4" /> {backLabel}
+      </button>
+
+      <PageHeader
+        title={payment.name}
+        description="Payment entry detail, party context, and allocated references"
+        meta={<StatusBadge status={statusLabel} />}
+        actions={
+          <>
+            {payment.docstatus === 0 && (
+              <button onClick={handleSubmitPayment} disabled={submitting} className="btn-primary disabled:opacity-60">
+                {submitting ? 'Submitting…' : 'Submit Payment'}
+              </button>
+            )}
+            {payment.docstatus === 1 && (
+              <button onClick={handleCancelPayment} disabled={cancelling} className="btn-danger disabled:opacity-60">
+                {cancelling ? 'Cancelling…' : 'Cancel Payment'}
+              </button>
+            )}
+          </>
+        }
+      />
 
       {feedback && (
-        <div className={`rounded-lg px-4 py-3 text-sm ${feedback.type === 'success' ? 'border border-green-200 bg-green-50 text-green-700' : 'border border-red-200 bg-red-50 text-red-700'}`}>
-          {feedback.message}
-        </div>
+        <AlertBanner tone={feedback.type === 'success' ? 'success' : 'error'}>{feedback.message}</AlertBanner>
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">

@@ -9,7 +9,8 @@ import {
   Scale,
 } from 'lucide-react';
 import { financeApi } from '../lib/api';
-import { classNames, extractFrappeError, formatCurrency, formatDate, getStatusColor } from '../lib/utils';
+import { extractFrappeError, formatCurrency, formatDate } from '../lib/utils';
+import { PageHeader, LoadingBlock, AlertBanner, StatusBadge } from '../components/ui';
 
 type JournalEntryDetail = Record<string, any>;
 
@@ -100,7 +101,7 @@ export default function JournalEntryDetailPage() {
   const backToPath = listSearch ? `/finance/journals?${listSearch}` : '/finance/journals';
 
   if (loading) {
-    return <div className="flex justify-center py-16"><div className="spinner" /></div>;
+    return <LoadingBlock label="Loading journal entry…" />;
   }
 
   if (error || !entry) {
@@ -109,42 +110,39 @@ export default function JournalEntryDetailPage() {
         <button onClick={() => navigate(backToPath)} className="btn-secondary inline-flex items-center gap-2">
           <ArrowLeft className="h-4 w-4" /> Back to Journal Entries
         </button>
-        <div className="card p-8 text-center text-gray-500">{error || 'Journal entry not found.'}</div>
+        <AlertBanner tone="error">{error || 'Journal entry not found.'}</AlertBanner>
       </div>
     );
   }
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <button onClick={() => navigate(backToPath)} className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
-            <ArrowLeft className="h-4 w-4" /> Back to Journal Entries
-          </button>
-          <h1 className="page-title">{entry.name}</h1>
-          <p className="mt-1 text-gray-500">Journal entry detail and ledger line review</p>
-        </div>
-        <div className="flex flex-col items-start gap-3 sm:items-end">
-          <span className={classNames('inline-flex rounded-full px-3 py-1 text-sm font-medium', getStatusColor(statusLabel))}>
-            {statusLabel}
-          </span>
-          {entry.docstatus === 0 && (
-            <button onClick={handleSubmitEntry} disabled={submitting} className="btn-primary disabled:opacity-60">
-              {submitting ? 'Submitting…' : 'Submit Entry'}
-            </button>
-          )}
-          {entry.docstatus === 1 && (
-            <button onClick={handleCancelEntry} disabled={cancelling} className="btn-danger disabled:opacity-60">
-              {cancelling ? 'Cancelling…' : 'Cancel Entry'}
-            </button>
-          )}
-        </div>
-      </div>
+      <button onClick={() => navigate(backToPath)} className="inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
+        <ArrowLeft className="h-4 w-4" /> Back to Journal Entries
+      </button>
+
+      <PageHeader
+        title={entry.name}
+        description="Journal entry detail and ledger line review"
+        meta={<StatusBadge status={statusLabel} />}
+        actions={
+          <>
+            {entry.docstatus === 0 && (
+              <button onClick={handleSubmitEntry} disabled={submitting} className="btn-primary disabled:opacity-60">
+                {submitting ? 'Submitting…' : 'Submit Entry'}
+              </button>
+            )}
+            {entry.docstatus === 1 && (
+              <button onClick={handleCancelEntry} disabled={cancelling} className="btn-danger disabled:opacity-60">
+                {cancelling ? 'Cancelling…' : 'Cancel Entry'}
+              </button>
+            )}
+          </>
+        }
+      />
 
       {feedback && (
-        <div className={`rounded-lg px-4 py-3 text-sm ${feedback.type === 'success' ? 'border border-green-200 bg-green-50 text-green-700' : 'border border-red-200 bg-red-50 text-red-700'}`}>
-          {feedback.message}
-        </div>
+        <AlertBanner tone={feedback.type === 'success' ? 'success' : 'error'}>{feedback.message}</AlertBanner>
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">

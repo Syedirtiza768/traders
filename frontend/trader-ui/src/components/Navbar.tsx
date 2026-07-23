@@ -21,12 +21,14 @@ export default function Navbar({ onMenuToggle }: NavbarProps) {
   const appSubtitle = branding.tagline || 'Business Management';
 
   return (
-    <header className="fixed top-0 left-0 right-0 h-[var(--navbar-height)] bg-white border-b border-gray-200 z-50 flex items-center justify-between px-4 sm:px-6 dark:bg-slate-900 dark:border-slate-700" role="banner">
+    <header className="fixed top-0 left-0 right-0 h-[var(--navbar-height)] bg-white border-b border-gray-200 z-[var(--z-modal)] flex items-center justify-between px-4 sm:px-6 dark:bg-slate-900 dark:border-slate-700 no-print" role="banner">
       <div className="flex items-center gap-2 sm:gap-3">
         <button
+          type="button"
           onClick={onMenuToggle}
-          className="lg:hidden p-2 -ml-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+          className="lg:hidden p-2 -ml-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors dark:hover:bg-slate-800 dark:hover:text-gray-200"
           aria-label="Toggle navigation menu"
+          aria-expanded={undefined}
         >
           <Menu className="w-5 h-5" />
         </button>
@@ -50,20 +52,27 @@ export default function Navbar({ onMenuToggle }: NavbarProps) {
 
       <div className="flex items-center gap-2 sm:gap-4">
         <CompanySwitcher />
-        <button className="relative p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors" aria-label="Notifications">
+        <button
+          type="button"
+          className="relative p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors dark:hover:bg-slate-800 dark:hover:text-gray-200"
+          aria-label="Notifications"
+        >
           <Bell className="w-5 h-5" />
           <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" aria-hidden="true" />
         </button>
 
         <div className="relative">
           <button
+            type="button"
             onClick={() => setShowMenu(!showMenu)}
-            className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+            className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors dark:hover:bg-slate-800"
+            aria-expanded={showMenu}
+            aria-haspopup="menu"
           >
-            <div className="w-8 h-8 bg-brand-100 text-brand-700 rounded-full flex items-center justify-center">
+            <div className="w-8 h-8 bg-brand-100 text-brand-700 rounded-full flex items-center justify-center dark:bg-brand-900/40 dark:text-brand-300">
               <User className="w-4 h-4" />
             </div>
-            <span className="text-sm font-medium text-gray-700 hidden md:block max-w-[120px] truncate">
+            <span className="text-sm font-medium text-gray-700 hidden md:block max-w-[120px] truncate dark:text-gray-200">
               {user || 'User'}
             </span>
             <ChevronDown className="w-4 h-4 text-gray-400 hidden sm:block" />
@@ -71,15 +80,20 @@ export default function Navbar({ onMenuToggle }: NavbarProps) {
 
           {showMenu && (
             <>
-              <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
-                <div className="px-4 py-2 border-b border-gray-100">
-                  <p className="text-sm font-medium text-gray-900 truncate">{user}</p>
-                  <p className="text-xs text-gray-500">Logged in</p>
+              <div className="fixed inset-0 z-[var(--z-dropdown)]" onClick={() => setShowMenu(false)} aria-hidden="true" />
+              <div
+                className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-md border border-gray-200 py-1 z-[var(--z-modal)] dark:bg-slate-900 dark:border-slate-700"
+                role="menu"
+              >
+                <div className="px-4 py-2 border-b border-gray-100 dark:border-slate-700">
+                  <p className="text-sm font-medium text-gray-900 truncate dark:text-gray-100">{user}</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">Logged in</p>
                 </div>
                 <button
+                  type="button"
+                  role="menuitem"
                   onClick={() => { setShowMenu(false); logout(); }}
-                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors dark:hover:bg-red-950/40"
                 >
                   <LogOut className="w-4 h-4" />
                   Sign Out

@@ -4,6 +4,7 @@ import { TrendingUp, ShoppingCart, Package, DollarSign, ChevronRight } from 'luc
 import { CATEGORIES, getReportsByCategory, getReportById } from '../lib/reportDefinitions';
 import type { ReportCategory, ReportDef } from '../lib/reportDefinitions';
 import ReportView from '../components/reports/ReportView';
+import { PageHeader } from '../components/ui';
 
 const ICONS: Record<string, React.ReactNode> = {
   TrendingUp: <TrendingUp size={18} />,
@@ -50,11 +51,10 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Page Header */}
-      <div>
-        <h1 className="page-title">Reports</h1>
-        <p className="text-gray-500 mt-1">Business intelligence and analytics</p>
-      </div>
+      <PageHeader
+        title="Reports"
+        description="Business intelligence and analytics"
+      />
 
       {/* Category Tabs */}
       <div className="flex gap-1 bg-gray-100 p-1 rounded-lg overflow-x-auto">

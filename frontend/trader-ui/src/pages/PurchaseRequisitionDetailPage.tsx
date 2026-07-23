@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Calendar, CheckCircle, ClipboardList, XCircle } from 'lucide-react';
+import { ArrowLeft, Calendar, CheckCircle, XCircle } from 'lucide-react';
 import { purchasesApi } from '../lib/api';
-import { appendPreservedListQuery, extractFrappeError, formatCurrency, formatDate, getStatusColor } from '../lib/utils';
+import { appendPreservedListQuery, extractFrappeError, formatCurrency, formatDate } from '../lib/utils';
+import { PageHeader, LoadingBlock, AlertBanner, StatusBadge } from '../components/ui';
 
 export default function PurchaseRequisitionDetailPage() {
   const navigate = useNavigate();
@@ -68,11 +69,11 @@ export default function PurchaseRequisitionDetailPage() {
     }
   };
 
-  if (loading) return <div className="flex items-center justify-center h-64"><div className="spinner" /></div>;
+  if (loading) return <LoadingBlock label="Loading requisition…" />;
   if (error || !req) return (
     <div className="space-y-4">
-      <button onClick={() => navigate(backToList)} className="inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800"><ArrowLeft size={16} /> Back to Requisitions</button>
-      <div className="card p-8 text-center text-gray-500">{error || 'Requisition not found.'}</div>
+      <button type="button" onClick={() => navigate(backToList)} className="btn-secondary inline-flex items-center gap-2"><ArrowLeft size={16} /> Back to Requisitions</button>
+      <AlertBanner tone="error">{error || 'Requisition not found.'}</AlertBanner>
     </div>
   );
 
@@ -83,53 +84,46 @@ export default function PurchaseRequisitionDetailPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Back */}
-      <button onClick={() => navigate(backToList)} className="inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
+      <button type="button" onClick={() => navigate(backToList)} className="inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
         <ArrowLeft size={16} /> Back to Requisitions
       </button>
 
-      {/* Feedback */}
-      {feedback && (
-        <div className={`rounded-lg px-4 py-3 text-sm font-medium ${feedback.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-700'}`}>
+      {feedback ? (
+        <AlertBanner tone={feedback.type === 'success' ? 'success' : 'error'} onDismiss={() => setFeedback(null)}>
           {feedback.message}
-        </div>
-      )}
+        </AlertBanner>
+      ) : null}
 
-      {/* Header card */}
-      <div className="card p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-50 rounded-lg"><ClipboardList className="w-6 h-6 text-blue-600" /></div>
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">{req.name}</h1>
-              <span className={`inline-block mt-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(statusLabel)}`}>{statusLabel}</span>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
+      <PageHeader
+        title={req.name}
+        meta={<StatusBadge status={statusLabel} />}
+        actions={
+          <>
             {isDraft && (
-              <button onClick={handleSubmit} disabled={submitting} className="btn-primary flex items-center gap-1.5 disabled:opacity-60">
+              <button type="button" onClick={handleSubmit} disabled={submitting} className="btn-primary flex items-center gap-1.5 disabled:opacity-60">
                 <CheckCircle size={15} />{submitting ? 'Submitting…' : 'Submit'}
               </button>
             )}
             {isDraft && (
-              <button onClick={handleCancel} disabled={cancelling} className="btn-secondary text-red-600 flex items-center gap-1.5 disabled:opacity-60">
+              <button type="button" onClick={handleCancel} disabled={cancelling} className="btn-secondary text-red-600 flex items-center gap-1.5 disabled:opacity-60">
                 <XCircle size={15} />{cancelling ? 'Cancelling…' : 'Cancel'}
               </button>
             )}
             {isSubmitted && (
               <button
+                type="button"
                 onClick={() => navigate(appendPreservedListQuery(`/purchases/rfqs/new?requisitionName=${encodeURIComponent(req.name)}`, listSearch))}
                 className="btn-primary flex items-center gap-1.5"
               >
                 Create RFQ
               </button>
             )}
-          </div>
-        </div>
+          </>
+        }
+      />
 
-        {/* Meta */}
-        <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+      <div className="card p-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
           <div>
             <p className="text-xs text-gray-400 mb-1">Transaction Date</p>
             <div className="flex items-center gap-1.5 text-gray-700"><Calendar size={14} />{formatDate(req.transaction_date)}</div>

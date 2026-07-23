@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save } from 'lucide-react';
 import { suppliersApi } from '../lib/api';
 import SearchableSelect from '../components/SearchableSelect';
+import { PageHeader, AlertBanner } from '../components/ui';
 
 export default function CreateSupplierPage() {
   const navigate = useNavigate();
@@ -69,20 +70,21 @@ export default function CreateSupplierPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <button onClick={() => navigate('/suppliers')} className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
-            <ArrowLeft size={16} /> Back to Suppliers
-          </button>
-          <h1 className="page-title">Add Supplier</h1>
-          <p className="mt-1 text-gray-500">Create a new supplier record with the minimum required purchasing fields.</p>
-        </div>
-        <button onClick={handleSave} disabled={saving || loading} className="btn-primary flex items-center gap-2 disabled:opacity-60">
-          <Save size={14} /> {saving ? 'Creating…' : 'Create Supplier'}
-        </button>
-      </div>
+      <button onClick={() => navigate('/suppliers')} className="inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
+        <ArrowLeft size={16} /> Back to Suppliers
+      </button>
 
-      {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+      <PageHeader
+        title="Add Supplier"
+        description="Create a new supplier record with the minimum required purchasing fields."
+        actions={
+          <button onClick={handleSave} disabled={saving || loading} className="btn-primary flex items-center gap-2 disabled:opacity-60">
+            <Save size={14} /> {saving ? 'Creating…' : 'Create Supplier'}
+          </button>
+        }
+      />
+
+      {error && <AlertBanner tone="error">{error}</AlertBanner>}
 
       <div className="card p-6 grid grid-cols-1 gap-4 md:grid-cols-2">
         <Field label="Supplier Name">
@@ -120,7 +122,7 @@ export default function CreateSupplierPage() {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="block">
-      <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">{label}</span>
+      <label className="label-field">{label}</label>
       {children}
     </div>
   );

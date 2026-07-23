@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Calendar, FileText, GitCompareArrows, ShoppingCart, Truck } from 'lucide-react';
 import { purchasesApi } from '../lib/api';
-import { appendPreservedListQuery, classNames, extractFrappeError, formatCurrency, formatDate, getActiveCurrency, getStatusColor, isOperationsContext } from '../lib/utils';
+import { appendPreservedListQuery, extractFrappeError, formatCurrency, formatDate, getActiveCurrency, isOperationsContext } from '../lib/utils';
+import { PageHeader, LoadingBlock, AlertBanner, StatusBadge } from '../components/ui';
 
 type SupplierQuotationDetail = Record<string, any>;
 
@@ -111,53 +112,51 @@ export default function SupplierQuotationDetailPage() {
   };
 
   if (loading) {
-    return <div className="flex justify-center py-16"><div className="spinner" /></div>;
+    return <LoadingBlock label="Loading supplier quotation…" />;
   }
 
   if (error || !quotation) {
     return (
       <div className="space-y-4">
-        <button onClick={() => navigate(backToListPath)} className="btn-secondary inline-flex items-center gap-2">
+        <button type="button" onClick={() => navigate(backToListPath)} className="btn-secondary inline-flex items-center gap-2">
           <ArrowLeft className="h-4 w-4" /> {backLabel}
         </button>
-        <div className="card p-8 text-center text-gray-500">{error || 'Supplier quotation not found.'}</div>
+        <AlertBanner tone="error">{error || 'Supplier quotation not found.'}</AlertBanner>
       </div>
     );
   }
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <button onClick={() => navigate(backToListPath)} className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
-            <ArrowLeft className="h-4 w-4" /> {backLabel}
-          </button>
-          <h1 className="page-title">{quotation.name}</h1>
-          <p className="mt-1 text-gray-500">Supplier quotation detail, comparison, and award workflow</p>
-        </div>
-        <div className="flex flex-col items-start gap-3 sm:items-end">
-          <span className={classNames('inline-flex rounded-full px-3 py-1 text-sm font-medium', getStatusColor(statusLabel))}>{statusLabel}</span>
-          <div className="flex flex-wrap gap-2 justify-end">
-            <button onClick={() => navigate(buildPoPrefillPath())} className="btn-secondary">
+      <PageHeader
+        title={quotation.name}
+        description="Supplier quotation detail, comparison, and award workflow"
+        meta={<StatusBadge status={statusLabel} />}
+        actions={
+          <>
+            <button type="button" onClick={() => navigate(backToListPath)} className="btn-secondary inline-flex items-center gap-2">
+              <ArrowLeft className="h-4 w-4" /> {backLabel}
+            </button>
+            <button type="button" onClick={() => navigate(buildPoPrefillPath())} className="btn-secondary">
               Prefill PO
             </button>
-            <button onClick={handleCreatePo} disabled={creatingPo} className="btn-primary disabled:opacity-60">
+            <button type="button" onClick={handleCreatePo} disabled={creatingPo} className="btn-primary disabled:opacity-60">
               {creatingPo ? 'Creating PO…' : 'Award and Create PO'}
             </button>
             {quotation.docstatus === 0 && (
-              <button onClick={handleSubmit} disabled={submitting} className="btn-secondary disabled:opacity-60">
+              <button type="button" onClick={handleSubmit} disabled={submitting} className="btn-secondary disabled:opacity-60">
                 {submitting ? 'Submitting…' : 'Submit RFQ'}
               </button>
             )}
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
-      {feedback && (
-        <div className={`rounded-lg px-4 py-3 text-sm ${feedback.type === 'success' ? 'border border-green-200 bg-green-50 text-green-700' : 'border border-red-200 bg-red-50 text-red-700'}`}>
+      {feedback ? (
+        <AlertBanner tone={feedback.type === 'success' ? 'success' : 'error'} onDismiss={() => setFeedback(null)}>
           {feedback.message}
-        </div>
-      )}
+        </AlertBanner>
+      ) : null}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <DetailKPI icon={Truck} label="Supplier" value={quotation.supplier_name || quotation.supplier || '—'} tone="blue" />
@@ -273,7 +272,7 @@ export default function SupplierQuotationDetailPage() {
                         <td className="px-6 py-3 text-sm text-gray-700">{row.supplier_name || row.supplier || '—'}</td>
                         <td className="px-6 py-3 text-sm text-gray-500">{formatDate(row.transaction_date)}</td>
                         <td className="px-6 py-3 text-right text-sm font-medium text-gray-900">{formatCurrency(row.grand_total, row.currency)}</td>
-                        <td className="px-6 py-3"><span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(row.status || (row.docstatus === 0 ? 'Draft' : 'Open'))}`}>{row.status || (row.docstatus === 0 ? 'Draft' : 'Open')}</span></td>
+                        <td className="px-6 py-3"><StatusBadge status={row.status || (row.docstatus === 0 ? 'Draft' : 'Open')} /></td>
                       </tr>
                     ))}
                   </tbody>

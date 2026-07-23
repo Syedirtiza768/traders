@@ -15,7 +15,8 @@ import {
 import { salesApi } from '../lib/api';
 import RecordInvoicePaymentPanel from '../components/RecordInvoicePaymentPanel';
 import CommercialHierarchyEditor from '../components/CommercialHierarchyEditor';
-import { appendPreservedListQuery, classNames, extractFrappeError, formatCurrency, formatDate, getActiveCurrency, getStatusColor, isFilterListContext, isOperationsContext, isReportContext } from '../lib/utils';
+import { appendPreservedListQuery, extractFrappeError, formatCurrency, formatDate, getActiveCurrency, isFilterListContext, isOperationsContext, isReportContext } from '../lib/utils';
+import { PageHeader, LoadingBlock, AlertBanner, StatusBadge, EmptyState } from '../components/ui';
 
 type SalesInvoiceDetail = Record<string, any>;
 
@@ -167,7 +168,7 @@ export default function SalesInvoiceDetailPage() {
   };
 
   if (loading) {
-    return <div className="py-16 flex justify-center"><div className="spinner" /></div>;
+    return <LoadingBlock label="Loading invoice…" />;
   }
 
   if (error || !invoice) {
@@ -177,65 +178,62 @@ export default function SalesInvoiceDetailPage() {
           <ArrowLeft className="w-4 h-4" />
           {backLabel}
         </button>
-        <div className="card p-8 text-center text-gray-500">{error || 'Invoice not found.'}</div>
+        <AlertBanner tone="error">{error || 'Invoice not found.'}</AlertBanner>
       </div>
     );
   }
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <button onClick={() => navigate(backToListPath)} className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
-            <ArrowLeft className="w-4 h-4" />
-            {backLabel}
-          </button>
-          <h1 className="page-title">{invoice.name}</h1>
-          <p className="mt-1 text-gray-500">Sales invoice detail and line-level view</p>
-        </div>
-        <div className="flex flex-col items-start gap-3 sm:items-end">
-          <span className={classNames('inline-flex rounded-full px-3 py-1 text-sm font-medium', getStatusColor(statusLabel))}>
-            {statusLabel}
-          </span>
-          <button
-            onClick={() => navigate(`/print?doctype=Sales%20Invoice&name=${encodeURIComponent(invoice.name)}`)}
-            className="btn-secondary inline-flex items-center gap-2"
-          >
-            <Printer className="h-4 w-4" /> Print / Preview
-          </button>
-          {invoice.docstatus === 1 && !invoice.is_return && (
+      <button onClick={() => navigate(backToListPath)} className="inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
+        <ArrowLeft className="w-4 h-4" />
+        {backLabel}
+      </button>
+
+      <PageHeader
+        title={invoice.name}
+        description="Sales invoice detail and line-level view"
+        meta={<StatusBadge status={statusLabel} />}
+        actions={
+          <>
             <button
-              onClick={() => navigate(buildReturnPath())}
-              className="btn-secondary"
+              onClick={() => navigate(`/print?doctype=Sales%20Invoice&name=${encodeURIComponent(invoice.name)}`)}
+              className="btn-secondary inline-flex items-center gap-2"
             >
-              Create Return
+              <Printer className="h-4 w-4" /> Print / Preview
             </button>
-          )}
-          {(invoice.outstanding_amount ?? 0) > 0 && invoice.customer && (
-            <button
-              onClick={() => navigate(appendPreservedListQuery(`/finance/payments/new?paymentType=Receive&partyType=Customer&party=${encodeURIComponent(invoice.customer)}&amount=${encodeURIComponent(String(invoice.outstanding_amount || 0))}&referenceName=${encodeURIComponent(invoice.name)}`, listSearch))}
-              className="btn-secondary"
-            >
-              Collect Payment
-            </button>
-          )}
-          {invoice.docstatus === 0 && (
-            <button onClick={handleSubmitInvoice} disabled={submitting} className="btn-primary disabled:opacity-60">
-              {submitting ? 'Submitting…' : 'Submit Invoice'}
-            </button>
-          )}
-          {invoice.docstatus === 1 && !invoice.is_return && (
-            <button onClick={handleCancelInvoice} disabled={cancelling} className="btn-danger disabled:opacity-60">
-              {cancelling ? 'Cancelling…' : 'Cancel Invoice'}
-            </button>
-          )}
-        </div>
-      </div>
+            {invoice.docstatus === 1 && !invoice.is_return && (
+              <button
+                onClick={() => navigate(buildReturnPath())}
+                className="btn-secondary"
+              >
+                Create Return
+              </button>
+            )}
+            {(invoice.outstanding_amount ?? 0) > 0 && invoice.customer && (
+              <button
+                onClick={() => navigate(appendPreservedListQuery(`/finance/payments/new?paymentType=Receive&partyType=Customer&party=${encodeURIComponent(invoice.customer)}&amount=${encodeURIComponent(String(invoice.outstanding_amount || 0))}&referenceName=${encodeURIComponent(invoice.name)}`, listSearch))}
+                className="btn-secondary"
+              >
+                Collect Payment
+              </button>
+            )}
+            {invoice.docstatus === 0 && (
+              <button onClick={handleSubmitInvoice} disabled={submitting} className="btn-primary disabled:opacity-60">
+                {submitting ? 'Submitting…' : 'Submit Invoice'}
+              </button>
+            )}
+            {invoice.docstatus === 1 && !invoice.is_return && (
+              <button onClick={handleCancelInvoice} disabled={cancelling} className="btn-danger disabled:opacity-60">
+                {cancelling ? 'Cancelling…' : 'Cancel Invoice'}
+              </button>
+            )}
+          </>
+        }
+      />
 
       {feedback && (
-        <div className={`rounded-lg px-4 py-3 text-sm ${feedback.type === 'success' ? 'border border-green-200 bg-green-50 text-green-700' : 'border border-red-200 bg-red-50 text-red-700'}`}>
-          {feedback.message}
-        </div>
+        <AlertBanner tone={feedback.type === 'success' ? 'success' : 'error'}>{feedback.message}</AlertBanner>
       )}
 
       {invoice.sales_order && (
@@ -336,7 +334,9 @@ export default function SalesInvoiceDetailPage() {
               <tbody className="divide-y divide-gray-100">
                 {itemRows.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-10 text-center text-gray-400">No invoice items found.</td>
+                    <td colSpan={5} className="p-0">
+                      <EmptyState compact title="No invoice items found." />
+                    </td>
                   </tr>
                 ) : (
                   itemRows.map((item, index) => (
@@ -356,7 +356,7 @@ export default function SalesInvoiceDetailPage() {
         {/* Mobile cards */}
         <div className="md:hidden divide-y divide-gray-100">
           {itemRows.length === 0 ? (
-            <p className="px-4 py-8 text-center text-sm text-gray-400">No invoice items found.</p>
+            <EmptyState compact title="No invoice items found." />
           ) : (
             itemRows.map((item, index) => (
               <div key={`m-${item.item_code || index}`} className="px-4 py-3">

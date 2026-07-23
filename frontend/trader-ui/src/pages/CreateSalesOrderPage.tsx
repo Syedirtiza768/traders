@@ -6,6 +6,7 @@ import { appendPreservedListQuery, formatCurrency, isOperationsContext } from '.
 import SearchableSelect from '../components/SearchableSelect';
 import useQuickAdd from '../components/useQuickAdd';
 import QuickAddProvider from '../components/QuickAddProvider';
+import { PageHeader, AlertBanner } from '../components/ui';
 
 type OrderLine = {
   item_code: string;
@@ -244,21 +245,23 @@ export default function CreateSalesOrderPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <button onClick={() => navigate(backToPath)} className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
-            <ArrowLeft size={16} /> {backLabel}
-          </button>
-          <h1 className="page-title">New Sales Order</h1>
-          <p className="mt-1 text-gray-500">Create a draft sales order using the existing ERP workflow and item catalog.</p>
-        </div>
-        <button onClick={handleSubmit} disabled={saving || loading} className="btn-primary flex items-center gap-2 disabled:opacity-60">
-          <Save size={14} /> {saving ? 'Creating…' : 'Create Draft'}
-        </button>
-      </div>
+      <PageHeader
+        title="New Sales Order"
+        description="Create a draft sales order using the existing ERP workflow and item catalog."
+        actions={
+          <>
+            <button type="button" onClick={() => navigate(backToPath)} className="btn-secondary inline-flex items-center gap-2">
+              <ArrowLeft size={16} /> {backLabel}
+            </button>
+            <button type="button" onClick={handleSubmit} disabled={saving || loading} className="btn-primary flex items-center gap-2 disabled:opacity-60">
+              <Save size={14} /> {saving ? 'Creating…' : 'Create Draft'}
+            </button>
+          </>
+        }
+      />
 
-      {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
-      {quotationError && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{quotationError}</div>}
+      {error ? <AlertBanner tone="error">{error}</AlertBanner> : null}
+      {quotationError ? <AlertBanner tone="error">{quotationError}</AlertBanner> : null}
 
       {(sourceType || sourceName) && (
         <PrefillBanner

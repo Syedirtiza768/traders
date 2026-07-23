@@ -38,7 +38,7 @@ export default function DashboardLayout() {
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
 
   return (
-    <div className="min-h-[var(--vh-full,100vh)] bg-gray-50 dark:bg-slate-950">
+    <div className="min-h-[var(--vh-full,100vh)] bg-[var(--surface-page)] dark:bg-slate-950">
       {/* Skip-to-content for keyboard users */}
       <a href="#main-content" className="skip-to-content">
         Skip to main content
@@ -47,29 +47,48 @@ export default function DashboardLayout() {
       <Navbar onMenuToggle={toggleSidebar} />
 
       {/* Desktop sidebar — always visible at lg+ */}
-      <nav className="hidden lg:block" aria-label="Main navigation">
+      <nav className="hidden lg:block no-print" aria-label="Main navigation">
         <Sidebar />
       </nav>
 
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <>
-          <div className="overlay-backdrop lg:hidden" onClick={closeSidebar} aria-hidden="true" />
-          <nav className="fixed inset-y-0 left-0 z-50 w-[280px] lg:hidden slide-in-left" aria-label="Mobile navigation">
+          <div className="overlay-backdrop lg:hidden no-print" onClick={closeSidebar} aria-hidden="true" />
+          <nav
+            className="fixed inset-y-0 left-0 z-[var(--z-modal)] w-[min(280px,88vw)] lg:hidden slide-in-left no-print"
+            aria-label="Mobile navigation"
+            aria-modal="true"
+            role="dialog"
+          >
             <Sidebar mobile onClose={closeSidebar} />
           </nav>
         </>
       )}
 
       {/* Main content area */}
-      <main id="main-content" className="lg:ml-[260px] mt-[var(--navbar-height)] pb-[calc(var(--mobile-nav-height)+var(--safe-bottom,0px))] lg:pb-0 page-container dark:bg-slate-950">
-        <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="spinner" role="status"><span className="sr-only">Loading…</span></div></div>}>
+      <main
+        id="main-content"
+        className="lg:ml-[var(--sidebar-width)] mt-[var(--navbar-height)] pb-[calc(var(--mobile-nav-height)+var(--safe-bottom,0px)+0.5rem)] lg:pb-6 page-container dark:bg-slate-950"
+        tabIndex={-1}
+      >
+        <Suspense
+          fallback={
+            <div className="flex h-64 flex-col items-center justify-center gap-3" role="status" aria-live="polite">
+              <div className="spinner" aria-hidden="true" />
+              <span className="sr-only">Loading page…</span>
+              <p className="text-sm text-gray-500 dark:text-slate-400" aria-hidden="true">Loading…</p>
+            </div>
+          }
+        >
           <Outlet />
         </Suspense>
       </main>
 
       {/* Mobile bottom navigation — visible below lg */}
-      <MobileNav onMorePress={toggleSidebar} />
+      <div className="no-print" data-mobile-nav>
+        <MobileNav onMorePress={toggleSidebar} />
+      </div>
     </div>
   );
 }

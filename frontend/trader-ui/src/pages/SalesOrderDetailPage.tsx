@@ -13,7 +13,8 @@ import {
   User,
 } from 'lucide-react';
 import { salesApi } from '../lib/api';
-import { appendPreservedListQuery, classNames, extractFrappeError, formatCurrency, formatDate, getActiveCurrency, getStatusColor, isOperationsContext } from '../lib/utils';
+import { appendPreservedListQuery, extractFrappeError, formatCurrency, formatDate, getActiveCurrency, isOperationsContext } from '../lib/utils';
+import { PageHeader, LoadingBlock, AlertBanner, StatusBadge, EmptyState } from '../components/ui';
 import CommercialHierarchyEditor from '../components/CommercialHierarchyEditor';
 
 type SalesOrderDetail = Record<string, any>;
@@ -125,7 +126,7 @@ export default function SalesOrderDetailPage() {
   const buildInvoiceDetailPath = (invoiceName: string) => appendPreservedListQuery(`/sales/${encodeURIComponent(invoiceName)}`, listSearch);
 
   if (loading) {
-    return <div className="flex justify-center py-16"><div className="spinner" /></div>;
+    return <LoadingBlock label="Loading sales order…" />;
   }
 
   if (error || !order) {
@@ -134,26 +135,23 @@ export default function SalesOrderDetailPage() {
         <button onClick={() => navigate(backToListPath)} className="btn-secondary inline-flex items-center gap-2">
           <ArrowLeft className="h-4 w-4" /> {backLabel}
         </button>
-        <div className="card p-8 text-center text-gray-500">{error || 'Sales order not found.'}</div>
+        <AlertBanner tone="error">{error || 'Sales order not found.'}</AlertBanner>
       </div>
     );
   }
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <button onClick={() => navigate(backToListPath)} className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
-            <ArrowLeft className="h-4 w-4" /> {backLabel}
-          </button>
-          <h1 className="page-title">{order.name}</h1>
-          <p className="mt-1 text-gray-500">Sales order detail and fulfillment context</p>
-        </div>
-        <div className="flex flex-col items-start gap-3 sm:items-end">
-          <span className={classNames('inline-flex rounded-full px-3 py-1 text-sm font-medium', getStatusColor(statusLabel))}>
-            {statusLabel}
-          </span>
-          <div className="flex flex-wrap justify-end gap-2">
+      <button onClick={() => navigate(backToListPath)} className="inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
+        <ArrowLeft className="h-4 w-4" /> {backLabel}
+      </button>
+
+      <PageHeader
+        title={order.name}
+        description="Sales order detail and fulfillment context"
+        meta={<StatusBadge status={statusLabel} />}
+        actions={
+          <>
             <button
               onClick={() => navigate(`/print?doctype=Sales%20Order&name=${encodeURIComponent(order.name)}`)}
               className="btn-secondary inline-flex items-center gap-2"
@@ -200,24 +198,22 @@ export default function SalesOrderDetailPage() {
                 {linkedInvoices.length === 1 ? 'Open Invoice' : 'Review Invoices'}
               </button>
             )}
-          </div>
-          {order.docstatus === 0 && (
-            <button onClick={handleSubmitOrder} disabled={submitting} className="btn-primary disabled:opacity-60">
-              {submitting ? 'Submitting…' : 'Submit Order'}
-            </button>
-          )}
-          {order.docstatus === 1 && (
-            <button onClick={handleCancelOrder} disabled={cancelling} className="btn-danger disabled:opacity-60">
-              {cancelling ? 'Cancelling…' : 'Cancel Order'}
-            </button>
-          )}
-        </div>
-      </div>
+            {order.docstatus === 0 && (
+              <button onClick={handleSubmitOrder} disabled={submitting} className="btn-primary disabled:opacity-60">
+                {submitting ? 'Submitting…' : 'Submit Order'}
+              </button>
+            )}
+            {order.docstatus === 1 && (
+              <button onClick={handleCancelOrder} disabled={cancelling} className="btn-danger disabled:opacity-60">
+                {cancelling ? 'Cancelling…' : 'Cancel Order'}
+              </button>
+            )}
+          </>
+        }
+      />
 
       {feedback && (
-        <div className={`rounded-lg px-4 py-3 text-sm ${feedback.type === 'success' ? 'border border-green-200 bg-green-50 text-green-700' : 'border border-red-200 bg-red-50 text-red-700'}`}>
-          {feedback.message}
-        </div>
+        <AlertBanner tone={feedback.type === 'success' ? 'success' : 'error'}>{feedback.message}</AlertBanner>
       )}
 
       {order.quotation && (
@@ -305,7 +301,9 @@ export default function SalesOrderDetailPage() {
               <tbody className="divide-y divide-gray-100">
                 {itemRows.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-10 text-center text-gray-400">No sales order items found.</td>
+                    <td colSpan={5} className="p-0">
+                      <EmptyState compact title="No sales order items found." />
+                    </td>
                   </tr>
                 ) : (
                   itemRows.map((item, index) => (
@@ -325,7 +323,7 @@ export default function SalesOrderDetailPage() {
         {/* Mobile cards */}
         <div className="md:hidden divide-y divide-gray-100">
           {itemRows.length === 0 ? (
-            <p className="px-4 py-8 text-center text-sm text-gray-400">No sales order items found.</p>
+            <EmptyState compact title="No sales order items found." />
           ) : (
             itemRows.map((item, index) => (
               <div key={`m-${item.item_code || index}`} className="px-4 py-3">
@@ -453,7 +451,7 @@ function LinkedDocumentsCard({ title, description, documents, onOpen }: { title:
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <div className="font-medium text-gray-900">{doc.name}</div>
-                {doc.status && <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(doc.status)}`}>{doc.status}</span>}
+                {doc.status && <StatusBadge status={doc.status} />}
               </div>
               <div className="text-sm text-gray-500">{doc.meta}</div>
               {doc.outstanding && <div className="text-xs text-gray-500">Outstanding: {doc.outstanding}</div>}

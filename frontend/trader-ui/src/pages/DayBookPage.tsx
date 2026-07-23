@@ -19,6 +19,8 @@ import DayBookEntryPanel, { type DayBookEntryType } from '../components/DayBookE
 
 import { formatAmount } from '../lib/utils';
 
+import { LoadingBlock, EmptyState } from '../components/ui';
+
 
 
 function todayStr() {
@@ -447,23 +449,21 @@ export default function DayBookPage() {
 
         {loading ? (
 
-          <div className="flex items-center justify-center h-40">
-
-            <div className="spinner" />
-
-          </div>
+          <LoadingBlock compact label="Loading vouchers…" />
 
         ) : vouchers.length === 0 ? (
 
-          <div className="flex flex-col items-center justify-center h-40 text-gray-400 gap-2">
+          <EmptyState
 
-            <BookOpen className="w-8 h-8 opacity-40" />
+            compact
 
-            <p className="text-sm">No vouchers for {date}</p>
+            title={`No vouchers for ${date}`}
 
-            <p className="text-xs">Use the buttons below to record today&apos;s activity.</p>
+            description="Use the buttons below to record today's activity."
 
-          </div>
+            icon={<BookOpen className="h-5 w-5" aria-hidden="true" />}
+
+          />
 
         ) : (
 

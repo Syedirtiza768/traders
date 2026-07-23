@@ -12,7 +12,8 @@ import {
   User,
 } from 'lucide-react';
 import { salesApi, opportunityApi, inventoryApi } from '../lib/api';
-import { appendPreservedListQuery, classNames, extractFrappeError, formatCurrency, formatDate, getActiveCurrency, getStatusColor, isOperationsContext } from '../lib/utils';
+import { appendPreservedListQuery, extractFrappeError, formatCurrency, formatDate, getActiveCurrency, isOperationsContext } from '../lib/utils';
+import { PageHeader, LoadingBlock, AlertBanner, StatusBadge } from '../components/ui';
 import CommercialHierarchyEditor, { type CreatedHierarchyItem } from '../components/CommercialHierarchyEditor';
 import QuotationOrderDetailsForm, {
   orderDetailsFromQuotation,
@@ -224,7 +225,7 @@ export default function QuotationDetailPage() {
   const buildOrderDetailPath = (orderName: string) => appendPreservedListQuery(`/sales/orders/${encodeURIComponent(orderName)}`, listSearch);
 
   if (loading) {
-    return <div className="flex justify-center py-16"><div className="spinner" /></div>;
+    return <LoadingBlock label="Loading quotation…" />;
   }
 
   if (error || !quotation) {
@@ -233,79 +234,76 @@ export default function QuotationDetailPage() {
         <button onClick={() => navigate(backToListPath)} className="btn-secondary inline-flex items-center gap-2">
           <ArrowLeft className="h-4 w-4" /> {backLabel}
         </button>
-        <div className="card p-8 text-center text-gray-500">{error || 'Quotation not found.'}</div>
+        <AlertBanner tone="error">{error || 'Quotation not found.'}</AlertBanner>
       </div>
     );
   }
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <button onClick={() => navigate(backToListPath)} className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
-            <ArrowLeft className="h-4 w-4" /> {backLabel}
-          </button>
-          <h1 className="page-title">{quotation.name}</h1>
-          <p className="mt-1 text-gray-500">Quotation detail and line-level commercial view</p>
-        </div>
-        <div className="flex flex-col items-start gap-3 sm:items-end">
-          <span className={classNames('inline-flex rounded-full px-3 py-1 text-sm font-medium', getStatusColor(statusLabel))}>
-            {statusLabel}
-          </span>
-          <button
-            onClick={() => navigate(`/print?doctype=Quotation&name=${encodeURIComponent(quotation.name)}`)}
-            className="btn-secondary inline-flex items-center gap-2"
-          >
-            <Printer className="h-4 w-4" /> Print / Preview
-          </button>
-          {quotation.docstatus === 0 && quotation.trader_opportunity ? (
+      <button onClick={() => navigate(backToListPath)} className="inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
+        <ArrowLeft className="h-4 w-4" /> {backLabel}
+      </button>
+
+      <PageHeader
+        title={quotation.name}
+        description="Quotation detail and line-level commercial view"
+        meta={<StatusBadge status={statusLabel} />}
+        actions={
+          <>
+            <button
+              onClick={() => navigate(`/print?doctype=Quotation&name=${encodeURIComponent(quotation.name)}`)}
+              className="btn-secondary inline-flex items-center gap-2"
+            >
+              <Printer className="h-4 w-4" /> Print / Preview
+            </button>
+            {quotation.docstatus === 0 && quotation.trader_opportunity ? (
+              <button
+                type="button"
+                onClick={() =>
+                  navigate(`/sales/quotations/${encodeURIComponent(quotation.name)}/edit`)
+                }
+                className="btn-primary inline-flex items-center gap-2"
+              >
+                Open tabbed editor
+              </button>
+            ) : null}
             <button
               type="button"
-              onClick={() =>
-                navigate(`/sales/quotations/${encodeURIComponent(quotation.name)}/edit`)
-              }
-              className="btn-primary inline-flex items-center gap-2"
+              onClick={() => setShowPreview((v) => !v)}
+              className="btn-secondary inline-flex items-center gap-2"
             >
-              Open tabbed editor
+              {showPreview ? 'Hide inline preview' : 'Inline preview'}
             </button>
-          ) : null}
-          <button
-            type="button"
-            onClick={() => setShowPreview((v) => !v)}
-            className="btn-secondary inline-flex items-center gap-2"
-          >
-            {showPreview ? 'Hide inline preview' : 'Inline preview'}
-          </button>
-          {quotation.customer && (
-            <button
-              onClick={() => navigate(`/sales/orders/new?customer=${encodeURIComponent(quotation.customer)}&transactionDate=${encodeURIComponent(quotation.transaction_date || '')}&deliveryDate=${encodeURIComponent(quotation.valid_till || quotation.transaction_date || '')}&sourceType=quotation&sourceName=${encodeURIComponent(quotation.name || '')}&lines=${encodedLines}`)}
-              className="btn-secondary"
-            >
-              Create Sales Order
-            </button>
-          )}
-          {quotation.docstatus === 0 && (
-            <button onClick={handleSubmitQuotation} disabled={submitting} className="btn-primary disabled:opacity-60">
-              {submitting ? 'Submitting…' : 'Submit Quotation'}
-            </button>
-          )}
-          {quotation.docstatus === 1 && (
-            <button onClick={handleCreateRevision} disabled={revising} className="btn-secondary disabled:opacity-60">
-              {revising ? 'Creating…' : 'Create Revision'}
-            </button>
-          )}
-          {quotation.docstatus === 1 && (
-            <button onClick={handleCancelQuotation} disabled={cancelling} className="btn-danger disabled:opacity-60">
-              {cancelling ? 'Cancelling…' : 'Cancel Quotation'}
-            </button>
-          )}
-        </div>
-      </div>
+            {quotation.customer && (
+              <button
+                onClick={() => navigate(`/sales/orders/new?customer=${encodeURIComponent(quotation.customer)}&transactionDate=${encodeURIComponent(quotation.transaction_date || '')}&deliveryDate=${encodeURIComponent(quotation.valid_till || quotation.transaction_date || '')}&sourceType=quotation&sourceName=${encodeURIComponent(quotation.name || '')}&lines=${encodedLines}`)}
+                className="btn-secondary"
+              >
+                Create Sales Order
+              </button>
+            )}
+            {quotation.docstatus === 0 && (
+              <button onClick={handleSubmitQuotation} disabled={submitting} className="btn-primary disabled:opacity-60">
+                {submitting ? 'Submitting…' : 'Submit Quotation'}
+              </button>
+            )}
+            {quotation.docstatus === 1 && (
+              <button onClick={handleCreateRevision} disabled={revising} className="btn-secondary disabled:opacity-60">
+                {revising ? 'Creating…' : 'Create Revision'}
+              </button>
+            )}
+            {quotation.docstatus === 1 && (
+              <button onClick={handleCancelQuotation} disabled={cancelling} className="btn-danger disabled:opacity-60">
+                {cancelling ? 'Cancelling…' : 'Cancel Quotation'}
+              </button>
+            )}
+          </>
+        }
+      />
 
       {feedback && (
-        <div className={`rounded-lg px-4 py-3 text-sm ${feedback.type === 'success' ? 'border border-green-200 bg-green-50 text-green-700' : 'border border-red-200 bg-red-50 text-red-700'}`}>
-          {feedback.message}
-        </div>
+        <AlertBanner tone={feedback.type === 'success' ? 'success' : 'error'}>{feedback.message}</AlertBanner>
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -569,7 +567,7 @@ function LinkedDocumentsCard({ title, description, documents, onOpen }: { title:
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <div className="font-medium text-gray-900">{doc.name}</div>
-                {doc.status && <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(doc.status)}`}>{doc.status}</span>}
+                {doc.status && <StatusBadge status={doc.status} />}
               </div>
               <div className="text-sm text-gray-500">{doc.meta}</div>
               {doc.outstanding && <div className="text-xs text-gray-500">Outstanding: {doc.outstanding}</div>}

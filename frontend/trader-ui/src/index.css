@@ -4,16 +4,76 @@
 
 @layer base {
   :root {
+    /* Brand */
     --color-brand: #1e40af;
     --color-brand-light: #3b82f6;
+    --color-brand-dark: #1e3a8a;
+
+    /* Semantic */
+    --color-success: #16a34a;
+    --color-warning: #d97706;
+    --color-danger: #dc2626;
+    --color-info: #2563eb;
+
+    /* Surfaces */
+    --surface-page: #f8fafc;
+    --surface-card: #ffffff;
+    --surface-muted: #f1f5f9;
+    --surface-elevated: #ffffff;
+
+    /* Text */
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
+    --text-inverse: #ffffff;
+
+    /* Borders & focus */
+    --border-default: #e2e8f0;
+    --border-strong: #cbd5e1;
+    --focus-ring: #3b82f6;
+
+    /* Radius scale */
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+
+    /* Shadow scale */
+    --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+    --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+    --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
+
+    /* Layout */
     --sidebar-width: 260px;
     --sidebar-collapsed-width: 0px;
     --navbar-height: 64px;
     --mobile-nav-height: 56px;
+    --page-max-width: 1440px;
+    --content-gap: 1.25rem;
     --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
     --safe-left: env(safe-area-inset-left, 0px);
     --safe-right: env(safe-area-inset-right, 0px);
+
+    /* Z-index scale */
+    --z-dropdown: 40;
+    --z-sticky: 30;
+    --z-overlay: 40;
+    --z-modal: 50;
+    --z-toast: 60;
+    --z-skip: 9999;
+  }
+
+  .dark {
+    --surface-page: #020617;
+    --surface-card: #0f172a;
+    --surface-muted: #1e293b;
+    --surface-elevated: #1e293b;
+    --text-primary: #f1f5f9;
+    --text-secondary: #cbd5e1;
+    --text-muted: #94a3b8;
+    --border-default: #334155;
+    --border-strong: #475569;
   }
 
   /* Dynamic viewport height — fallback for browsers without dvh */
@@ -36,11 +96,14 @@
 
   body {
     @apply text-gray-800;
+    color: var(--text-primary);
+    background-color: var(--surface-page);
     min-height: var(--vh-full, 100vh);
     padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    line-height: 1.5;
   }
 
   * {
@@ -48,18 +111,16 @@
     -webkit-tap-highlight-color: transparent;
   }
 
-  /* Keyboard-only focus indicator (WCAG 2.1 AA) */
+  /* Keyboard-only focus indicator (WCAG 2.2 AA) */
   :focus-visible {
-    outline: 2px solid var(--color-brand-light, #3b82f6);
+    outline: 2px solid var(--focus-ring, var(--color-brand-light, #3b82f6));
     outline-offset: 2px;
   }
 
-  /* Remove default outline for mouse/touch users */
   :focus:not(:focus-visible) {
     outline: none;
   }
 
-  /* Reduced motion for users who prefer it */
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
       animation-duration: 0.01ms !important;
@@ -83,20 +144,29 @@
   .btn-secondary {
     @apply bg-white text-gray-700 px-4 py-2 rounded-lg font-medium
            border border-gray-300 hover:bg-gray-50 transition-colors duration-200
-           focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2;
+           focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed;
     min-height: 44px;
     min-width: 44px;
+  }
+
+  .btn-ghost {
+    @apply bg-transparent text-gray-600 px-3 py-2 rounded-lg font-medium
+           hover:bg-gray-100 hover:text-gray-900 transition-colors duration-200
+           focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed;
+    min-height: 44px;
   }
 
   .btn-danger {
     @apply bg-red-600 text-white px-4 py-2 rounded-lg font-medium
            hover:bg-red-700 transition-colors duration-200
-           focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2;
+           focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed;
     min-height: 44px;
     min-width: 44px;
   }
 
-  /* Compact button variant for tight spaces (still meets 44px touch target via padding) */
   .btn-compact {
     @apply text-sm;
     min-height: 36px;
@@ -111,7 +181,10 @@
   }
 
   .card {
-    @apply bg-white rounded-xl border border-gray-200 shadow-sm;
+    @apply bg-white rounded-xl border border-gray-200;
+    box-shadow: var(--shadow-xs);
+    background-color: var(--surface-card);
+    border-color: var(--border-default);
   }
 
   .card-header {
@@ -129,9 +202,42 @@
     min-height: 44px;
   }
 
+  .label-field {
+    @apply mb-1.5 block text-sm font-medium text-gray-700 dark:text-slate-300;
+  }
+
+  .help-text {
+    @apply mt-1 text-xs text-gray-500 dark:text-slate-400;
+  }
+
+  .field-error {
+    @apply mt-1 text-xs font-medium text-red-600 dark:text-red-400;
+  }
+
   .table-container {
     @apply overflow-x-auto rounded-xl border border-gray-200;
     -webkit-overflow-scrolling: touch;
+    border-color: var(--border-default);
+  }
+
+  .data-table {
+    @apply min-w-full divide-y divide-gray-200 dark:divide-slate-700;
+  }
+
+  .data-table thead {
+    @apply bg-gray-50 dark:bg-slate-800/80;
+  }
+
+  .data-table th {
+    @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-slate-400 sm:px-6;
+  }
+
+  .data-table td {
+    @apply px-4 py-3 text-sm text-gray-700 dark:text-slate-200 sm:px-6;
+  }
+
+  .data-table tbody tr {
+    @apply border-t border-gray-100 transition-colors hover:bg-gray-50/80 dark:border-slate-800 dark:hover:bg-slate-800/50;
   }
 
   .kpi-card {
@@ -150,7 +256,6 @@
     @apply bg-brand-50 text-brand-700;
   }
 
-  /* Mobile bottom nav link */
   .mobile-nav-link {
     @apply flex flex-col items-center justify-center gap-0.5 text-gray-500
            transition-colors duration-150;
@@ -162,33 +267,55 @@
     @apply text-brand-700;
   }
 
-  /* Page container with responsive padding */
   .page-container {
     @apply px-4 py-4 sm:px-6 sm:py-6;
+    max-width: var(--page-max-width);
   }
 
-  /* Responsive page header */
   .page-title {
     @apply text-xl font-bold text-gray-900 sm:text-2xl;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+    line-height: 1.25;
   }
 
-  /* Mobile card list (replaces table on small screens) */
+  .page-description {
+    @apply text-sm text-gray-500 dark:text-slate-400;
+    color: var(--text-muted);
+  }
+
+  .page-header {
+    margin-bottom: 0;
+  }
+
+  .section-title {
+    @apply text-base font-semibold text-gray-900 dark:text-gray-100;
+  }
+
   .mobile-card {
     @apply card p-4 space-y-2;
   }
   .mobile-card-row {
-    @apply flex items-center justify-between text-sm;
+    @apply flex items-center justify-between text-sm gap-3;
   }
   .mobile-card-label {
-    @apply text-gray-500 text-xs;
+    @apply text-gray-500 text-xs shrink-0;
   }
   .mobile-card-value {
-    @apply font-medium text-gray-900;
+    @apply font-medium text-gray-900 text-right;
+  }
+
+  /* Numeric alignment helpers */
+  .num {
+    @apply text-right tabular-nums;
+    font-variant-numeric: tabular-nums;
   }
 
   /* Trader UI dark mode (html.dark — toggled from trader_app.api.settings per-user prefs) */
   .dark body {
-    @apply text-gray-100 bg-slate-950;
+    @apply text-gray-100;
+    background-color: var(--surface-page);
+    color: var(--text-primary);
   }
 
   .dark * {
@@ -196,7 +323,9 @@
   }
 
   .dark .card {
-    @apply bg-slate-900 border-slate-700 shadow-none;
+    @apply shadow-none;
+    background-color: var(--surface-card);
+    border-color: var(--border-default);
   }
 
   .dark .card-header {
@@ -207,8 +336,12 @@
     @apply bg-slate-800 text-gray-100 border-slate-600 hover:bg-slate-700;
   }
 
+  .dark .btn-ghost {
+    @apply text-slate-300 hover:bg-slate-800 hover:text-gray-100;
+  }
+
   .dark .page-title {
-    @apply text-gray-100;
+    color: var(--text-primary);
   }
 
   .dark .sidebar-link {
@@ -224,7 +357,7 @@
   }
 
   .dark .table-container {
-    @apply border-slate-700;
+    border-color: var(--border-default);
   }
 
   .dark .mobile-card-label {
@@ -245,7 +378,6 @@
 }
 
 @layer utilities {
-  /* Screen-reader only */
   .sr-only {
     position: absolute;
     width: 1px;
@@ -258,7 +390,6 @@
     border-width: 0;
   }
 
-  /* Skip-to-content link — visible only on keyboard focus */
   .skip-to-content {
     @apply sr-only;
   }
@@ -266,7 +397,7 @@
     position: fixed;
     top: 8px;
     left: 8px;
-    z-index: 9999;
+    z-index: var(--z-skip);
     width: auto;
     height: auto;
     padding: 12px 24px;
@@ -281,7 +412,6 @@
     box-shadow: 0 4px 12px rgba(0,0,0,0.3);
   }
 
-  /* Hide scrollbar for touch-friendly horizontal scroll */
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -290,12 +420,15 @@
     display: none;
   }
 
-  /* Safe area padding utilities */
   .pb-safe {
     padding-bottom: max(env(safe-area-inset-bottom, 0px), 0px);
   }
   .pt-safe {
     padding-top: max(env(safe-area-inset-top, 0px), 0px);
+  }
+
+  .no-print {
+    /* Marker for elements removed in print contexts */
   }
 }
 
@@ -316,14 +449,18 @@
   }
 }
 
-/* Loading spinner */
 .spinner {
   border: 3px solid #e5e7eb;
-  border-top: 3px solid #1e40af;
+  border-top: 3px solid var(--color-brand, #1e40af);
   border-radius: 50%;
   width: 24px;
   height: 24px;
   animation: spin 0.8s linear infinite;
+}
+
+.dark .spinner {
+  border-color: #334155;
+  border-top-color: var(--color-brand-light, #3b82f6);
 }
 
 @keyframes spin {
@@ -331,9 +468,9 @@
   100% { transform: rotate(360deg); }
 }
 
-/* Mobile overlay backdrop */
 .overlay-backdrop {
-  @apply fixed inset-0 bg-black/40 backdrop-blur-sm z-40;
+  @apply fixed inset-0 bg-black/40 backdrop-blur-sm;
+  z-index: var(--z-overlay);
   animation: fadeIn 200ms ease-out;
 }
 @keyframes fadeIn {
@@ -341,11 +478,57 @@
   to { opacity: 1; }
 }
 
-/* Slide-in animation for mobile sidebar */
 .slide-in-left {
   animation: slideInLeft 250ms ease-out;
 }
 @keyframes slideInLeft {
   from { transform: translateX(-100%); }
   to { transform: translateX(0); }
+}
+
+/* Compact tables preference (html[data-compact-tables="1"]) */
+html[data-compact-tables='1'] .data-table th,
+html[data-compact-tables='1'] .data-table td {
+  @apply py-2;
+}
+
+/* Screen print helpers — keep print CSS separated from layout */
+@media print {
+  .no-print,
+  .skip-to-content,
+  nav,
+  header[role='banner'],
+  .mobile-nav-link,
+  [data-mobile-nav] {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+    padding: 0 !important;
+  }
+
+  .page-container {
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: none !important;
+  }
+
+  .card {
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  a[href]::after {
+    content: none !important;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tr, img {
+    break-inside: avoid;
+  }
 }

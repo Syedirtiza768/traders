@@ -28,6 +28,7 @@ import KPICard from '../components/KPICard';
 import { dashboardApi } from '../lib/api';
 import { formatCurrency, formatDate, getStatusColor } from '../lib/utils';
 import { useCompanyStore } from '../stores/companyStore';
+import { PageHeader, AlertBanner } from '../components/ui';
 
 interface DashboardKPIs {
   todays_sales: number;
@@ -88,29 +89,32 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="page-title">Dashboard</h1>
-          <p className="text-gray-500 dark:text-slate-400 mt-1 text-sm">
+      <PageHeader
+        title="Dashboard"
+        description={
+          <>
             Welcome back — here's your business at a glance
             {activeCompany ? ` for ${activeCompany}` : ''}.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 self-start">
+          </>
+        }
+        actions={
           <button type="button" onClick={() => void loadDashboard()} className="btn-secondary flex items-center gap-2 text-sm" disabled={loading}>
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> Refresh
           </button>
-        </div>
-      </div>
+        }
+      />
 
       {loadError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-100 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between" role="alert">
-          <span>{loadError}</span>
-          <button type="button" onClick={() => void loadDashboard()} className="btn-primary text-sm shrink-0">
-            Retry
-          </button>
-        </div>
+        <AlertBanner
+          tone="error"
+          action={
+            <button type="button" onClick={() => void loadDashboard()} className="btn-primary text-sm">
+              Retry
+            </button>
+          }
+        >
+          {loadError}
+        </AlertBanner>
       )}
 
       {/* Quick actions */}

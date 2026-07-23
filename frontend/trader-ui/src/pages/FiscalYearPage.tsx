@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, RefreshCw, Plus, CheckCircle2, X, Calendar } from 'lucide-react';
 import { adminApi } from '../lib/api';
 import { useAuthStore } from '../stores/authStore';
+import { PageHeader, LoadingBlock, AlertBanner, EmptyState } from '../components/ui';
 
 type FiscalYear = {
   name: string;
@@ -94,38 +95,29 @@ export default function FiscalYearPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Header */}
-      <div>
-        <button onClick={() => navigate('/settings')} className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 dark:text-brand-400 hover:text-brand-800">
-          <ArrowLeft size={16} /> Back to Settings
-        </button>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="page-title">Fiscal Year</h1>
-            <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">Manage accounting periods and set the active fiscal year for your company</p>
-          </div>
-          <div className="flex items-center gap-2 self-start">
-            <button onClick={() => void load()} className="btn-secondary flex items-center gap-2">
+      <PageHeader
+        title="Fiscal Year"
+        description="Manage accounting periods and set the active fiscal year for your company"
+        actions={
+          <>
+            <button type="button" onClick={() => navigate('/settings')} className="btn-secondary inline-flex items-center gap-2">
+              <ArrowLeft size={16} /> Back to Settings
+            </button>
+            <button type="button" onClick={() => void load()} className="btn-secondary flex items-center gap-2">
               <RefreshCw size={14} /> Refresh
             </button>
-            <button onClick={() => setShowCreate(true)} className="btn-primary flex items-center gap-2">
+            <button type="button" onClick={() => setShowCreate(true)} className="btn-primary flex items-center gap-2">
               <Plus size={14} /> New Fiscal Year
             </button>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
-      {/* Feedback */}
-      {feedback && (
-        <div className={`rounded-lg border px-4 py-3 text-sm flex items-start justify-between gap-3 ${
-          feedback.type === 'success'
-            ? 'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-100'
-            : 'border-red-200 bg-red-50 text-red-900 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-100'
-        }`}>
-          <span>{feedback.message}</span>
-          <button onClick={() => setFeedback(null)}><X size={14} /></button>
-        </div>
-      )}
+      {feedback ? (
+        <AlertBanner tone={feedback.type === 'success' ? 'success' : 'error'} onDismiss={() => setFeedback(null)}>
+          {feedback.message}
+        </AlertBanner>
+      ) : null}
 
       {/* Create form (inline card) */}
       {showCreate && (
@@ -166,9 +158,9 @@ export default function FiscalYearPage() {
       {/* List */}
       <div className="card overflow-hidden">
         {loading ? (
-          <div className="flex items-center justify-center h-48"><div className="spinner" /></div>
+          <LoadingBlock compact label="Loading fiscal years…" />
         ) : years.length === 0 ? (
-          <div className="py-12 text-center text-sm text-gray-400 dark:text-slate-500">No fiscal years found. Create one above.</div>
+          <EmptyState compact title="No fiscal years found" description="Create one above." />
         ) : (
           <>
             {/* Desktop */}

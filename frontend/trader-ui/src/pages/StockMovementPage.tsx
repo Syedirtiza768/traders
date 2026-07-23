@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRightLeft, Calendar } from 'lucide-react';
 import { inventoryApi } from '../lib/api';
 import { formatCurrency, formatDate, formatDateTime } from '../lib/utils';
 import SearchableSelect from '../components/SearchableSelect';
+import { PageHeader, LoadingBlock, EmptyState, AlertBanner, PaginationBar } from '../components/ui';
 
 export default function StockMovementPage() {
   const navigate = useNavigate();
@@ -72,16 +73,16 @@ export default function StockMovementPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <button onClick={() => navigate('/inventory')} className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
+      <PageHeader
+        title="Stock Movement"
+        description="Transaction-level stock ledger view using the existing inventory API"
+        actions={
+          <button type="button" onClick={() => navigate('/inventory')} className="btn-secondary inline-flex items-center gap-2">
             <ArrowLeft className="w-4 h-4" />
             Back to Inventory
           </button>
-          <h1 className="page-title">Stock Movement</h1>
-          <p className="mt-1 text-gray-500">Transaction-level stock ledger view using the existing inventory API</p>
-        </div>
-      </div>
+        }
+      />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
         <input
@@ -119,7 +120,7 @@ export default function StockMovementPage() {
         <KPI label="Total Matches" value={total.toLocaleString()} />
       </div>
 
-      {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+      {error ? <AlertBanner tone="error">{error}</AlertBanner> : null}
 
       <div className="card">
         <div className="card-header">
@@ -143,9 +144,9 @@ export default function StockMovementPage() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {loading ? (
-                  <tr><td colSpan={7} className="px-6 py-12 text-center text-gray-400"><div className="spinner mx-auto" /></td></tr>
+                  <tr><td colSpan={7}><LoadingBlock compact label="Loading movements…" /></td></tr>
                 ) : rows.length === 0 ? (
-                  <tr><td colSpan={7} className="px-6 py-12 text-center text-gray-400">No ledger entries found.</td></tr>
+                  <tr><td colSpan={7}><EmptyState compact title="No ledger entries found." /></td></tr>
                 ) : (
                   rows.map((row) => (
                     <tr key={row.name} className="hover:bg-gray-50 transition-colors">
@@ -166,9 +167,9 @@ export default function StockMovementPage() {
         {/* Mobile cards */}
         <div className="md:hidden divide-y divide-gray-100">
           {loading ? (
-            <div className="px-4 py-12 text-center"><div className="spinner mx-auto" /></div>
+            <LoadingBlock compact label="Loading movements…" />
           ) : rows.length === 0 ? (
-            <p className="px-4 py-12 text-center text-sm text-gray-400">No ledger entries found.</p>
+            <EmptyState compact title="No ledger entries found." />
           ) : (
             rows.map((row) => (
               <div key={`m-${row.name}`} className="px-4 py-3">
@@ -191,15 +192,13 @@ export default function StockMovementPage() {
         </div>
       </div>
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-gray-500">
-          <span>Showing {((page - 1) * pageSize) + 1}–{Math.min(page * pageSize, total)} of {total}</span>
-          <div className="flex gap-2">
-            <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1} className="btn-secondary">Previous</button>
-            <button onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page === totalPages} className="btn-secondary">Next</button>
-          </div>
-        </div>
-      )}
+      <PaginationBar
+        page={page}
+        totalPages={totalPages}
+        total={total}
+        pageSize={pageSize}
+        onPageChange={setPage}
+      />
 
       <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
         This screen exposes the existing `get_stock_ledger` endpoint directly in the frontend, closing one of the previously identified inventory UI gaps.

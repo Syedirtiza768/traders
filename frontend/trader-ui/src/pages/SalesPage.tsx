@@ -1,9 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, DollarSign, TrendingUp, AlertCircle, Search, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { FileText, DollarSign, TrendingUp, AlertCircle, Plus } from 'lucide-react';
 import { salesApi } from '../lib/api';
-import { formatCurrency, formatDate, getStatusColor, formatCompact, debounce } from '../lib/utils';
+import { formatCurrency, formatDate, debounce } from '../lib/utils';
 import { documentTypeBadge } from '../lib/invoiceTypes';
+import {
+  PageHeader,
+  EmptyState,
+  LoadingBlock,
+  FilterTabs,
+  SearchField,
+  StatusBadge,
+  PaginationBar,
+  StatCard,
+} from '../components/ui';
 
 const STATUS_TABS = ['All', 'Unpaid', 'Paid', 'Overdue', 'Draft'];
 
@@ -53,20 +63,16 @@ export default function SalesPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="page-title">Sales</h1>
-          <p className="text-gray-500 mt-1 text-sm">Manage sales invoices and orders</p>
-        </div>
-        <div className="flex items-center gap-2 self-start">
-          <button onClick={() => navigate('/sales/documents/new')} className="btn-primary flex items-center gap-2">
-            <Plus className="w-4 h-4" /> New Document
+      <PageHeader
+        title="Sales"
+        description="Manage sales invoices and orders"
+        actions={
+          <button type="button" onClick={() => navigate('/sales/documents/new')} className="btn-primary flex items-center gap-2">
+            <Plus className="w-4 h-4" aria-hidden="true" /> New Document
           </button>
-        </div>
-      </div>
+        }
+      />
 
-      {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatCard icon={FileText} label="Total Invoices" value={summary?.total_invoices} color="blue" />
         <StatCard icon={TrendingUp} label="Monthly Sales" value={summary?.monthly_sales} format="currency" color="green" />
@@ -74,66 +80,77 @@ export default function SalesPage() {
         <StatCard icon={DollarSign} label="Avg Order Value" value={summary?.avg_order_value} format="currency" color="purple" />
       </div>
 
-      {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-        <div className="flex gap-1 bg-gray-100 p-1 rounded-lg overflow-x-auto scrollbar-hide w-full sm:w-auto">
-          {STATUS_TABS.map((s) => (
-            <button
-              key={s}
-              onClick={() => { setStatus(s); setPage(1); }}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
-                status === s ? 'bg-white shadow text-brand-700' : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search invoices..."
-            onChange={(e) => debouncedSearch(e.target.value)}
-            className="input-field pl-9"
-          />
-        </div>
+        <FilterTabs
+          options={STATUS_TABS}
+          value={status}
+          onChange={(s) => { setStatus(s); setPage(1); }}
+          ariaLabel="Invoice status"
+        />
+        <SearchField
+          placeholder="Search invoices..."
+          aria-label="Search invoices"
+          onChange={debouncedSearch}
+        />
       </div>
 
-      {/* Desktop Table */}
       <div className="hidden md:block table-container">
-        <table className="w-full">
+        <table className="data-table w-full">
           <thead>
-            <tr className="bg-gray-50">
-              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Invoice</th>
-              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Type</th>
-              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Customer</th>
-              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Date</th>
-              <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Amount</th>
-              <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Outstanding</th>
-              <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
+            <tr>
+              <th scope="col">Invoice</th>
+              <th scope="col">Type</th>
+              <th scope="col">Customer</th>
+              <th scope="col">Date</th>
+              <th scope="col" className="text-right">Amount</th>
+              <th scope="col" className="text-right">Outstanding</th>
+              <th scope="col">Status</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody>
             {loading ? (
-              <tr><td colSpan={7} className="px-6 py-12 text-center text-gray-400"><div className="spinner mx-auto" /></td></tr>
+              <tr>
+                <td colSpan={7}>
+                  <LoadingBlock compact label="Loading invoices…" />
+                </td>
+              </tr>
             ) : invoices.length === 0 ? (
-              <tr><td colSpan={7} className="px-6 py-12 text-center text-gray-400">No invoices found.</td></tr>
+              <tr>
+                <td colSpan={7}>
+                  <EmptyState
+                    compact
+                    title="No invoices found"
+                    description={search || status !== 'All' ? 'Try adjusting filters or search.' : 'Create a sales document to get started.'}
+                    action={
+                      <button type="button" className="btn-primary" onClick={() => navigate('/sales/documents/new')}>
+                        New Document
+                      </button>
+                    }
+                  />
+                </td>
+              </tr>
             ) : (
               invoices.map((inv) => (
-                <tr key={inv.name} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-3 text-sm font-medium text-brand-700">{inv.name}</td>
-                  <td className="px-6 py-3 text-sm text-gray-600">{documentTypeBadge(inv.trader_invoice_type, inv.is_return)}</td>
-                  <td className="px-6 py-3 text-sm text-gray-700">{inv.customer_name || inv.customer}</td>
-                  <td className="px-6 py-3 text-sm text-gray-500">{formatDate(inv.posting_date)}</td>
-                  <td className="px-6 py-3 text-sm text-gray-900 text-right font-medium">{formatCurrency(inv.grand_total)}</td>
-                  <td className="px-6 py-3 text-sm text-right font-medium text-red-600">{formatCurrency(inv.outstanding_amount)}</td>
-                  <td className="px-6 py-3">
-                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(inv.status)}`}>
-                      {inv.status}
-                    </span>
-                  </td>
+                <tr
+                  key={inv.name}
+                  className="cursor-pointer"
+                  onClick={() => navigate(`/sales/${encodeURIComponent(inv.name)}`)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      navigate(`/sales/${encodeURIComponent(inv.name)}`);
+                    }
+                  }}
+                  tabIndex={0}
+                  role="link"
+                >
+                  <td className="font-medium text-brand-700 dark:text-brand-300">{inv.name}</td>
+                  <td className="text-gray-600 dark:text-slate-300">{documentTypeBadge(inv.trader_invoice_type, inv.is_return)}</td>
+                  <td>{inv.customer_name || inv.customer}</td>
+                  <td className="text-gray-500 dark:text-slate-400">{formatDate(inv.posting_date)}</td>
+                  <td className="num font-medium text-gray-900 dark:text-gray-100">{formatCurrency(inv.grand_total)}</td>
+                  <td className="num font-medium text-red-600">{formatCurrency(inv.outstanding_amount)}</td>
+                  <td><StatusBadge status={inv.status} /></td>
                 </tr>
               ))
             )}
@@ -141,76 +158,49 @@ export default function SalesPage() {
         </table>
       </div>
 
-      {/* Mobile Card List */}
-      <div className="md:hidden card divide-y divide-gray-100">
+      <div className="md:hidden card divide-y divide-gray-100 dark:divide-slate-800">
         {loading ? (
-          <div className="px-4 py-12 text-center text-gray-400"><div className="spinner mx-auto" /></div>
+          <LoadingBlock compact label="Loading invoices…" />
         ) : invoices.length === 0 ? (
-          <div className="px-4 py-12 text-center text-gray-400 text-sm">No invoices found.</div>
+          <EmptyState
+            compact
+            title="No invoices found"
+            description={search || status !== 'All' ? 'Try adjusting filters or search.' : 'Create a sales document to get started.'}
+          />
         ) : (
           invoices.map((inv) => (
-            <div key={inv.name} className="px-4 py-3 space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-brand-700">{inv.name}</span>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${getStatusColor(inv.status)}`}>
-                  {inv.status}
-                </span>
+            <button
+              type="button"
+              key={inv.name}
+              className="w-full px-4 py-3 space-y-1.5 text-left active:bg-gray-50 dark:active:bg-slate-800"
+              onClick={() => navigate(`/sales/${encodeURIComponent(inv.name)}`)}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-medium text-brand-700 dark:text-brand-300">{inv.name}</span>
+                <StatusBadge status={inv.status} />
               </div>
-              <div className="text-xs text-gray-500 truncate">{inv.customer_name || inv.customer}</div>
+              <div className="text-xs text-gray-500 truncate dark:text-slate-400">{inv.customer_name || inv.customer}</div>
               <div className="flex items-center justify-between text-xs">
                 <span className="text-gray-400">{formatDate(inv.posting_date)}</span>
-                <div className="flex gap-3">
-                  <span className="font-medium text-gray-900">{formatCurrency(inv.grand_total)}</span>
+                <div className="flex gap-3 tabular-nums">
+                  <span className="font-medium text-gray-900 dark:text-gray-100">{formatCurrency(inv.grand_total)}</span>
                   {inv.outstanding_amount > 0 && (
                     <span className="font-medium text-red-600">{formatCurrency(inv.outstanding_amount)}</span>
                   )}
                 </div>
               </div>
-            </div>
+            </button>
           ))
         )}
       </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between text-xs sm:text-sm text-gray-500">
-          <span>Showing {((page - 1) * pageSize) + 1}–{Math.min(page * pageSize, total)} of {total}</span>
-          <div className="flex gap-1">
-            <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1} className="btn-secondary px-2 py-1 text-xs" aria-label="Previous page">
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page === totalPages} className="btn-secondary px-2 py-1 text-xs" aria-label="Next page">
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ─── Small Stat Card ──────────────────────────────── */
-
-function StatCard({ icon: Icon, label, value, format, color = 'blue' }: {
-  icon: any; label: string; value: any; format?: string; color?: string;
-}) {
-  const bg = `bg-${color}-50`;
-  const ic = `text-${color}-600`;
-  const display = value == null
-    ? '—'
-    : format === 'currency'
-      ? formatCompact(value)
-      : (value ?? 0).toLocaleString();
-
-  return (
-    <div className="card p-4 sm:p-5">
-      <div className="flex items-center gap-2 sm:gap-3">
-        <div className={`p-1.5 sm:p-2 ${bg} rounded-lg`}><Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${ic}`} /></div>
-        <div className="min-w-0">
-          <p className="text-[10px] sm:text-xs text-gray-500 truncate">{label}</p>
-          <p className="text-sm sm:text-lg font-bold text-gray-900">{display}</p>
-        </div>
-      </div>
+      <PaginationBar
+        page={page}
+        totalPages={totalPages}
+        total={total}
+        pageSize={pageSize}
+        onPageChange={setPage}
+      />
     </div>
   );
 }

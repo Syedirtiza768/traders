@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Building2, Users, AlertTriangle, Sparkles } from 'lucide-react';
 import { superAdminApi } from '../../lib/api';
+import { PageHeader, AlertBanner, LoadingBlock } from '../../components/ui';
 
 type DashboardStats = {
   total_tenants: number;
@@ -23,11 +24,11 @@ export default function SuperAdminDashboardPage() {
   }, []);
 
   if (error) {
-    return (
-      <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700">
-        {error}
-      </div>
-    );
+    return <AlertBanner tone="error">{error}</AlertBanner>;
+  }
+
+  if (!stats) {
+    return <LoadingBlock label="Loading dashboard…" />;
   }
 
   const cards = [
@@ -39,6 +40,10 @@ export default function SuperAdminDashboardPage() {
 
   return (
     <div className="space-y-6">
+      <PageHeader
+        title="Platform dashboard"
+        description="Overview of tenant businesses and business users."
+      />
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         {cards.map(({ label, value, icon: Icon, color }) => (
           <div key={label} className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">

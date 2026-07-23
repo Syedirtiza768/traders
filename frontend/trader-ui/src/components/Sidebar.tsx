@@ -281,7 +281,8 @@ export default function Sidebar({ mobile = false, onClose }: SidebarProps) {
                   key={child.to}
                   to={child.to}
                   end={child.to === item.to}
-                  className={`block px-3 py-1.5 text-sm rounded-md transition-colors ${
+                  aria-current={isChildActive(child, item) ? 'page' : undefined}
+                  className={`block min-h-[44px] px-3 py-1.5 text-sm rounded-md transition-colors ${
                     isChildActive(child, item)
                       ? 'text-brand-700 dark:text-brand-300 bg-brand-50 dark:bg-slate-800 font-medium'
                       : 'text-gray-600 dark:text-slate-300 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-50 dark:hover:bg-slate-800'
@@ -302,7 +303,8 @@ export default function Sidebar({ mobile = false, onClose }: SidebarProps) {
         key={item.to}
         to={item.to}
         end={item.exact}
-        className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+        className={({ isActive }) => `sidebar-link min-h-[44px] ${isActive ? 'active' : ''}`}
+        aria-current={undefined}
         onClick={mobile ? onClose : undefined}
       >
         <item.icon className="w-5 h-5 flex-shrink-0" />
@@ -333,14 +335,14 @@ export default function Sidebar({ mobile = false, onClose }: SidebarProps) {
       )}
 
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        <p className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+        <p className="px-4 py-2 text-xs font-semibold text-gray-400 dark:text-slate-500 uppercase tracking-wider">
           Main Menu
         </p>
         {navItems.map(renderItem)}
 
         <div className="my-4 border-t border-gray-100 dark:border-slate-700" />
 
-        <p className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+        <p className="px-4 py-2 text-xs font-semibold text-gray-400 dark:text-slate-500 uppercase tracking-wider">
           System
         </p>
         {bottomItems.map(renderItem)}

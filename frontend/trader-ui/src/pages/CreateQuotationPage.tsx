@@ -16,6 +16,7 @@ import QuotationOrderDetailsForm, {
 } from '../components/QuotationOrderDetailsForm';
 import { computeCommercialTotals } from '../lib/commercialTotals';
 import { useCompanyStore } from '../stores/companyStore';
+import { PageHeader, LoadingBlock, AlertBanner } from '../components/ui';
 
 type QuotationLine = {
   item_code: string;
@@ -366,64 +367,64 @@ export default function CreateQuotationPage() {
   };
 
   if (loading) {
-    return <div className="card card-body text-sm text-gray-500">Loading quotation form…</div>;
+    return <LoadingBlock label="Loading quotation form…" />;
   }
 
   if (useHierarchy) {
-    return <div className="card card-body text-sm text-gray-500">Opening Make Quotation editor…</div>;
+    return <LoadingBlock label="Opening Make Quotation editor…" />;
   }
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          className="rounded-lg p-2 text-gray-500 hover:bg-gray-100"
-          onClick={() => navigate(appendPreservedListQuery('/sales/quotations', listSearch))}
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </button>
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900">{isProforma ? 'New Proforma' : 'New Quotation'}</h1>
-          <p className="text-sm text-gray-500">
-            {useHierarchy
-              ? 'Create from a Project with commercial Line → Option → Item hierarchy.'
-              : 'Create a sales quotation.'}
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title={isProforma ? 'New Proforma' : 'New Quotation'}
+        description="Create a sales quotation."
+        actions={
+          <button
+            type="button"
+            className="btn-secondary inline-flex items-center gap-2"
+            onClick={() => navigate(appendPreservedListQuery('/sales/quotations', listSearch))}
+          >
+            <ArrowLeft className="h-4 w-4" /> Back
+          </button>
+        }
+      />
 
-      {error ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
-      ) : null}
+      {error ? <AlertBanner tone="error">{error}</AlertBanner> : null}
 
       {draftBanner ? (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 flex flex-wrap items-center gap-3">
-          <span>Open draft {draftBanner.name} exists for this project.</span>
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={() => navigate(`/sales/quotations/${encodeURIComponent(draftBanner.name)}`)}
-          >
-            Continue
-          </button>
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={async () => {
-              if (!window.confirm('Discard the open draft quotation? This deletes it.')) return;
-              try {
-                await opportunityApi.discardQuotationDraft(draftBanner.name);
-                setDraftBanner(null);
-                setError(null);
-              } catch (err: any) {
-                setError(err?.response?.data?.exception || 'Could not discard draft.');
-              }
-            }}
-          >
-            Discard
-          </button>
-        </div>
+        <AlertBanner
+          tone="warning"
+          action={
+            <>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => navigate(`/sales/quotations/${encodeURIComponent(draftBanner.name)}`)}
+              >
+                Continue
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={async () => {
+                  if (!window.confirm('Discard the open draft quotation? This deletes it.')) return;
+                  try {
+                    await opportunityApi.discardQuotationDraft(draftBanner.name);
+                    setDraftBanner(null);
+                    setError(null);
+                  } catch (err: any) {
+                    setError(err?.response?.data?.exception || 'Could not discard draft.');
+                  }
+                }}
+              >
+                Discard
+              </button>
+            </>
+          }
+        >
+          Open draft {draftBanner.name} exists for this project.
+        </AlertBanner>
       ) : null}
 
       <div className="card">
