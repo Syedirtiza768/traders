@@ -1406,6 +1406,103 @@ def create_delivery_note_for_opportunity(opportunity, source_oc=None, company=No
 
 
 @frappe.whitelist()
+def list_invoiceable_delivery_notes_for_opportunity(opportunity, company=None):
+    """Submitted delivery challans linked to this Project with unbilled qty."""
+    doc = _load_opportunity(opportunity, company)
+    if not _has_opportunity_link("Delivery Note"):
+        return {"opportunity": doc.name, "delivery_notes": []}
+    rows = frappe.get_all(
+        "Delivery Note",
+        filters={
+            "trader_opportunity": doc.name,
+            "docstatus": 1,
+            "per_billed": ["<", 100],
+        },
+        fields=["name", "customer", "customer_name", "posting_date", "grand_total", "per_billed"],
+        order_by="posting_date asc, name asc",
+    )
+    return {"opportunity": doc.name, "delivery_notes": rows}
+
+
+@frappe.whitelist()
+def create_invoice_for_opportunity(
+    opportunity,
+    delivery_notes=None,
+    posting_date=None,
+    auto_submit=None,
+    company=None,
+):
+    """Create a Sales Invoice from submitted Delivery Challans on this Project.
+
+    Enforces the Opportunity profile gate ``invoice_from_dn_only`` (mirrors the
+    sahamid DC->Invoice rule): when on, an invoice may only be raised from
+    submitted Delivery Notes. Delegates grouping + GL to
+    ``trader_app.api.grouped_invoicing.create_grouped_invoice``.
+    """
+    from trader_app.setup.custom_fields import ensure_custom_fields
+
+    ensure_custom_fields()
+    doc = _load_opportunity(opportunity, company)
+    if doc.status == "Closed":
+        frappe.throw(_("Reopen the Opportunity before creating an invoice."))
+
+    profile = _profile_or_defaults(doc.company)
+    if not cint(profile.get("enable_invoice", 1)):
+        frappe.throw(_("Invoices are disabled in the Opportunity profile."))
+
+    if delivery_notes:
+        delivery_notes = json.loads(delivery_notes) if isinstance(delivery_notes, str) else delivery_notes
+    else:
+        inv = list_invoiceable_delivery_notes_for_opportunity(doc.name, company=doc.company)
+        delivery_notes = [r["name"] for r in inv.get("delivery_notes", [])]
+
+    if cint(profile.get("invoice_from_dn_only", 1)):
+        if not delivery_notes:
+            frappe.throw(
+                _("No submitted delivery challans are available to invoice. "
+                  "Submit a Delivery Challan first (Invoice-from-DN-only is on).")
+            )
+        for dn_name in delivery_notes:
+            if not frappe.db.exists("Delivery Note", dn_name):
+                frappe.throw(_("Delivery challan {0} not found.").format(dn_name))
+            dn = frappe.get_doc("Delivery Note", dn_name)
+            assert_document_company_access(dn.company)
+            if _has_opportunity_link("Delivery Note") and getattr(dn, "trader_opportunity", None) != doc.name:
+                frappe.throw(_("Delivery challan {0} is not linked to this Project.").format(dn_name))
+            if dn.docstatus != 1:
+                frappe.throw(_("Delivery challan {0} must be submitted before invoicing.").format(dn_name))
+
+    from trader_app.api.grouped_invoicing import create_grouped_invoice
+    result = create_grouped_invoice(
+        delivery_notes=delivery_notes,
+        company=doc.company,
+        posting_date=posting_date or nowdate(),
+        auto_submit=auto_submit,
+    )
+
+    log_decision(
+        "other",
+        company=doc.company,
+        outcome="applied",
+        message="Created Invoice {0} from Opportunity ({1} challan(s))".format(
+            result.get("invoice"), len(delivery_notes)
+        ),
+        reference_doctype="Sales Invoice",
+        reference_name=result.get("invoice"),
+        output={"delivery_notes": delivery_notes, "invoice": result.get("invoice")},
+        policy="opportunity_hub",
+    )
+    return {
+        "name": result.get("invoice"),
+        "doctype": "Sales Invoice",
+        "delivery_notes": delivery_notes,
+        "submitted": result.get("submitted"),
+        "completed_challans": result.get("completed_challans"),
+        "opportunity": get_opportunity(doc.name, company=doc.company),
+    }
+
+
+@frappe.whitelist()
 def save_commercial_options(doctype, name, commercial_options, company=None):
     """Persist hierarchy on a draft Quote/SO/DN/SI and sync flat items."""
     from trader_app.api.hierarchy import (

@@ -26,6 +26,57 @@ def get_posting_profile(company, event="sales_invoice"):
     return frappe.get_cached_doc("Trader Posting Profile", name) if name else None
 
 
+def stock_posting_moment(company):
+    """Return 'delivery_note' or 'invoice' from the active Opportunity profile.
+
+    None when no profile / OPP disabled (leave ERPNext native behaviour alone).
+    Mirrors sahamid: model A = stock at DC (delivery_note, ERPNext default);
+    model B = stock at invoice.
+    """
+    try:
+        from trader_app.api.opportunity import get_active_opportunity_profile
+    except Exception:
+        return None
+    profile = get_active_opportunity_profile(company)
+    if not profile:
+        return None
+    moment = (profile.get("stock_posting_moment") or "delivery_note").strip().lower()
+    return moment if moment in ("delivery_note", "invoice") else "delivery_note"
+
+
+def apply_stock_posting_moment(doc, method=None):
+    """validate hook — force ``update_stock`` per the Opportunity profile.
+
+    Only acts when an active Opportunity profile selects ``stock_posting_moment =
+    invoice``: the Delivery Challan becomes a dispatch record only (no stock
+    movement) and the Sales Invoice issues stock + COGS on submit. The default
+    ('delivery_note') leaves ERPNext's native behaviour untouched.
+    """
+    company = getattr(doc, "company", None)
+    moment = stock_posting_moment(company)
+    if not moment or moment == "delivery_note":
+        return
+
+    if doc.doctype == "Delivery Note":
+        if doc.get("update_stock"):
+            doc.update_stock = 0
+            log_decision(
+                "posting", company=company, outcome="applied",
+                message="stock_posting_moment=invoice: Delivery Note will not move stock (dispatch record only).",
+                reference_doctype=doc.doctype, reference_name=doc.name or "(unsaved)",
+                policy="opportunity_profile",
+            )
+    elif doc.doctype == "Sales Invoice":
+        if not doc.get("update_stock") and any(it.get("warehouse") for it in doc.get("items", [])):
+            doc.update_stock = 1
+            log_decision(
+                "posting", company=company, outcome="applied",
+                message="stock_posting_moment=invoice: Sales Invoice will issue stock + COGS on submit.",
+                reference_doctype=doc.doctype, reference_name=doc.name or "(unsaved)",
+                policy="opportunity_profile",
+            )
+
+
 def apply_posting_profile(doc, method=None):
     """validate hook — stamp configured accounts onto the invoice when unset. Opt-in."""
     if doc.doctype != "Sales Invoice":

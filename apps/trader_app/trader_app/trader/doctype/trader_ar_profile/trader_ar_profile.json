@@ -22,6 +22,12 @@
   "withhold_reporting_enabled",
   "default_wht_percent",
   "default_gst_withhold_percent",
+  "section_gl_on_allocation",
+  "post_exchange_diff_on_allocation",
+  "column_break_gl",
+  "exchange_gain_loss_account",
+  "wht_account",
+  "gst_withhold_account",
   "section_prints",
   "print_personas_enabled",
   "secure_internal_prints",
@@ -126,6 +132,40 @@
    "fieldname": "default_gst_withhold_percent",
    "fieldtype": "Percent",
    "label": "Default GST Withhold % of Tax"
+  },
+  {
+   "fieldname": "section_gl_on_allocation",
+   "fieldtype": "Section Break",
+   "label": "GL on Allocation (FX / Withhold)"
+  },
+  {
+   "default": "0",
+   "fieldname": "post_exchange_diff_on_allocation",
+   "fieldtype": "Check",
+   "label": "Post Exchange Diff on Allocation",
+   "description": "Sahamid-style: post an exchange gain/loss journal when a receipt settles an invoice at a different rate. Opt-in; needs Exchange Gain/Loss account below."
+  },
+  {
+   "fieldname": "column_break_gl",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "exchange_gain_loss_account",
+   "fieldtype": "Link",
+   "label": "Exchange Gain/Loss Account",
+   "options": "Account"
+  },
+  {
+   "fieldname": "wht_account",
+   "fieldtype": "Link",
+   "label": "WHT Account",
+   "options": "Account"
+  },
+  {
+   "fieldname": "gst_withhold_account",
+   "fieldtype": "Link",
+   "label": "GST Withhold Account",
+   "options": "Account"
   },
   {
    "fieldname": "section_prints",

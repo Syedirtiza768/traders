@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { opportunityApi } from '../lib/api';
 import { extractFrappeError, formatCurrency, formatDate, getStatusColor } from '../lib/utils';
+import { LoadingBlock, AlertBanner } from '../components/ui';
 
 const CLOSE_STAGES = ['Enquiry', 'Quotation', 'Customer PO', 'Delivery', 'Other'] as const;
 const HUB_TABS = ['Details', 'Quotations', 'Order Confirmations', 'Delivery Notes', 'Invoices', 'Activity'] as const;
@@ -40,6 +41,8 @@ export default function OpportunityDetailPage() {
   const [sourceQuotes, setSourceQuotes] = useState<{ name: string }[]>([]);
   const [selectedQuote, setSelectedQuote] = useState('');
   const [selectedPo, setSelectedPo] = useState('');
+  const [invoiceableDns, setInvoiceableDns] = useState<any[]>([]);
+  const [selectedDns, setSelectedDns] = useState<string[]>([]);
 
   const load = useCallback(async () => {
     if (!opportunityId) {
@@ -60,6 +63,15 @@ export default function OpportunityDetailPage() {
         setSelectedQuote(sq.data.message?.default || rows[0]?.name || '');
       } catch {
         setSourceQuotes([]);
+      }
+      try {
+        const inv = await opportunityApi.listInvoiceableDeliveryNotes(decoded);
+        const rows = inv.data.message?.delivery_notes || [];
+        setInvoiceableDns(rows);
+        setSelectedDns(rows.map((r: any) => r.name));
+      } catch {
+        setInvoiceableDns([]);
+        setSelectedDns([]);
       }
     } catch (err) {
       console.error(err);
@@ -102,11 +114,7 @@ export default function OpportunityDetailPage() {
   );
 
   if (loading) {
-    return (
-      <div className="flex justify-center py-20">
-        <div className="spinner" />
-      </div>
-    );
+    return <LoadingBlock label="Loading project…" />;
   }
 
   if (error || !opp) {
@@ -115,9 +123,7 @@ export default function OpportunityDetailPage() {
         <button type="button" className="inline-flex items-center gap-2 text-sm text-brand-700" onClick={() => navigate(backPath)}>
           <ArrowLeft className="h-4 w-4" /> Back to Projects
         </button>
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error || 'Project not found.'}
-        </div>
+        <AlertBanner tone="error">{error || 'Project not found.'}</AlertBanner>
       </div>
     );
   }
@@ -221,6 +227,25 @@ export default function OpportunityDetailPage() {
               >
                 Make Delivery Note
               </button>
+              {invoiceableDns.length > 0 ? (
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  disabled={busy || selectedDns.length === 0}
+                  onClick={() =>
+                    runAction(async () => {
+                      const res = await opportunityApi.createInvoice({
+                        opportunity: opp.name,
+                        delivery_notes: selectedDns,
+                      });
+                      const name = res.data.message?.name;
+                      if (name) navigate(`/sales/${encodeURIComponent(name)}`);
+                    }, 'Invoice created.')
+                  }
+                >
+                  Make Invoice
+                </button>
+              ) : null}
               <select
                 className="input-field w-auto"
                 value={closeStage}
@@ -275,6 +300,31 @@ export default function OpportunityDetailPage() {
               </select>
             </label>
           ) : null}
+        </div>
+      ) : null}
+
+      {opp.status === 'Open' && invoiceableDns.length > 0 ? (
+        <div className="card p-4 space-y-2">
+          <p className="text-xs font-medium text-gray-600">Delivery challans to invoice</p>
+          <div className="space-y-1">
+            {invoiceableDns.map((dn: any) => (
+              <label key={dn.name} className="flex flex-wrap items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={selectedDns.includes(dn.name)}
+                  onChange={(e) => {
+                    setSelectedDns((prev) =>
+                      e.target.checked ? [...prev, dn.name] : prev.filter((n) => n !== dn.name),
+                    );
+                  }}
+                />
+                <span className="font-medium text-gray-800">{dn.name}</span>
+                <span className="text-gray-500">· {formatDate(dn.posting_date)}</span>
+                <span className="text-gray-700">· {formatCurrency(dn.grand_total || 0)}</span>
+                <span className="text-gray-400">· {dn.per_billed ?? 0}% billed</span>
+              </label>
+            ))}
+          </div>
         </div>
       ) : null}
 

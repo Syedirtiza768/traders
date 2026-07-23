@@ -28,6 +28,7 @@ from trader_app.demo.generators.purchases import PurchaseGenerator
 from trader_app.demo.generators.sales import SalesGenerator
 from trader_app.demo.generators.payments import PaymentGenerator
 from trader_app.demo.generators.financial import FinancialGenerator
+from trader_app.demo.generators.opportunity_chain import OpportunityChainGenerator
 from trader_app.demo.generators.enrichment import EnrichmentGenerator
 
 
@@ -48,6 +49,7 @@ class DemoInstaller:
         SalesGenerator,
         PaymentGenerator,
         FinancialGenerator,
+        OpportunityChainGenerator,
         EnrichmentGenerator,
     ]
 

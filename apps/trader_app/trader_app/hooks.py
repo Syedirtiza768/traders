@@ -73,6 +73,7 @@ doc_events = {
         "validate": [
             "trader_app.api.tax_policy.apply_tax_policy",
             "trader_app.api.posting.apply_posting_profile",
+            "trader_app.api.posting.apply_stock_posting_moment",
             "trader_app.api.sales.validate_sales_invoice",
             "trader_app.api.process.apply_initial_state",
             "trader_app.api.fx_policy.snapshot_on_create",
@@ -85,7 +86,10 @@ doc_events = {
         "validate": "trader_app.api.process.apply_initial_state",
     },
     "Delivery Note": {
-        "validate": "trader_app.api.process.apply_initial_state",
+        "validate": [
+            "trader_app.api.process.apply_initial_state",
+            "trader_app.api.posting.apply_stock_posting_moment",
+        ],
     },
     # Tenant-stamp shared master data on creation so it is scoped to its owner.
     "Customer": {

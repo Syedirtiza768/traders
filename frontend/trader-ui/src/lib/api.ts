@@ -318,6 +318,19 @@ export const salesApi = {
   cancelDeliveryNote: (name: string) =>
     call('trader_app.api.sales.cancel_delivery_note', { name }),
 
+  createInvoiceFromChallan: (name: string) =>
+    call('trader_app.api.grouped_invoicing.create_grouped_invoice', { delivery_notes: [name] }),
+
+  getInvoiceableDeliveryNotes: (customer?: string) =>
+    get('trader_app.api.grouped_invoicing.get_invoiceable_delivery_notes', customer ? { customer } : undefined),
+
+  createGroupedInvoice: (deliveryNotes: string[], postingDate?: string, autoSubmit?: boolean) =>
+    call('trader_app.api.grouped_invoicing.create_grouped_invoice', {
+      delivery_notes: deliveryNotes,
+      posting_date: postingDate,
+      auto_submit: autoSubmit ? 1 : 0,
+    }),
+
   getSummary: (company?: string) =>
     get('trader_app.api.sales.get_sales_summary', { company }),
 };
@@ -394,6 +407,16 @@ export const opportunityApi = {
       opportunity,
       source_oc,
     }),
+
+  listInvoiceableDeliveryNotes: (opportunity: string) =>
+    get('trader_app.api.opportunity.list_invoiceable_delivery_notes_for_opportunity', { opportunity }),
+
+  createInvoice: (params: {
+    opportunity: string;
+    delivery_notes?: string[];
+    posting_date?: string;
+    auto_submit?: 0 | 1;
+  }) => call('trader_app.api.opportunity.create_invoice_for_opportunity', params),
 
   saveCommercialOptions: (doctype: string, name: string, commercial_options: unknown) =>
     call('trader_app.api.opportunity.save_commercial_options', {
@@ -701,6 +724,9 @@ export const reportsApi = {
 
   getCustomerLedger: (customer: string, params?: Record<string, any>) =>
     get('trader_app.api.reports.get_customer_ledger', { customer, ...params }),
+
+  getCustomerStatement: (customer: string, params?: Record<string, any>) =>
+    get('trader_app.api.reports.get_customer_statement', { customer, ...params }),
 
   getSupplierLedger: (supplier: string, params?: Record<string, any>) =>
     get('trader_app.api.reports.get_supplier_ledger', { supplier, ...params }),

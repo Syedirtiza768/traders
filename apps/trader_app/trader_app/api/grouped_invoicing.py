@@ -33,6 +33,22 @@ DEFAULT_GROUPING = {
 }
 
 
+def _invoice_from_dn_only(company):
+    """True if the active Opportunity profile requires invoices from Delivery Notes only.
+
+    Mirrors the sahamid DC->Invoice rule. Lazy import avoids a circular dependency
+    with the opportunity module (which calls create_grouped_invoice).
+    """
+    try:
+        from trader_app.api.opportunity import get_active_opportunity_profile
+    except Exception:
+        return False
+    profile = get_active_opportunity_profile(company)
+    if not profile:
+        return False
+    return bool(cint(profile.get("invoice_from_dn_only", 0)))
+
+
 def get_grouping_policy(company):
     """Resolve the active grouping policy for a company, or safe defaults."""
     name = frappe.db.get_value(
@@ -129,7 +145,10 @@ def create_grouped_invoice(delivery_notes, company=None, posting_date=None, auto
     si.company = company
     si.customer = customer
     si.posting_date = posting_date or nowdate()
-    si.update_stock = 0
+    # Stock posting moment: default (delivery_note) -> invoice does not move stock
+    # (already moved at the challan). invoice mode -> the invoice issues stock.
+    from trader_app.api.posting import stock_posting_moment
+    si.update_stock = 1 if stock_posting_moment(company) == "invoice" else 0
     set_trader_invoice_type(si, invoice_type="tax_invoice")
 
     line_plan = []  # (dn_item_name, qty_added) for the explicit counter
@@ -155,6 +174,21 @@ def create_grouped_invoice(delivery_notes, company=None, posting_date=None, auto
 
     if not si.get("items"):
         frappe.throw(_("The selected delivery challans are already fully invoiced."))
+
+    # Enforce the Opportunity profile gate: when invoice_from_dn_only is on,
+    # every invoice line must trace back to a submitted Delivery Challan row.
+    if _invoice_from_dn_only(company):
+        for item in si.get("items"):
+            if not item.get("delivery_note") or not item.get("dn_detail"):
+                log_decision(
+                    "grouping", company=company, outcome="block",
+                    message="Invoice-from-DN-only is on; a line lacks a delivery_note/dn_detail.",
+                    inputs={"delivery_notes": delivery_notes}, policy=policy.get("policy"),
+                )
+                frappe.throw(
+                    _("Invoice-from-DN-only is on for this company; every invoice line "
+                      "must come from a submitted Delivery Challan.")
+                )
 
     # Copy remaining commercial hierarchy (OPP) onto the invoice without rebuilding flat lines.
     from trader_app.api.hierarchy import (
