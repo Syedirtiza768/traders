@@ -4,6 +4,7 @@ import { DollarSign, TrendingUp, TrendingDown, CreditCard, BookOpen, Wallet } fr
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { reportsApi, dashboardApi } from '../lib/api';
 import { formatCurrency, formatCompact } from '../lib/utils';
+import { PageHeader, LoadingBlock } from '../components/ui';
 
 export default function FinancePage() {
   const navigate = useNavigate();
@@ -36,11 +37,7 @@ export default function FinancePage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="spinner" />
-      </div>
-    );
+    return <LoadingBlock label="Loading financial overview…" />;
   }
 
   const receivableTotal = receivable?.total_outstanding || 0;
@@ -59,20 +56,20 @@ export default function FinancePage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h1 className="page-title">Finance</h1>
-          <p className="text-gray-500 mt-1">Financial overview and key metrics</p>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={() => navigate('/finance/journals')} className="btn-secondary flex items-center gap-1.5 text-sm">
-            <BookOpen className="w-4 h-4" /> Journals
-          </button>
-          <button onClick={() => navigate('/finance/payments')} className="btn-secondary flex items-center gap-1.5 text-sm">
-            <Wallet className="w-4 h-4" /> Payments
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Finance"
+        description="Financial overview and key metrics"
+        actions={
+          <>
+            <button onClick={() => navigate('/finance/journals')} className="btn-secondary flex items-center gap-1.5 text-sm">
+              <BookOpen className="w-4 h-4" /> Journals
+            </button>
+            <button onClick={() => navigate('/finance/payments')} className="btn-secondary flex items-center gap-1.5 text-sm">
+              <Wallet className="w-4 h-4" /> Payments
+            </button>
+          </>
+        }
+      />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">

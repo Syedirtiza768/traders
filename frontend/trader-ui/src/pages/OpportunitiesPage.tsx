@@ -1,8 +1,18 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Briefcase, ChevronLeft, ChevronRight, Plus, Search, Star } from 'lucide-react';
+import { Plus, Star } from 'lucide-react';
 import { customersApi, opportunityApi } from '../lib/api';
-import { debounce, extractFrappeError, formatCurrency, formatDate, getStatusColor } from '../lib/utils';
+import { debounce, extractFrappeError, formatCurrency, formatDate } from '../lib/utils';
+import {
+  PageHeader,
+  EmptyState,
+  LoadingBlock,
+  FilterTabs,
+  SearchField,
+  StatusBadge,
+  PaginationBar,
+  StatCard,
+} from '../components/ui';
 
 const STATUS_TABS = ['All', 'Open', 'Closed'] as const;
 const PAGE_SIZE = 15;
@@ -84,78 +94,75 @@ export default function OpportunitiesPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="page-title">Projects</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Enquiry hub for quotations, order confirmations, deliveries, and invoices.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setShowCreate(true)}
-          className="btn-primary inline-flex items-center gap-2 self-start"
-        >
-          <Plus className="h-4 w-4" />
-          New Project
-        </button>
-      </div>
+      <PageHeader
+        title="Projects"
+        description="Enquiry hub for quotations, order confirmations, deliveries, and invoices."
+        actions={
+          <button
+            type="button"
+            onClick={() => setShowCreate(true)}
+            className="btn-primary inline-flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            New Project
+          </button>
+        }
+      />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <StatCard label="Total" value={total.toLocaleString()} />
-        <StatCard label="Open (this page)" value={openCount.toLocaleString()} />
-        <StatCard label="Watchlist (this page)" value={watchCount.toLocaleString()} />
+        <StatCard label="Total" display={total.toLocaleString()} />
+        <StatCard label="Open (this page)" display={openCount.toLocaleString()} />
+        <StatCard label="Watchlist (this page)" display={watchCount.toLocaleString()} />
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex w-full gap-1 overflow-x-auto rounded-lg bg-gray-100 p-1 scrollbar-hide sm:w-auto">
-          {STATUS_TABS.map((entry) => (
-            <button
-              key={entry}
-              type="button"
-              onClick={() => updateSearchParams({ status: entry === 'All' ? null : entry, page: null })}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors ${
-                status === entry ? 'bg-white text-brand-700 shadow' : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              {entry}
-            </button>
-          ))}
-        </div>
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search ref, title, customer…"
-            defaultValue={search}
-            onChange={(e) => debouncedSearch(e.target.value)}
-            className="input-field pl-9"
-          />
-        </div>
+        <FilterTabs
+          options={[...STATUS_TABS]}
+          value={status}
+          onChange={(entry) => updateSearchParams({ status: entry === 'All' ? null : entry, page: null })}
+          ariaLabel="Project status"
+        />
+        <SearchField
+          placeholder="Search ref, title, customer…"
+          aria-label="Search projects"
+          defaultValue={search}
+          onChange={debouncedSearch}
+        />
       </div>
 
       <div className="table-container hidden md:block">
-        <table className="w-full">
+        <table className="data-table w-full">
           <thead>
-            <tr className="bg-gray-50">
-              <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Project</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Customer</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Enquiry</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Stage</th>
-              <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Estimate</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Status</th>
+            <tr>
+              <th scope="col">Project</th>
+              <th scope="col">Customer</th>
+              <th scope="col">Enquiry</th>
+              <th scope="col">Stage</th>
+              <th scope="col" className="text-right">Estimate</th>
+              <th scope="col">Status</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
-                  <div className="spinner mx-auto" />
+                <td colSpan={6}>
+                  <LoadingBlock compact label="Loading projects…" />
                 </td>
               </tr>
             ) : items.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-6 py-12 text-center text-gray-400">No projects found.</td>
+                <td colSpan={6}>
+                  <EmptyState
+                    compact
+                    title="No projects found"
+                    description={search || status !== 'All' ? 'Try adjusting filters or search.' : undefined}
+                    action={
+                      <button type="button" className="btn-primary" onClick={() => setShowCreate(true)}>
+                        New Project
+                      </button>
+                    }
+                  />
+                </td>
               </tr>
             ) : (
               items.map((row) => (
@@ -168,21 +175,19 @@ export default function OpportunitiesPage() {
                     <div className="flex items-start gap-2">
                       {row.watchlist ? <Star className="mt-0.5 h-3.5 w-3.5 fill-amber-400 text-amber-400" /> : null}
                       <div>
-                        <p className="text-sm font-medium text-brand-700">{row.opportunity_ref}</p>
-                        <p className="text-xs text-gray-500">{row.title}</p>
+                        <p className="font-medium text-brand-700 dark:text-brand-300">{row.opportunity_ref}</p>
+                        <p className="text-xs text-gray-500 dark:text-slate-400">{row.title}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-3 text-sm text-gray-700">{row.customer_name || row.customer}</td>
-                  <td className="px-6 py-3 text-sm text-gray-600">{formatDate(row.enquiry_date)}</td>
-                  <td className="px-6 py-3 text-sm text-gray-600">{row.display_stage || 'Enquiry'}</td>
-                  <td className="px-6 py-3 text-right text-sm text-gray-700">
+                  <td className="text-gray-700 dark:text-slate-300">{row.customer_name || row.customer}</td>
+                  <td className="text-gray-600 dark:text-slate-400">{formatDate(row.enquiry_date)}</td>
+                  <td className="text-gray-600 dark:text-slate-400">{row.display_stage || 'Enquiry'}</td>
+                  <td className="num text-gray-700 dark:text-slate-300">
                     {row.enquiry_value ? formatCurrency(row.enquiry_value) : '—'}
                   </td>
-                  <td className="px-6 py-3">
-                    <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(row.status || '')}`}>
-                      {row.status}
-                    </span>
+                  <td>
+                    <StatusBadge status={row.status || ''} />
                   </td>
                 </tr>
               ))
@@ -191,11 +196,11 @@ export default function OpportunitiesPage() {
         </table>
       </div>
 
-      <div className="card divide-y divide-gray-100 md:hidden">
+      <div className="card divide-y divide-gray-100 dark:divide-slate-800 md:hidden">
         {loading ? (
-          <div className="py-12"><div className="spinner mx-auto" /></div>
+          <LoadingBlock compact label="Loading projects…" />
         ) : items.length === 0 ? (
-          <div className="px-4 py-12 text-center text-gray-400">No projects found.</div>
+          <EmptyState compact title="No projects found" description={search || status !== 'All' ? 'Try adjusting filters or search.' : undefined} />
         ) : (
           items.map((row) => (
             <button
@@ -205,10 +210,8 @@ export default function OpportunitiesPage() {
               onClick={() => navigate(buildDetailPath(row.name))}
             >
               <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-medium text-brand-700">{row.opportunity_ref}</p>
-                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getStatusColor(row.status || '')}`}>
-                  {row.status}
-                </span>
+                <p className="text-sm font-medium text-brand-700 dark:text-brand-300">{row.opportunity_ref}</p>
+                <StatusBadge status={row.status || ''} />
               </div>
               <p className="mt-0.5 text-sm text-gray-800">{row.title}</p>
               <p className="mt-1 text-xs text-gray-500">
@@ -219,29 +222,13 @@ export default function OpportunitiesPage() {
         )}
       </div>
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <button
-            type="button"
-            className="btn-secondary inline-flex items-center gap-1"
-            disabled={page <= 1}
-            onClick={() => updateSearchParams({ page: String(page - 1) })}
-          >
-            <ChevronLeft className="h-4 w-4" /> Prev
-          </button>
-          <span className="text-sm text-gray-500">
-            Page {page} of {totalPages}
-          </span>
-          <button
-            type="button"
-            className="btn-secondary inline-flex items-center gap-1"
-            disabled={page >= totalPages}
-            onClick={() => updateSearchParams({ page: String(page + 1) })}
-          >
-            Next <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
-      )}
+      <PaginationBar
+        page={page}
+        totalPages={totalPages}
+        total={total}
+        pageSize={PAGE_SIZE}
+        onPageChange={(p) => updateSearchParams({ page: p > 1 ? String(p) : null })}
+      />
 
       {showCreate ? (
         <CreateProjectModal
@@ -252,20 +239,6 @@ export default function OpportunitiesPage() {
           }}
         />
       ) : null}
-    </div>
-  );
-}
-
-function StatCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="card flex items-center gap-3 p-4">
-      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-50 text-brand-700">
-        <Briefcase className="h-5 w-5" />
-      </div>
-      <div>
-        <p className="text-xs text-gray-500">{label}</p>
-        <p className="text-lg font-semibold text-gray-900">{value}</p>
-      </div>
     </div>
   );
 }

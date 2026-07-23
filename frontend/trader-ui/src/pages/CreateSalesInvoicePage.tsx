@@ -11,6 +11,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import useQuickAdd from '../components/useQuickAdd';
 import QuickAddProvider from '../components/QuickAddProvider';
 import { useCompanyStore } from '../stores/companyStore';
+import { PageHeader, AlertBanner } from '../components/ui';
 
 export default function CreateSalesInvoicePage() {
   const navigate = useNavigate();
@@ -269,20 +270,21 @@ export default function CreateSalesInvoicePage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <button onClick={() => navigate(backToPath)} className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
-            <ArrowLeft size={16} /> {backLabel}
-          </button>
-          <h1 className="page-title">New {typeConfig.label}</h1>
-          <p className="mt-1 text-gray-500">{typeConfig.description}</p>
-        </div>
-        <button onClick={handleSubmit} disabled={saving || loading} className="btn-primary flex items-center gap-2 disabled:opacity-60">
-          <Save size={14} /> {saving ? 'Creating…' : 'Create Draft'}
-        </button>
-      </div>
+      <button onClick={() => navigate(backToPath)} className="inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
+        <ArrowLeft size={16} /> {backLabel}
+      </button>
 
-      {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+      <PageHeader
+        title={`New ${typeConfig.label}`}
+        description={typeConfig.description}
+        actions={
+          <button onClick={handleSubmit} disabled={saving || loading} className="btn-primary flex items-center gap-2 disabled:opacity-60">
+            <Save size={14} /> {saving ? 'Creating…' : 'Create Draft'}
+          </button>
+        }
+      />
+
+      {error && <AlertBanner tone="error">{error}</AlertBanner>}
 
       {(sourceType || sourceName) && (
         <PrefillBanner
@@ -470,7 +472,7 @@ function today() {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="block">
-      <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">{label}</span>
+      <label className="label-field">{label}</label>
       {children}
     </div>
   );

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowRight, ClipboardList, CreditCard, Download, FilePlus2, FileText, HandCoins, Search, ShoppingCart, Wallet } from 'lucide-react';
+import { ArrowRight, ClipboardList, CreditCard, Download, FilePlus2, FileText, HandCoins, ShoppingCart, Wallet } from 'lucide-react';
 import { dashboardApi } from '../lib/api';
 import { appendPreservedListQuery, debounce, downloadTextFile, formatCompact, toCsv } from '../lib/utils';
+import { PageHeader, LoadingBlock, EmptyState, SearchField } from '../components/ui';
 
 type OperationsSummary = {
   quotations_awaiting_conversion: number;
@@ -242,19 +243,19 @@ export default function OperationsPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <h1 className="page-title">Operations Queues</h1>
-          <p className="mt-1 text-gray-500">Shared controller view for the workflow hotspots already supported by current sales and purchasing data.</p>
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <button onClick={handleExport} disabled={loading || filteredCards.length === 0} className="btn-secondary flex items-center gap-2 disabled:opacity-60">
-            <Download className="h-4 w-4" /> Export Visible
-          </button>
-          <button onClick={() => navigate('/finance')} className="btn-secondary">Finance Overview</button>
-          <button onClick={() => navigate('/reports')} className="btn-secondary">Reports</button>
-        </div>
-      </div>
+      <PageHeader
+        title="Operations Queues"
+        description="Shared controller view for the workflow hotspots already supported by current sales and purchasing data."
+        actions={
+          <>
+            <button type="button" onClick={handleExport} disabled={loading || filteredCards.length === 0} className="btn-secondary flex items-center gap-2 disabled:opacity-60">
+              <Download className="h-4 w-4" /> Export Visible
+            </button>
+            <button type="button" onClick={() => navigate('/finance')} className="btn-secondary">Finance Overview</button>
+            <button type="button" onClick={() => navigate('/reports')} className="btn-secondary">Reports</button>
+          </>
+        }
+      />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
         <SummaryCard label="Open Queue Items" value={formatCompact(totalOpenQueues)} tone="blue" />
@@ -287,16 +288,13 @@ export default function OperationsPage() {
           </button>
         </div>
 
-        <div className="relative w-full lg:w-80">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            defaultValue={search}
-            onChange={(e) => debouncedSearch(e.target.value)}
-            placeholder="Search queues..."
-            className="input-field pl-9"
-          />
-        </div>
+        <SearchField
+          placeholder="Search queues…"
+          defaultValue={search}
+          onChange={(value) => debouncedSearch(value)}
+          className="w-full lg:w-80"
+          aria-label="Search operations queues"
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -321,15 +319,14 @@ export default function OperationsPage() {
       </div>
 
       {loading ? (
-        <div className="flex h-64 items-center justify-center">
-          <div className="spinner" />
-        </div>
+        <LoadingBlock label="Loading operations queues…" />
       ) : (
         <div className="space-y-6 sm:space-y-8">
           {filteredCards.length === 0 && (
-            <div className="rounded-lg border border-dashed border-gray-300 bg-white px-6 py-12 text-center text-sm text-gray-500">
-              No queues match the current filters.
-            </div>
+            <EmptyState
+              title="No queues match the current filters"
+              description="Try clearing module, open-only, or approval filters."
+            />
           )}
           {(['Sales', 'Purchases'] as const).map((module) => (
             <section key={module} className="space-y-4">

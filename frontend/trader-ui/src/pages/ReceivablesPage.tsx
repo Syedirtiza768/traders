@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  ArrowDownLeft, RefreshCw, Search, AlertTriangle,
-  ChevronLeft, ChevronRight, CheckCircle, X,
+  ArrowDownLeft, RefreshCw, AlertTriangle,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { daybookApi } from '../lib/api';
 import { useCompanyStore } from '../stores/companyStore';
 import { debounce, formatAmount } from '../lib/utils';
 import PartySettleModal from '../components/PartySettleModal';
+import { PageHeader, LoadingBlock, EmptyState, AlertBanner, SearchField } from '../components/ui';
 
 const PAGE_SIZE = 20;
 
@@ -86,54 +87,51 @@ export default function ReceivablesPage() {
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-4xl mx-auto">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <ArrowDownLeft className="w-6 h-6 text-emerald-600" />
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">In-Coming (AR)</h1>
-        </div>
-        <button onClick={() => void load()} className="p-2 rounded-lg border border-gray-200 dark:border-slate-700 text-gray-500 hover:text-brand-600">
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-        </button>
-      </div>
+      <PageHeader
+        title={
+          <span className="inline-flex items-center gap-3">
+            <ArrowDownLeft className="w-6 h-6 text-emerald-600" aria-hidden="true" />
+            In-Coming (AR)
+          </span>
+        }
+        actions={
+          <button type="button" onClick={() => void load()} className="p-2 rounded-lg border border-gray-200 dark:border-slate-700 text-gray-500 hover:text-brand-600 min-h-[44px] min-w-[44px]" aria-label="Refresh receivables">
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        }
+      />
 
       <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4 flex items-center justify-between">
         <span className="text-sm font-medium text-emerald-700 dark:text-emerald-400">Total Receivable</span>
         <span className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">{fmtAmt(grandTotal)}</span>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-        <input
-          type="text"
-          placeholder="Search by party name or short code…"
-          value={searchInput}
-          onChange={(e) => {
-            setSearchInput(e.target.value);
-            debouncedSetSearch(e.target.value);
-          }}
-          className="input-field pl-9 text-sm"
-        />
-      </div>
+      <SearchField
+        placeholder="Search by party name or short code…"
+        value={searchInput}
+        onChange={(value) => {
+          setSearchInput(value);
+          debouncedSetSearch(value);
+        }}
+        className="w-full"
+        aria-label="Search receivables"
+      />
 
-      {settleSuccess && (
-        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg p-3 flex items-center justify-between text-sm text-green-700 dark:text-green-400">
-          <span><CheckCircle className="inline w-4 h-4 mr-1" />{settleSuccess}</span>
-          <button onClick={() => setSettleSuccess(null)}><X className="w-4 h-4" /></button>
-        </div>
-      )}
+      {settleSuccess ? (
+        <AlertBanner tone="success" onDismiss={() => setSettleSuccess(null)}>{settleSuccess}</AlertBanner>
+      ) : null}
 
-      {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 text-sm text-red-700 dark:text-red-300">{error}</div>
-      )}
+      {error ? <AlertBanner tone="error">{error}</AlertBanner> : null}
 
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden">
         {loading ? (
-          <div className="flex items-center justify-center h-40"><div className="spinner" /></div>
+          <LoadingBlock compact label="Loading receivables…" />
         ) : rows.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-40 text-gray-400">
-            <ArrowDownLeft className="w-8 h-8 mb-2 opacity-40" />
-            <p className="text-sm">No outstanding receivables</p>
-          </div>
+          <EmptyState
+            compact
+            title="No outstanding receivables"
+            icon={<ArrowDownLeft className="h-5 w-5" aria-hidden="true" />}
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

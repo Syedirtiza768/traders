@@ -1,8 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { BookText, ChevronLeft, ChevronRight, Plus, Search, Scale } from 'lucide-react';
+import { BookText, Plus, Scale } from 'lucide-react';
 import { financeApi } from '../lib/api';
 import { appendPreservedListQuery, debounce, formatCurrency, formatDate, formatCompact } from '../lib/utils';
+import {
+  PageHeader,
+  EmptyState,
+  LoadingBlock,
+  SearchField,
+  PaginationBar,
+  StatCard,
+} from '../components/ui';
 
 export default function JournalEntriesPage() {
   const navigate = useNavigate();
@@ -74,48 +82,62 @@ export default function JournalEntriesPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div>
-        <h1 className="page-title">Journal Entries</h1>
-        <p className="mt-1 text-gray-500 text-sm">Review general ledger adjustments, accruals, and reclassification entries.</p>
-      </div>
-
-      <div className="flex justify-end">
-        <button onClick={() => navigate(appendPreservedListQuery('/finance/journals/new', listSearch))} className="btn-primary flex items-center gap-2">
-          <Plus className="h-4 w-4" /> New Journal Entry
-        </button>
-      </div>
+      <PageHeader
+        title="Journal Entries"
+        description="Review general ledger adjustments, accruals, and reclassification entries."
+        actions={
+          <button type="button" onClick={() => navigate(appendPreservedListQuery('/finance/journals/new', listSearch))} className="btn-primary flex items-center gap-2">
+            <Plus className="h-4 w-4" aria-hidden="true" /> New Journal Entry
+          </button>
+        }
+      />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
-        <StatCard icon={BookText} label="Visible Entries" value={total.toLocaleString()} color="blue" />
-        <StatCard icon={Scale} label="Visible Debit" value={formatCompact(visibleDebit)} color="green" />
-        <StatCard icon={Scale} label="Visible Credit" value={formatCompact(visibleCredit)} color="amber" />
+        <StatCard icon={BookText} label="Visible Entries" display={total.toLocaleString()} color="blue" />
+        <StatCard icon={Scale} label="Visible Debit" display={formatCompact(visibleDebit)} color="green" />
+        <StatCard icon={Scale} label="Visible Credit" display={formatCompact(visibleCredit)} color="amber" />
       </div>
 
       <div className="flex justify-end">
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          <input type="text" placeholder="Search journal entries..." defaultValue={search} onChange={(e) => debouncedSearch(e.target.value)} className="input-field pl-9" />
-        </div>
+        <SearchField
+          placeholder="Search journal entries..."
+          aria-label="Search journal entries"
+          defaultValue={search}
+          onChange={debouncedSearch}
+        />
       </div>
 
       {/* Desktop Table */}
       <div className="hidden md:block table-container">
-        <table className="w-full">
+        <table className="data-table w-full">
           <thead>
-            <tr className="bg-gray-50">
-              <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Entry</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Date</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Voucher Type</th>
-              <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Debit</th>
-              <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Credit</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Remark</th>
+            <tr>
+              <th scope="col">Entry</th>
+              <th scope="col">Date</th>
+              <th scope="col">Voucher Type</th>
+              <th scope="col" className="text-right">Debit</th>
+              <th scope="col" className="text-right">Credit</th>
+              <th scope="col">Remark</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody>
             {loading ? (
-              <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-400"><div className="spinner mx-auto" /></td></tr>
+              <tr><td colSpan={6}><LoadingBlock compact label="Loading journal entries…" /></td></tr>
             ) : entries.length === 0 ? (
-              <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-400">No journal entries found.</td></tr>
+              <tr>
+                <td colSpan={6}>
+                  <EmptyState
+                    compact
+                    title="No journal entries found"
+                    description={search ? 'Try adjusting your search.' : undefined}
+                    action={
+                      <button type="button" className="btn-primary" onClick={() => navigate(appendPreservedListQuery('/finance/journals/new', listSearch))}>
+                        New Journal Entry
+                      </button>
+                    }
+                  />
+                </td>
+              </tr>
             ) : (
               entries.map((entry) => (
                 <tr
@@ -123,12 +145,12 @@ export default function JournalEntriesPage() {
                   className="cursor-pointer hover:bg-gray-50 transition-colors"
                   onClick={() => navigate(buildDetailPath(entry.name))}
                 >
-                  <td className="px-6 py-3 text-sm font-medium text-brand-700">{entry.name}</td>
-                  <td className="px-6 py-3 text-sm text-gray-500">{formatDate(entry.posting_date)}</td>
-                  <td className="px-6 py-3 text-sm text-gray-700">{entry.voucher_type || 'Journal Entry'}</td>
-                  <td className="px-6 py-3 text-right text-sm font-medium text-gray-900">{formatCurrency(entry.total_debit)}</td>
-                  <td className="px-6 py-3 text-right text-sm font-medium text-gray-900">{formatCurrency(entry.total_credit)}</td>
-                  <td className="px-6 py-3 text-sm text-gray-500">{entry.user_remark || '—'}</td>
+                  <td className="font-medium text-brand-700 dark:text-brand-300">{entry.name}</td>
+                  <td className="text-gray-500 dark:text-slate-400">{formatDate(entry.posting_date)}</td>
+                  <td className="text-gray-700 dark:text-slate-300">{entry.voucher_type || 'Journal Entry'}</td>
+                  <td className="num font-medium text-gray-900 dark:text-gray-100">{formatCurrency(entry.total_debit)}</td>
+                  <td className="num font-medium text-gray-900 dark:text-gray-100">{formatCurrency(entry.total_credit)}</td>
+                  <td className="text-gray-500 dark:text-slate-400">{entry.user_remark || '—'}</td>
                 </tr>
               ))
             )}
@@ -137,11 +159,11 @@ export default function JournalEntriesPage() {
       </div>
 
       {/* Mobile Card List */}
-      <div className="md:hidden card divide-y divide-gray-100">
+      <div className="md:hidden card divide-y divide-gray-100 dark:divide-slate-800">
         {loading ? (
-          <div className="px-4 py-12 text-center text-gray-400"><div className="spinner mx-auto" /></div>
+          <LoadingBlock compact label="Loading journal entries…" />
         ) : entries.length === 0 ? (
-          <div className="px-4 py-12 text-center text-gray-400 text-sm">No journal entries found.</div>
+          <EmptyState compact title="No journal entries found" description={search ? 'Try adjusting your search.' : undefined} />
         ) : (
           entries.map((entry) => (
             <div key={entry.name} className="px-4 py-3 space-y-1.5 active:bg-gray-50" onClick={() => navigate(buildDetailPath(entry.name))}>
@@ -162,39 +184,15 @@ export default function JournalEntriesPage() {
         )}
       </div>
 
-      {totalPages > 1 && !search && (
-        <div className="flex items-center justify-between text-xs sm:text-sm text-gray-500">
-          <span>Showing {((page - 1) * pageSize) + 1}–{Math.min(page * pageSize, total)} of {total}</span>
-          <div className="flex gap-1">
-            <button onClick={() => updateSearchParams({ page: page > 2 ? String(page - 1) : null })} disabled={page === 1} className="btn-secondary px-2 py-1 text-xs">
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <button onClick={() => updateSearchParams({ page: String(Math.min(totalPages, page + 1)) })} disabled={page === totalPages} className="btn-secondary px-2 py-1 text-xs">
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
+      {!search && (
+        <PaginationBar
+          page={page}
+          totalPages={totalPages}
+          total={total}
+          pageSize={pageSize}
+          onPageChange={(p) => updateSearchParams({ page: p > 1 ? String(p) : null })}
+        />
       )}
-    </div>
-  );
-}
-
-function StatCard({ icon: Icon, label, value, color }: { icon: any; label: string; value: string; color: 'blue' | 'green' | 'amber' }) {
-  const tone = {
-    blue: { bg: 'bg-blue-50', fg: 'text-blue-600' },
-    green: { bg: 'bg-green-50', fg: 'text-green-600' },
-    amber: { bg: 'bg-amber-50', fg: 'text-amber-600' },
-  }[color];
-
-  return (
-    <div className="card p-4 sm:p-5">
-      <div className="flex items-center gap-2 sm:gap-3">
-        <div className={`rounded-lg p-1.5 sm:p-2 ${tone.bg}`}><Icon className={`h-4 w-4 sm:h-5 sm:w-5 ${tone.fg}`} /></div>
-        <div className="min-w-0">
-          <p className="text-[10px] sm:text-xs text-gray-500 truncate">{label}</p>
-          <p className="text-sm sm:text-lg font-bold text-gray-900">{value}</p>
-        </div>
-      </div>
     </div>
   );
 }

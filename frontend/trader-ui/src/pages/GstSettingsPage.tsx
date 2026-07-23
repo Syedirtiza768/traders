@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Check, Download, Percent, Save, Shield } from 'lucide-react';
 import { gstApi } from '../lib/api';
 import SearchableSelect from '../components/SearchableSelect';
+import { PageHeader, LoadingBlock, AlertBanner } from '../components/ui';
 
 type GstConfig = {
   default_sales_tax_template: string;
@@ -103,34 +104,31 @@ export default function GstSettingsPage() {
   };
 
   if (loading) {
-    return (
-      <div className="space-y-4 sm:space-y-6">
-        <div><h1 className="page-title">GST Settings</h1></div>
-        <div className="flex items-center justify-center h-64"><div className="spinner" /></div>
-      </div>
-    );
+    return <LoadingBlock label="Loading GST settings…" />;
   }
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <button onClick={() => navigate('/settings')} className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
-            <ArrowLeft size={16} /> Back to Settings
-          </button>
-          <h1 className="page-title">GST Settings</h1>
-          <p className="mt-1 text-gray-500">Configure General Sales Tax (GST) rules for Pakistan. Default: Punjab province.</p>
-        </div>
-        <button onClick={handleSave} disabled={saving} className="btn-primary flex items-center gap-2 disabled:opacity-60">
-          <Save size={14} /> {saving ? 'Saving…' : 'Save Settings'}
-        </button>
-      </div>
+      <PageHeader
+        title="GST Settings"
+        description="Configure General Sales Tax (GST) rules for Pakistan. Default: Punjab province."
+        actions={
+          <>
+            <button type="button" onClick={() => navigate('/settings')} className="btn-secondary inline-flex items-center gap-2">
+              <ArrowLeft size={16} /> Back to Settings
+            </button>
+            <button type="button" onClick={handleSave} disabled={saving} className="btn-primary flex items-center gap-2 disabled:opacity-60">
+              <Save size={14} /> {saving ? 'Saving…' : 'Save Settings'}
+            </button>
+          </>
+        }
+      />
 
-      {feedback && (
-        <div className={`rounded-lg px-4 py-3 text-sm ${feedback.type === 'success' ? 'border border-green-200 bg-green-50 text-green-700' : 'border border-red-200 bg-red-50 text-red-700'}`}>
+      {feedback ? (
+        <AlertBanner tone={feedback.type === 'success' ? 'success' : 'error'} onDismiss={() => setFeedback(null)}>
           {feedback.message}
-        </div>
-      )}
+        </AlertBanner>
+      ) : null}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Registration Info */}

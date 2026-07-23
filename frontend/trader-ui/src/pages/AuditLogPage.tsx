@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ChevronLeft, ChevronRight, ScrollText } from 'lucide-react';
 import { auditApi } from '../lib/api';
 import { formatDate } from '../lib/utils';
+import { PageHeader, LoadingBlock, EmptyState, AlertBanner } from '../components/ui';
 
 const DOCTYPE_OPTIONS = [
   '',
@@ -99,23 +100,20 @@ export default function AuditLogPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <Link
-            to="/settings"
-            className="mb-2 inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800 dark:text-brand-400"
-          >
+      <PageHeader
+        title={
+          <span className="inline-flex items-center gap-2">
+            <ScrollText size={22} className="text-brand-600" aria-hidden="true" />
+            Audit log
+          </span>
+        }
+        description="Company-scoped activity on sales, purchases, finance, and inventory documents."
+        actions={
+          <Link to="/settings" className="btn-secondary inline-flex items-center gap-2">
             <ArrowLeft size={16} /> Settings
           </Link>
-          <h1 className="page-title flex items-center gap-2">
-            <ScrollText size={22} className="text-brand-600" />
-            Audit log
-          </h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">
-            Company-scoped activity on sales, purchases, finance, and inventory documents.
-          </p>
-        </div>
-      </div>
+        }
+      />
 
       <div className="card grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:grid-cols-5">
         <label className="block text-sm">
@@ -171,15 +169,13 @@ export default function AuditLogPage() {
         </label>
       </div>
 
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
-      )}
+      {error ? <AlertBanner tone="error">{error}</AlertBanner> : null}
 
       <div className="card overflow-hidden">
         {loading ? (
-          <div className="flex justify-center py-16"><div className="spinner" /></div>
+          <LoadingBlock label="Loading audit log…" />
         ) : rows.length === 0 ? (
-          <p className="py-12 text-center text-sm text-gray-500">No activity found for these filters.</p>
+          <EmptyState title="No activity found for these filters." compact />
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">

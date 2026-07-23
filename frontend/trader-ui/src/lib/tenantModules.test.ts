@@ -30,6 +30,8 @@ describe('tenantModules', () => {
     expect(TENANT_MODULE_KEYS).toContain('dashboard');
     expect(TENANT_MODULE_KEYS).toContain('components');
     expect(TENANT_MODULE_KEYS).toContain('pos');
-    expect(TENANT_MODULE_KEYS.length).toBe(12);
+    expect(TENANT_MODULE_KEYS).toContain('opportunity');
+    expect(TENANT_MODULE_KEYS).toContain('settings');
+    expect(TENANT_MODULE_KEYS.length).toBe(13);
   });
 });

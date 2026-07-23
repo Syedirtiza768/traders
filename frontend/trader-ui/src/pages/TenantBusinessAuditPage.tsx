@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ChevronLeft, ChevronRight, Shield } from 'lucide-react';
+import { ArrowLeft, Shield } from 'lucide-react';
 import { tenantApi } from '../lib/api';
 import { useTenantStore } from '../stores/tenantStore';
+import { PageHeader, LoadingBlock, EmptyState, AlertBanner, PaginationBar } from '../components/ui';
 
 type AuditRow = {
   name: string;
@@ -57,32 +58,32 @@ export default function TenantBusinessAuditPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div>
-        <button
-          type="button"
-          onClick={() => navigate('/settings')}
-          className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 dark:text-brand-400 hover:text-brand-800"
-        >
-          <ArrowLeft size={16} /> Back to Settings
-        </button>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center">
-            <Shield size={20} className="text-violet-700 dark:text-violet-300" />
-          </div>
-          <div>
-            <h1 className="page-title">Business Audit Log</h1>
-            <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
-              Platform actions for {tenant?.tenant_name || 'your business'}
-            </p>
-          </div>
-        </div>
-      </div>
+      <button
+        type="button"
+        onClick={() => navigate('/settings')}
+        className="inline-flex items-center gap-2 text-sm text-brand-700 dark:text-brand-400 hover:text-brand-800"
+      >
+        <ArrowLeft size={16} /> Back to Settings
+      </button>
 
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
-      )}
+      <PageHeader
+        title={
+          <span className="inline-flex items-center gap-3">
+            <Shield size={20} className="text-violet-700 dark:text-violet-300" aria-hidden="true" />
+            Business Audit Log
+          </span>
+        }
+        description={`Platform actions for ${tenant?.tenant_name || 'your business'}`}
+      />
+
+      {error ? <AlertBanner tone="error">{error}</AlertBanner> : null}
 
       <div className="card overflow-hidden">
+        {loading ? (
+          <LoadingBlock compact label="Loading audit log…" />
+        ) : rows.length === 0 ? (
+          <EmptyState compact title="No audit entries yet." />
+        ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead className="bg-gray-50 dark:bg-slate-800 text-gray-500 dark:text-slate-400">
@@ -94,53 +95,28 @@ export default function TenantBusinessAuditPage() {
               </tr>
             </thead>
             <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-gray-500">Loading...</td>
+              {rows.map((row) => (
+                <tr key={row.name} className="border-t border-gray-100 dark:border-slate-700">
+                  <td className="px-4 py-3 text-gray-600 dark:text-slate-300 whitespace-nowrap">{row.timestamp}</td>
+                  <td className="px-4 py-3 capitalize">{row.action?.replace(/_/g, ' ')}</td>
+                  <td className="px-4 py-3">{row.actor}</td>
+                  <td className="px-4 py-3 hidden md:table-cell text-gray-500">{row.actor_role || '—'}</td>
                 </tr>
-              ) : rows.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-gray-500">No audit entries yet.</td>
-                </tr>
-              ) : (
-                rows.map((row) => (
-                  <tr key={row.name} className="border-t border-gray-100 dark:border-slate-700">
-                    <td className="px-4 py-3 text-gray-600 dark:text-slate-300 whitespace-nowrap">{row.timestamp}</td>
-                    <td className="px-4 py-3 capitalize">{row.action?.replace(/_/g, ' ')}</td>
-                    <td className="px-4 py-3">{row.actor}</td>
-                    <td className="px-4 py-3 hidden md:table-cell text-gray-500">{row.actor_role || '—'}</td>
-                  </tr>
-                ))
-              )}
+              ))}
             </tbody>
           </table>
         </div>
-
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 dark:border-slate-700">
-            <p className="text-sm text-gray-500">
-              Page {page} of {totalPages} ({total} entries)
-            </p>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                disabled={page <= 1}
-                onClick={() => setSearchParams({ page: String(page - 1) })}
-                className="btn-secondary flex items-center gap-1 disabled:opacity-50"
-              >
-                <ChevronLeft size={14} /> Prev
-              </button>
-              <button
-                type="button"
-                disabled={page >= totalPages}
-                onClick={() => setSearchParams({ page: String(page + 1) })}
-                className="btn-secondary flex items-center gap-1 disabled:opacity-50"
-              >
-                Next <ChevronRight size={14} />
-              </button>
-            </div>
-          </div>
         )}
+
+        {!loading && totalPages > 1 ? (
+          <PaginationBar
+            page={page}
+            totalPages={totalPages}
+            total={total}
+            pageSize={pageSize}
+            onPageChange={(nextPage) => setSearchParams({ page: String(nextPage) })}
+          />
+        ) : null}
       </div>
 
       <p className="text-xs text-gray-500">

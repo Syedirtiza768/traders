@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, CircleDollarSign, Layers3, Package, Scale, Tag } from 'lucide-react';
 import { inventoryApi } from '../lib/api';
 import { formatCurrency } from '../lib/utils';
+import { PageHeader, LoadingBlock, AlertBanner } from '../components/ui';
 
 type InventoryItemState = {
   item?: Record<string, any>;
@@ -49,38 +50,38 @@ export default function InventoryItemDetailPage() {
   const heading = useMemo(() => item?.item_name || decodeURIComponent(itemId || ''), [item, itemId]);
 
   if (loading) {
-    return <div className="py-16 flex justify-center"><div className="spinner" /></div>;
+    return <LoadingBlock label="Loading item…" />;
   }
 
   if (!item) {
     return (
       <div className="space-y-4">
-        <button onClick={() => navigate('/inventory')} className="btn-secondary inline-flex items-center gap-2">
+        <button type="button" onClick={() => navigate('/inventory')} className="btn-secondary inline-flex items-center gap-2">
           <ArrowLeft className="w-4 h-4" />
           Back to Inventory
         </button>
-        <div className="card p-8 text-center text-gray-500">
-          {error || 'Item not found.'}
-        </div>
+        <AlertBanner tone="error">{error || 'Item not found.'}</AlertBanner>
       </div>
     );
   }
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <button onClick={() => navigate('/inventory')} className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
+      <PageHeader
+        title={heading || 'Item Detail'}
+        description={`Inventory item overview from the ${state?.sourceTab || 'inventory'} view`}
+        meta={
+          <span className="rounded-full bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700 dark:bg-slate-800 dark:text-blue-300">
+            {item.item_code || decodeURIComponent(itemId || '')}
+          </span>
+        }
+        actions={
+          <button type="button" onClick={() => navigate('/inventory')} className="btn-secondary inline-flex items-center gap-2">
             <ArrowLeft className="w-4 h-4" />
             Back to Inventory
           </button>
-          <h1 className="page-title">{heading || 'Item Detail'}</h1>
-          <p className="mt-1 text-gray-500">Inventory item overview from the {state?.sourceTab || 'inventory'} view</p>
-        </div>
-        <span className="rounded-full bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700">
-          {item.item_code || decodeURIComponent(itemId || '')}
-        </span>
-      </div>
+        }
+      />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <DetailKPI icon={Tag} label="Item Group" value={item.item_group || '—'} tone="blue" />

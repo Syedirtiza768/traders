@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { superAdminApi } from '../../lib/api';
+import { PageHeader, AlertBanner } from '../../components/ui';
 
 const MODULE_OPTIONS = [
   'dashboard', 'sales', 'purchases', 'inventory', 'finance', 'reports',
@@ -80,13 +81,15 @@ export default function CreateTenantPage() {
 
   if (created) {
     return (
-      <div className="max-w-3xl">
-        <h2 className="text-xl font-semibold text-slate-900 mb-1">Business Created</h2>
-        <p className="text-sm text-slate-500 mb-6">Share these credentials with the business admin.</p>
+      <div className="max-w-3xl space-y-4">
+        <PageHeader
+          title="Business Created"
+          description="Share these credentials with the business admin."
+        />
+        <AlertBanner tone="success">
+          Tenant <strong>{created.tenant_id}</strong> provisioned successfully.
+        </AlertBanner>
         <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-4">
-          <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-green-800 text-sm">
-            Tenant <strong>{created.tenant_id}</strong> provisioned successfully.
-          </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-xs font-medium text-slate-500">Email</p>
@@ -117,11 +120,13 @@ export default function CreateTenantPage() {
   }
 
   return (
-    <div className="max-w-3xl">
-      <h2 className="text-xl font-semibold text-slate-900 mb-1">Create Business</h2>
-      <p className="text-sm text-slate-500 mb-6">Provision a new tenant with company and admin user.</p>
+    <div className="max-w-3xl space-y-4">
+      <PageHeader
+        title="Create Business"
+        description="Provision a new tenant with company and admin user."
+      />
 
-      {error && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700 text-sm">{error}</div>}
+      {error ? <AlertBanner tone="error">{error}</AlertBanner> : null}
 
       <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-slate-200 p-6 space-y-5 shadow-sm">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

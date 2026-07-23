@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Package, AlertTriangle, Plus, Trash2, CheckCircle, X, Upload,
+  Package, AlertTriangle, Plus, Trash2, Upload,
 } from 'lucide-react';
 import { catalogApi, inventoryApi } from '../lib/api';
 import { useCompanyStore } from '../stores/companyStore';
 import { formatAmount } from '../lib/utils';
+import { PageHeader, AlertBanner, EmptyState } from '../components/ui';
 
 function fmtAmt(n: number) {
   return formatAmount(n);
@@ -119,25 +120,18 @@ export default function OpeningStockPage() {
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-4xl mx-auto">
-      <div className="flex items-center gap-3">
-        <Upload className="w-6 h-6 text-brand-600" />
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Opening Stock Import</h1>
-      </div>
+      <PageHeader
+        title={
+          <span className="inline-flex items-center gap-3">
+            <Upload className="w-6 h-6 text-brand-600" aria-hidden="true" />
+            Opening Stock Import
+          </span>
+        }
+        description="Creates a single Material Receipt Stock Entry from your hand-written notebook. Run once when you first enable Components."
+      />
 
-      <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-sm text-amber-700 dark:text-amber-400">
-        This wizard creates a single <strong>Material Receipt Stock Entry</strong> from your hand-written notebook.
-        Run it once when you first enable the Components feature.
-      </div>
-
-      {success && (
-        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg p-3 flex items-center justify-between text-sm text-green-700 dark:text-green-400">
-          <span><CheckCircle className="inline w-4 h-4 mr-1" />{success}</span>
-          <button onClick={() => setSuccess(null)}><X className="w-4 h-4" /></button>
-        </div>
-      )}
-      {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 text-sm text-red-700 dark:text-red-300">{error}</div>
-      )}
+      {success ? <AlertBanner tone="success" onDismiss={() => setSuccess(null)}>{success}</AlertBanner> : null}
+      {error ? <AlertBanner tone="error">{error}</AlertBanner> : null}
 
       {/* SKU picker to add lines */}
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 p-4 space-y-3">
@@ -225,10 +219,10 @@ export default function OpeningStockPage() {
       )}
 
       {lines.length === 0 && !success && (
-        <div className="flex flex-col items-center justify-center h-32 text-gray-400 border-2 border-dashed border-gray-200 dark:border-slate-700 rounded-xl">
-          <Package className="w-8 h-8 mb-2 opacity-40" />
-          <p className="text-sm">Add items above to begin import</p>
-        </div>
+        <EmptyState
+          title="Add items above to begin import"
+          icon={<Package className="h-8 w-8" aria-hidden="true" />}
+        />
       )}
     </div>
   );

@@ -8,6 +8,7 @@ import { applyTraderUiTheme, normaliseUiPrefs, type TraderUiPrefs } from '../lib
 import { useCompanyStore } from '../stores/companyStore';
 import { useAuthStore } from '../stores/authStore';
 import { useTenantStore } from '../stores/tenantStore';
+import { PageHeader, AlertBanner, LoadingBlock } from '../components/ui';
 
 const TIME_ZONES = [
   'Asia/Karachi',
@@ -219,32 +220,26 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div className="space-y-4 sm:space-y-6">
-        <div>
-          <h1 className="page-title">Settings</h1>
-        </div>
-        <div className="flex items-center justify-center h-64">
-          <div className="spinner" />
-        </div>
+        <PageHeader title="Settings" />
+        <LoadingBlock label="Loading settings…" compact />
       </div>
     );
   }
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="page-title">Settings</h1>
-          <p className="text-gray-500 dark:text-slate-400 mt-1">System configuration and your preferences</p>
-        </div>
-        <button type="button" onClick={() => void loadSettings()} className="btn-secondary flex items-center justify-center gap-2 self-start">
-          <RefreshCw size={14} /> Refresh
-        </button>
-      </div>
+      <PageHeader
+        title="Settings"
+        description="System configuration and your preferences"
+        actions={
+          <button type="button" onClick={() => void loadSettings()} className="btn-secondary flex items-center justify-center gap-2 self-start">
+            <RefreshCw size={14} /> Refresh
+          </button>
+        }
+      />
 
       {loadError && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100" role="alert">
-          {loadError}
-        </div>
+        <AlertBanner tone="warning">{loadError}</AlertBanner>
       )}
 
       {feedback && (

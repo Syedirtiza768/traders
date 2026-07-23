@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ClipboardList, RefreshCw, AlertTriangle, CheckCircle, X, Save } from 'lucide-react';
+import { ClipboardList, RefreshCw, AlertTriangle, Save } from 'lucide-react';
 import { catalogApi, inventoryApi } from '../lib/api';
 import { useCompanyStore } from '../stores/companyStore';
+import { PageHeader, LoadingBlock, EmptyState, AlertBanner } from '../components/ui';
 
 function fmtQty(n: number) {
   return new Intl.NumberFormat('en-PK', { maximumFractionDigits: 0 }).format(n);
@@ -104,20 +105,24 @@ export default function StockTakePage() {
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-4xl mx-auto">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <ClipboardList className="w-6 h-6 text-brand-600" />
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Stock Take</h1>
-          {varianceCount > 0 && (
-            <span className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs font-semibold px-2 py-0.5 rounded-full">
-              {varianceCount} variances
-            </span>
-          )}
-        </div>
-        <button onClick={() => void load()} className="p-2 rounded-lg border border-gray-200 dark:border-slate-700 text-gray-500 hover:text-brand-600">
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-        </button>
-      </div>
+      <PageHeader
+        title={
+          <span className="inline-flex items-center gap-3">
+            <ClipboardList className="w-6 h-6 text-brand-600" aria-hidden="true" />
+            Stock Take
+            {varianceCount > 0 && (
+              <span className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs font-semibold px-2 py-0.5 rounded-full">
+                {varianceCount} variances
+              </span>
+            )}
+          </span>
+        }
+        actions={
+          <button type="button" onClick={() => void load()} className="btn-secondary p-2 min-h-[44px] min-w-[44px]" aria-label="Refresh">
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        }
+      />
 
       <div className="flex gap-3 flex-wrap">
         <select value={warehouse} onChange={(e) => setWarehouse(e.target.value)} className="input-field text-sm flex-1 min-w-[180px]">
@@ -130,24 +135,14 @@ export default function StockTakePage() {
         </select>
       </div>
 
-      {success && (
-        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg p-3 flex items-center justify-between text-sm text-green-700 dark:text-green-400">
-          <span><CheckCircle className="inline w-4 h-4 mr-1" />{success}</span>
-          <button onClick={() => setSuccess(null)}><X className="w-4 h-4" /></button>
-        </div>
-      )}
-      {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 text-sm text-red-700 dark:text-red-300">{error}</div>
-      )}
+      {success ? <AlertBanner tone="success" onDismiss={() => setSuccess(null)}>{success}</AlertBanner> : null}
+      {error ? <AlertBanner tone="error">{error}</AlertBanner> : null}
 
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden">
         {loading ? (
-          <div className="flex items-center justify-center h-40"><div className="spinner" /></div>
+          <LoadingBlock compact label="Loading stock take…" />
         ) : items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-40 text-gray-400">
-            <ClipboardList className="w-8 h-8 mb-2 opacity-40" />
-            <p className="text-sm">No items found for stock take</p>
-          </div>
+          <EmptyState compact title="No items found for stock take" icon={<ClipboardList className="h-5 w-5" aria-hidden="true" />} />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

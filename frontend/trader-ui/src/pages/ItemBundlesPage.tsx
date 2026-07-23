@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Box, Edit2, Package, Plus, Save, Search, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Box, Edit2, Package, Plus, Save, Trash2, X } from 'lucide-react';
 import { bundlingApi, inventoryApi } from '../lib/api';
 import { formatCurrency } from '../lib/utils';
 import SearchableSelect from '../components/SearchableSelect';
+import { PageHeader, LoadingBlock, EmptyState, AlertBanner, SearchField } from '../components/ui';
 
 type BundleItem = { item_code: string; qty: number; rate: number };
 type Bundle = { name: string; bundle_name: string; description: string; total_rate: number; item_count: number };
@@ -136,36 +137,28 @@ export default function ItemBundlesPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <button onClick={() => navigate('/settings')} className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
-            <ArrowLeft size={16} /> Back to Settings
-          </button>
-          <h1 className="page-title">Item Bundles</h1>
-          <p className="mt-1 text-gray-500">Group multiple items into a single line item for Quotations, Orders, and Invoices.</p>
-        </div>
-        <button onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary flex items-center gap-2">
-          <Plus size={14} /> New Bundle
-        </button>
-      </div>
+      <PageHeader
+        title="Item Bundles"
+        description="Group multiple items into a single line item for Quotations, Orders, and Invoices."
+        actions={
+          <>
+            <button type="button" onClick={() => navigate('/settings')} className="btn-secondary inline-flex items-center gap-2">
+              <ArrowLeft size={16} /> Back to Settings
+            </button>
+            <button type="button" onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary flex items-center gap-2">
+              <Plus size={14} /> New Bundle
+            </button>
+          </>
+        }
+      />
 
-      {feedback && (
-        <div className={`rounded-lg px-4 py-3 text-sm ${feedback.type === 'success' ? 'border border-green-200 bg-green-50 text-green-700' : 'border border-red-200 bg-red-50 text-red-700'}`}>
+      {feedback ? (
+        <AlertBanner tone={feedback.type === 'success' ? 'success' : 'error'} onDismiss={() => setFeedback(null)}>
           {feedback.message}
-        </div>
-      )}
+        </AlertBanner>
+      ) : null}
 
-      {/* Search */}
-      <div className="relative">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search bundles…"
-          className="input-field pl-10"
-        />
-      </div>
+      <SearchField placeholder="Search bundles…" value={search} onChange={setSearch} aria-label="Search bundles" />
 
       {/* Bundle Form Modal */}
       {showForm && (
@@ -175,7 +168,7 @@ export default function ItemBundlesPage() {
             <button onClick={resetForm} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
           </div>
 
-          {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+          {error ? <AlertBanner tone="error">{error}</AlertBanner> : null}
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
@@ -230,12 +223,13 @@ export default function ItemBundlesPage() {
 
       {/* Bundles List */}
       {loading ? (
-        <div className="flex justify-center py-16"><div className="spinner" /></div>
+        <LoadingBlock label="Loading bundles…" />
       ) : bundles.length === 0 ? (
-        <div className="card p-12 text-center">
-          <Box size={48} className="mx-auto mb-4 text-gray-300" />
-          <p className="text-gray-500">No item bundles yet. Create one to group items together.</p>
-        </div>
+        <EmptyState
+          title="No item bundles yet"
+          description="Create one to group items together."
+          icon={<Box className="h-5 w-5" aria-hidden="true" />}
+        />
       ) : (
         <div className="space-y-3">
           {bundles.map((bundle) => (

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, RefreshCw, Users, Shield, X, UserMinus, UserPlus } from 'lucide-react';
 import { adminApi } from '../lib/api';
 import { useAuthStore } from '../stores/authStore';
+import { PageHeader, LoadingBlock, AlertBanner } from '../components/ui';
 
 type Role = {
   name: string;
@@ -141,33 +142,26 @@ export default function RoleManagementPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Header */}
-      <div>
-        <button onClick={() => navigate('/settings')} className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 dark:text-brand-400 hover:text-brand-800">
-          <ArrowLeft size={16} /> Back to Settings
-        </button>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="page-title">Role Management</h1>
-            <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">View roles and manage which users are assigned to each role</p>
-          </div>
-          <button onClick={() => void loadRoles()} className="btn-secondary flex items-center gap-2 self-start">
-            <RefreshCw size={14} /> Refresh
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Role Management"
+        description="View roles and manage which users are assigned to each role"
+        actions={
+          <>
+            <button type="button" onClick={() => navigate('/settings')} className="btn-secondary inline-flex items-center gap-2">
+              <ArrowLeft size={16} /> Back to Settings
+            </button>
+            <button type="button" onClick={() => void loadRoles()} className="btn-secondary flex items-center gap-2">
+              <RefreshCw size={14} /> Refresh
+            </button>
+          </>
+        }
+      />
 
-      {/* Feedback */}
-      {feedback && (
-        <div className={`rounded-lg border px-4 py-3 text-sm flex items-start justify-between gap-3 ${
-          feedback.type === 'success'
-            ? 'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-100'
-            : 'border-red-200 bg-red-50 text-red-900 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-100'
-        }`}>
-          <span>{feedback.message}</span>
-          <button onClick={() => setFeedback(null)}><X size={14} /></button>
-        </div>
-      )}
+      {feedback ? (
+        <AlertBanner tone={feedback.type === 'success' ? 'success' : 'error'} onDismiss={() => setFeedback(null)}>
+          {feedback.message}
+        </AlertBanner>
+      ) : null}
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
         {/* Role list panel */}
@@ -191,7 +185,7 @@ export default function RoleManagementPage() {
           </div>
 
           {loading ? (
-            <div className="flex items-center justify-center h-40"><div className="spinner" /></div>
+            <LoadingBlock compact label="Loading roles…" />
           ) : (
             <div className="divide-y divide-gray-100 dark:divide-slate-700 max-h-[480px] overflow-y-auto">
               {filteredRoles.map((role) => (
@@ -245,7 +239,7 @@ export default function RoleManagementPage() {
               </div>
 
               {roleUsersLoading ? (
-                <div className="flex items-center justify-center h-32"><div className="spinner" /></div>
+                <LoadingBlock compact label="Loading role users…" />
               ) : roleUsers.length === 0 ? (
                 <div className="py-10 text-center text-sm text-gray-400 dark:text-slate-500">
                   No users assigned to this role yet.
@@ -300,7 +294,7 @@ export default function RoleManagementPage() {
             </div>
             <div className="max-h-80 overflow-y-auto">
               {allUsersLoading ? (
-                <div className="flex items-center justify-center h-24"><div className="spinner" /></div>
+                <LoadingBlock compact label="Loading available users…" />
               ) : assignableUsers.length === 0 ? (
                 <div className="py-8 text-center text-sm text-gray-400 dark:text-slate-500">All active users already have this role.</div>
               ) : (

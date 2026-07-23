@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Boxes, CircleDollarSign, Package } from 'lucide-react';
 import { inventoryApi } from '../lib/api';
 import { formatCurrency } from '../lib/utils';
+import { PageHeader, LoadingBlock, EmptyState, AlertBanner } from '../components/ui';
 
 type WarehouseState = {
   warehouse?: Record<string, any>;
@@ -54,19 +55,21 @@ export default function WarehouseStockPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <button onClick={() => navigate('/inventory')} className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
+      <PageHeader
+        title={warehouse?.warehouse_name || decodedWarehouseId}
+        description="Warehouse stock view using the filtered stock balance endpoint"
+        meta={
+          <span className="rounded-full bg-purple-50 px-3 py-1 text-sm font-medium text-purple-700 dark:bg-slate-800 dark:text-purple-300">
+            {warehouse?.warehouse_type || 'Warehouse'}
+          </span>
+        }
+        actions={
+          <button type="button" onClick={() => navigate('/inventory')} className="btn-secondary inline-flex items-center gap-2">
             <ArrowLeft className="w-4 h-4" />
             Back to Inventory
           </button>
-          <h1 className="page-title">{warehouse?.warehouse_name || decodedWarehouseId}</h1>
-          <p className="mt-1 text-gray-500">Warehouse stock view using the filtered stock balance endpoint</p>
-        </div>
-        <span className="rounded-full bg-purple-50 px-3 py-1 text-sm font-medium text-purple-700">
-          {warehouse?.warehouse_type || 'Warehouse'}
-        </span>
-      </div>
+        }
+      />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <KPI icon={Package} label="Items" value={totals.itemCount.toLocaleString()} />
@@ -74,7 +77,7 @@ export default function WarehouseStockPage() {
         <KPI icon={CircleDollarSign} label="Stock Value" value={formatCurrency(totals.value)} />
       </div>
 
-      {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+      {error ? <AlertBanner tone="error">{error}</AlertBanner> : null}
 
       <div className="card">
         <div className="card-header">
@@ -96,9 +99,9 @@ export default function WarehouseStockPage() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {loading ? (
-                <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-400"><div className="spinner mx-auto" /></td></tr>
+                <tr><td colSpan={5}><LoadingBlock compact label="Loading stock…" /></td></tr>
               ) : rows.length === 0 ? (
-                <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-400">No stock rows found for this warehouse.</td></tr>
+                <tr><td colSpan={5}><EmptyState compact title="No stock rows found for this warehouse." /></td></tr>
               ) : (
                 rows.map((row) => (
                   <tr key={row.item_code} className="hover:bg-gray-50 transition-colors">
@@ -117,9 +120,9 @@ export default function WarehouseStockPage() {
         {/* Mobile card list */}
         <div className="md:hidden divide-y divide-gray-100">
           {loading ? (
-            <div className="flex items-center justify-center py-12"><div className="spinner" /></div>
+            <LoadingBlock compact label="Loading stock…" />
           ) : rows.length === 0 ? (
-            <p className="px-4 py-12 text-center text-sm text-gray-400">No stock rows found for this warehouse.</p>
+            <EmptyState compact title="No stock rows found for this warehouse." />
           ) : (
             rows.map((row) => (
               <div key={row.item_code} className="p-4 space-y-1">

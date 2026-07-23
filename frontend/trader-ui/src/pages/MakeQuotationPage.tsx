@@ -20,6 +20,7 @@ import QuotationOrderDetailsForm, {
   type OrderDetails,
 } from '../components/QuotationOrderDetailsForm';
 import SearchableSelect from '../components/SearchableSelect';
+import { PageHeader, LoadingBlock, AlertBanner } from '../components/ui';
 import { computeCommercialTotals } from '../lib/commercialTotals';
 import { useCompanyStore } from '../stores/companyStore';
 
@@ -404,96 +405,107 @@ export default function MakeQuotationPage() {
     : appendPreservedListQuery('/sales/quotations', listSearch);
 
   if (loading) {
-    return <div className="card card-body text-sm text-gray-500">Loading quotation editor…</div>;
+    return <LoadingBlock label="Loading quotation editor…" />;
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-start gap-3">
-          <button
-            type="button"
-            className="rounded-lg p-2 text-gray-500 hover:bg-gray-100"
-            onClick={() => navigate(backPath)}
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <div>
-            <h1 className="text-xl font-semibold text-gray-900">
+      <div className="flex items-start gap-2">
+        <button
+          type="button"
+          className="btn-ghost rounded-lg p-2 text-gray-500"
+          onClick={() => navigate(backPath)}
+          aria-label="Back"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+        <PageHeader
+          className="flex-1"
+          title={
+            <>
               {quoteName ? `Quotation ${quoteName}` : 'Make Quotation'}
               {revisionLabel ? ` (${revisionLabel})` : ''}
-            </h1>
-            <p className="text-sm text-gray-500">
-              Sahamid-style editor — Project {project || '—'} · {customerName || customer || 'Customer'}
-            </p>
-          </div>
-        </div>
-        <div className="text-right">
-          <p className="text-xs uppercase tracking-wide text-gray-500">Value (billed)</p>
-          <p className={`text-2xl font-semibold ${creditWarn ? 'text-red-600' : 'text-gray-900'}`}>
-            {formatCurrency(commercial.grand_total, getActiveCurrency())}
-          </p>
-          <p className="text-xs text-gray-500">
-            Net {formatCurrency(commercial.net)}
-            {commercial.gst_amount > 0 ? ` + GST ${formatCurrency(commercial.gst_amount)}` : ''}
-            {commercial.wht_amount > 0 ? ` − WHT ${formatCurrency(commercial.wht_amount)}` : ''}
-          </p>
-          {creditWarn ? <p className="mt-1 text-xs text-red-600">{creditWarn}</p> : null}
-        </div>
+            </>
+          }
+          description={`Sahamid-style editor — Project ${project || '—'} · ${customerName || customer || 'Customer'}`}
+          actions={
+            <div className="text-right">
+              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-slate-400">Value (billed)</p>
+              <p className={`text-2xl font-semibold tabular-nums ${creditWarn ? 'text-red-600' : 'text-gray-900 dark:text-gray-100'}`}>
+                {formatCurrency(commercial.grand_total, getActiveCurrency())}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-slate-400">
+                Net {formatCurrency(commercial.net)}
+                {commercial.gst_amount > 0 ? ` + GST ${formatCurrency(commercial.gst_amount)}` : ''}
+                {commercial.wht_amount > 0 ? ` − WHT ${formatCurrency(commercial.wht_amount)}` : ''}
+              </p>
+              {creditWarn ? <p className="mt-1 text-xs text-red-600">{creditWarn}</p> : null}
+            </div>
+          }
+        />
       </div>
 
       {error ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+        <AlertBanner tone="error">{error}</AlertBanner>
       ) : null}
       {success ? (
-        <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">{success}</div>
+        <AlertBanner tone="success">{success}</AlertBanner>
       ) : null}
 
       {draftConflict && !quoteName ? (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 flex flex-wrap items-center gap-3">
-          <span>Open draft {draftConflict.name} exists for this project.</span>
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={() =>
-              navigate(`/sales/quotations/${encodeURIComponent(draftConflict.name)}/edit`)
-            }
-          >
-            Continue
-          </button>
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={async () => {
-              if (!window.confirm('Discard the open draft quotation? This deletes it.')) return;
-              try {
-                await opportunityApi.discardQuotationDraft(draftConflict.name);
-                setDraftConflict(null);
-              } catch (err) {
-                setError(extractFrappeError(err, 'Could not discard draft.'));
-              }
-            }}
-          >
-            Discard
-          </button>
-        </div>
+        <AlertBanner
+          tone="warning"
+          title={`Open draft ${draftConflict.name} exists for this project.`}
+          action={
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() =>
+                  navigate(`/sales/quotations/${encodeURIComponent(draftConflict.name)}/edit`)
+                }
+              >
+                Continue
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={async () => {
+                  if (!window.confirm('Discard the open draft quotation? This deletes it.')) return;
+                  try {
+                    await opportunityApi.discardQuotationDraft(draftConflict.name);
+                    setDraftConflict(null);
+                  } catch (err) {
+                    setError(extractFrappeError(err, 'Could not discard draft.'));
+                  }
+                }}
+              >
+                Discard
+              </button>
+            </div>
+          }
+        >
+          Continue editing the draft or discard it to start fresh.
+        </AlertBanner>
       ) : null}
 
-      <div className="overflow-x-auto border-b border-gray-200">
-        <nav className="flex min-w-max gap-1">
+      <div className="overflow-x-auto border-b border-gray-200 dark:border-slate-700">
+        <nav className="flex min-w-max gap-1" role="tablist" aria-label="Quotation editor tabs">
           {TABS.map((t) => (
             <button
               key={t.id}
               type="button"
+              role="tab"
+              aria-selected={tab === t.id}
               onClick={() => {
                 if (t.id === 'save') checkWarnings();
                 if (t.id === 'preview') setPreviewKey((k) => k + 1);
                 setTab(t.id);
               }}
-              className={`whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+              className={`min-h-[44px] whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
                 tab === t.id
-                  ? 'border-brand-600 text-brand-700'
-                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-800'
+                  ? 'border-brand-600 text-brand-700 dark:text-brand-300'
+                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-800 dark:text-slate-400 dark:hover:text-gray-100'
               }`}
             >
               {t.label}
@@ -511,7 +523,7 @@ export default function MakeQuotationPage() {
               <InfoRow label="Client" value={customerName || customer || '—'} />
               <InfoRow label="Revision" value={revisionLabel || '—'} />
               <label className="block space-y-1 sm:col-span-2">
-                <span className="text-sm font-medium text-gray-700">Project *</span>
+                <span className="label-field mb-0">Project *</span>
                 <SearchableSelect
                   value={project}
                   onChange={setProject}

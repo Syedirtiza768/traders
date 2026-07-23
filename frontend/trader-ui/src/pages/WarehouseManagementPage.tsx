@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, RefreshCw, Plus, Warehouse, X, Save, Pencil, ToggleLeft, ToggleRight } from 'lucide-react';
 import { adminApi } from '../lib/api';
 import { useAuthStore } from '../stores/authStore';
+import { PageHeader, LoadingBlock, AlertBanner, EmptyState } from '../components/ui';
 
 type WarehouseItem = {
   name: string;
@@ -136,38 +137,29 @@ export default function WarehouseManagementPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Header */}
-      <div>
-        <button onClick={() => navigate('/settings')} className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 dark:text-brand-400 hover:text-brand-800">
-          <ArrowLeft size={16} /> Back to Settings
-        </button>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="page-title">Warehouse Management</h1>
-            <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">Configure warehouse structure, locations, and enable/disable warehouses</p>
-          </div>
-          <div className="flex items-center gap-2 self-start">
-            <button onClick={() => void load()} className="btn-secondary flex items-center gap-2">
+      <PageHeader
+        title="Warehouse Management"
+        description="Configure warehouse structure, locations, and enable/disable warehouses"
+        actions={
+          <>
+            <button type="button" onClick={() => navigate('/settings')} className="btn-secondary inline-flex items-center gap-2">
+              <ArrowLeft size={16} /> Back to Settings
+            </button>
+            <button type="button" onClick={() => void load()} className="btn-secondary flex items-center gap-2">
               <RefreshCw size={14} /> Refresh
             </button>
-            <button onClick={openCreate} className="btn-primary flex items-center gap-2">
+            <button type="button" onClick={openCreate} className="btn-primary flex items-center gap-2">
               <Plus size={14} /> New Warehouse
             </button>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
-      {/* Feedback */}
-      {feedback && (
-        <div className={`rounded-lg border px-4 py-3 text-sm flex items-start justify-between gap-3 ${
-          feedback.type === 'success'
-            ? 'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-100'
-            : 'border-red-200 bg-red-50 text-red-900 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-100'
-        }`}>
-          <span>{feedback.message}</span>
-          <button onClick={() => setFeedback(null)}><X size={14} /></button>
-        </div>
-      )}
+      {feedback ? (
+        <AlertBanner tone={feedback.type === 'success' ? 'success' : 'error'} onDismiss={() => setFeedback(null)}>
+          {feedback.message}
+        </AlertBanner>
+      ) : null}
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -186,9 +178,9 @@ export default function WarehouseManagementPage() {
 
       {/* Warehouse list */}
       {loading ? (
-        <div className="card flex items-center justify-center h-48"><div className="spinner" /></div>
+        <LoadingBlock label="Loading warehouses…" />
       ) : warehouses.length === 0 ? (
-        <div className="card py-12 text-center text-sm text-gray-400 dark:text-slate-500">No warehouses found.</div>
+        <EmptyState title="No warehouses found" />
       ) : (
         <div className="space-y-3">
           {/* Group nodes */}

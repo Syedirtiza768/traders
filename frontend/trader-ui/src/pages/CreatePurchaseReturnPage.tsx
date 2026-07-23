@@ -6,6 +6,7 @@ import { appendPreservedListQuery, formatCurrency, isOperationsContext } from '.
 import SearchableSelect from '../components/SearchableSelect';
 import useQuickAdd from '../components/useQuickAdd';
 import QuickAddProvider from '../components/QuickAddProvider';
+import { PageHeader, AlertBanner } from '../components/ui';
 
 type ReturnLine = {
   item_code: string;
@@ -175,20 +176,22 @@ export default function CreatePurchaseReturnPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <button onClick={() => navigate(backToPath)} className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
-            <ArrowLeft size={16} /> {backLabel}
-          </button>
-          <h1 className="page-title">New Purchase Return</h1>
-          <p className="mt-1 text-gray-500">Create a debit-note style purchase return against a submitted purchase invoice.</p>
-        </div>
-        <button onClick={handleSubmit} disabled={saving || loading} className="btn-primary flex items-center gap-2 disabled:opacity-60">
-          <Save size={14} /> {saving ? 'Creating…' : 'Create Return Draft'}
-        </button>
-      </div>
+      <PageHeader
+        title="New Purchase Return"
+        description="Create a debit-note style purchase return against a submitted purchase invoice."
+        actions={
+          <>
+            <button type="button" onClick={() => navigate(backToPath)} className="btn-secondary inline-flex items-center gap-2">
+              <ArrowLeft size={16} /> {backLabel}
+            </button>
+            <button type="button" onClick={handleSubmit} disabled={saving || loading} className="btn-primary flex items-center gap-2 disabled:opacity-60">
+              <Save size={14} /> {saving ? 'Creating…' : 'Create Return Draft'}
+            </button>
+          </>
+        }
+      />
 
-      {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+      {error ? <AlertBanner tone="error">{error}</AlertBanner> : null}
 
       <div className="rounded-lg border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-900">
         <div className="font-medium">Return context</div>

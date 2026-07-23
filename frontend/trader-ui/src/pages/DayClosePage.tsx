@@ -8,6 +8,7 @@ import { daybookApi } from '../lib/api';
 import { useCompanyStore } from '../stores/companyStore';
 import { formatAmount } from '../lib/utils';
 import { localTodayStr } from '../lib/navProfile';
+import { PageHeader, LoadingBlock, AlertBanner } from '../components/ui';
 
 function fmtAmt(n: number) {
   return formatAmount(n);
@@ -160,35 +161,38 @@ export default function DayClosePage() {
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-3xl mx-auto">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <Calendar className="w-6 h-6 text-brand-600" />
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Day Close</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => onDateChange(e.target.value)}
-            className="input-field text-sm"
-          />
-          <button onClick={() => void load()} className="p-2 rounded-lg border border-gray-200 dark:border-slate-700 text-gray-500 hover:text-brand-600">
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          </button>
-          {summary && (
-            <button onClick={() => window.print()} className="p-2 rounded-lg border border-gray-200 dark:border-slate-700 text-gray-500 hover:text-brand-600" title="Print">
-              <PrinterIcon className="w-4 h-4" />
+      <PageHeader
+        title={
+          <span className="inline-flex items-center gap-3">
+            <Calendar className="w-6 h-6 text-brand-600" aria-hidden="true" />
+            Day Close
+          </span>
+        }
+        actions={
+          <>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => onDateChange(e.target.value)}
+              className="input-field text-sm"
+              aria-label="Summary date"
+            />
+            <button type="button" onClick={() => void load()} className="p-2 rounded-lg border border-gray-200 dark:border-slate-700 text-gray-500 hover:text-brand-600 min-h-[44px] min-w-[44px]" aria-label="Refresh">
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
-          )}
-        </div>
-      </div>
+            {summary && (
+              <button type="button" onClick={() => window.print()} className="p-2 rounded-lg border border-gray-200 dark:border-slate-700 text-gray-500 hover:text-brand-600 min-h-[44px] min-w-[44px]" title="Print" aria-label="Print summary">
+                <PrinterIcon className="w-4 h-4" />
+              </button>
+            )}
+          </>
+        }
+      />
 
-      {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 text-sm text-red-700 dark:text-red-300">{error}</div>
-      )}
+      {error ? <AlertBanner tone="error">{error}</AlertBanner> : null}
 
       {loading ? (
-        <div className="flex items-center justify-center h-48"><div className="spinner" /></div>
+        <LoadingBlock label="Loading day close summary…" />
       ) : summary ? (
         <>
           <p className="text-sm text-gray-500 dark:text-slate-400">

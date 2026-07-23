@@ -6,6 +6,7 @@ import { appendPreservedListQuery, formatCurrency } from '../lib/utils';
 import SearchableSelect from '../components/SearchableSelect';
 import useQuickAdd from '../components/useQuickAdd';
 import QuickAddProvider from '../components/QuickAddProvider';
+import { PageHeader, AlertBanner } from '../components/ui';
 
 type ReceiptLine = {
   item_code: string;
@@ -133,20 +134,22 @@ export default function CreatePurchaseReceiptPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <button onClick={() => navigate(backToOrderPath)} className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
-            <ArrowLeft size={16} /> Back to Purchase Order
-          </button>
-          <h1 className="page-title">New Purchase Receipt</h1>
-          <p className="mt-1 text-gray-500">Create a draft material receipt from the selected purchase order lines.</p>
-        </div>
-        <button onClick={handleCreateReceipt} disabled={saving} className="btn-primary flex items-center gap-2 disabled:opacity-60">
-          <Save size={14} /> {saving ? 'Creating…' : 'Create Receipt Draft'}
-        </button>
-      </div>
+      <PageHeader
+        title="New Purchase Receipt"
+        description="Create a draft material receipt from the selected purchase order lines."
+        actions={
+          <>
+            <button type="button" onClick={() => navigate(backToOrderPath)} className="btn-secondary inline-flex items-center gap-2">
+              <ArrowLeft size={16} /> Back to Purchase Order
+            </button>
+            <button type="button" onClick={handleCreateReceipt} disabled={saving} className="btn-primary flex items-center gap-2 disabled:opacity-60">
+              <Save size={14} /> {saving ? 'Creating…' : 'Create Receipt Draft'}
+            </button>
+          </>
+        }
+      />
 
-      {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+      {error ? <AlertBanner tone="error">{error}</AlertBanner> : null}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="card p-6 lg:col-span-2 space-y-6">

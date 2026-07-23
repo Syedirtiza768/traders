@@ -1,9 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Package, Warehouse, AlertTriangle, DollarSign, Search, ChevronLeft, ChevronRight, Plus, Activity } from 'lucide-react';
+import { Package, Warehouse, AlertTriangle, DollarSign, Plus, Activity } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { inventoryApi } from '../lib/api';
 import { formatCurrency, formatCompact, debounce } from '../lib/utils';
+import {
+  PageHeader,
+  EmptyState,
+  LoadingBlock,
+  FilterTabs,
+  SearchField,
+  PaginationBar,
+} from '../components/ui';
 
 const COLORS = ['#2563eb', '#059669', '#d97706', '#dc2626', '#7c3aed', '#0891b2', '#be185d', '#65a30d'];
 const TABS = ['Stock Balance', 'Items', 'Warehouses', 'Low Stock'];
@@ -69,23 +77,23 @@ export default function InventoryPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h1 className="page-title">Inventory</h1>
-          <p className="text-gray-500 mt-1 text-sm">Stock levels, items, and warehouse management</p>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          <button onClick={() => navigate('/inventory/warehouse')} className="btn-secondary flex items-center gap-1.5 text-sm">
-            <Warehouse className="w-4 h-4" /> Warehouse
-          </button>
-          <button onClick={() => navigate('/inventory/movements')} className="btn-secondary flex items-center gap-1.5 text-sm">
-            <Activity className="w-4 h-4" /> Movements
-          </button>
-          <button onClick={() => navigate('/inventory/items/new')} className="btn-primary flex items-center gap-1.5 text-sm">
-            <Plus className="w-4 h-4" /> New Item
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Inventory"
+        description="Stock levels, items, and warehouse management"
+        actions={
+          <>
+            <button type="button" onClick={() => navigate('/inventory/warehouse')} className="btn-secondary flex items-center gap-1.5 text-sm">
+              <Warehouse className="w-4 h-4" aria-hidden="true" /> Warehouse
+            </button>
+            <button type="button" onClick={() => navigate('/inventory/movements')} className="btn-secondary flex items-center gap-1.5 text-sm">
+              <Activity className="w-4 h-4" aria-hidden="true" /> Movements
+            </button>
+            <button type="button" onClick={() => navigate('/inventory/items/new')} className="btn-primary flex items-center gap-1.5 text-sm">
+              <Plus className="w-4 h-4" aria-hidden="true" /> New Item
+            </button>
+          </>
+        }
+      />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -161,87 +169,80 @@ export default function InventoryPage() {
 
       {/* Tabs + Search */}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-        <div className="flex gap-1 bg-gray-100 p-1 rounded-lg overflow-x-auto scrollbar-hide w-full sm:w-auto">
-          {TABS.map((t) => (
-            <button
-              key={t}
-              onClick={() => { setActiveTab(t); setPage(1); setSearch(''); }}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
-                activeTab === t ? 'bg-white shadow text-brand-700' : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
+        <FilterTabs
+          options={TABS}
+          value={activeTab}
+          onChange={(t) => { setActiveTab(t); setPage(1); setSearch(''); }}
+          ariaLabel="Inventory view"
+        />
         {activeTab !== 'Warehouses' && (
-          <div className="relative w-full sm:w-72">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input type="text" placeholder={`Search ${activeTab.toLowerCase()}...`}
-                   onChange={(e) => debouncedSearch(e.target.value)} className="input-field pl-9" />
-          </div>
+          <SearchField
+            placeholder={`Search ${activeTab.toLowerCase()}...`}
+            aria-label={`Search ${activeTab.toLowerCase()}`}
+            onChange={debouncedSearch}
+          />
         )}
       </div>
 
       {/* Desktop Table */}
       <div className="hidden md:block table-container">
-        <table className="w-full">
+        <table className="data-table w-full">
           <thead>
-            <tr className="bg-gray-50">
+            <tr>
               {activeTab === 'Stock Balance' && (
                 <>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Item Code</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Item Name</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Group</th>
-                  <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Qty</th>
-                  <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Value</th>
+                  <th scope="col">Item Code</th>
+                  <th scope="col">Item Name</th>
+                  <th scope="col">Group</th>
+                  <th scope="col" className="text-right">Qty</th>
+                  <th scope="col" className="text-right">Value</th>
                 </>
               )}
               {activeTab === 'Items' && (
                 <>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Item Code</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Item Name</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Group</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">UOM</th>
-                  <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Selling</th>
-                  <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Buying</th>
+                  <th scope="col">Item Code</th>
+                  <th scope="col">Item Name</th>
+                  <th scope="col">Group</th>
+                  <th scope="col">UOM</th>
+                  <th scope="col" className="text-right">Selling</th>
+                  <th scope="col" className="text-right">Buying</th>
                 </>
               )}
               {activeTab === 'Warehouses' && (
                 <>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Warehouse</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Type</th>
-                  <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Items</th>
-                  <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Total Qty</th>
-                  <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Value</th>
+                  <th scope="col">Warehouse</th>
+                  <th scope="col">Type</th>
+                  <th scope="col" className="text-right">Items</th>
+                  <th scope="col" className="text-right">Total Qty</th>
+                  <th scope="col" className="text-right">Value</th>
                 </>
               )}
               {activeTab === 'Low Stock' && (
                 <>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Item Code</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Item Name</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Group</th>
-                  <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Qty</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Warehouse</th>
+                  <th scope="col">Item Code</th>
+                  <th scope="col">Item Name</th>
+                  <th scope="col">Group</th>
+                  <th scope="col" className="text-right">Qty</th>
+                  <th scope="col">Warehouse</th>
                 </>
               )}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody>
             {loading ? (
-              <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-400"><div className="spinner mx-auto" /></td></tr>
+              <tr><td colSpan={6}><LoadingBlock compact label="Loading inventory…" /></td></tr>
             ) : data.length === 0 ? (
-              <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-400">No data found.</td></tr>
+              <tr><td colSpan={6}><EmptyState compact title="No data found" description={search ? 'Try adjusting your search.' : undefined} /></td></tr>
             ) : (
               data.map((row, idx) => (
                 <tr key={idx} className={`hover:bg-gray-50 transition-colors ${activeTab === 'Items' || activeTab === 'Stock Balance' ? 'cursor-pointer' : ''}`} onClick={() => { if ((activeTab === 'Items' || activeTab === 'Stock Balance') && row.item_code) navigate(`/inventory/items/${encodeURIComponent(row.item_code)}`); }}>
                   {activeTab === 'Stock Balance' && (
                     <>
-                      <td className="px-6 py-3 text-sm font-medium text-brand-700">{row.item_code}</td>
-                      <td className="px-6 py-3 text-sm text-gray-700">{row.item_name}</td>
-                      <td className="px-6 py-3 text-sm text-gray-500">{row.item_group}</td>
-                      <td className="px-6 py-3 text-sm text-right font-medium">{row.actual_qty?.toLocaleString()}</td>
-                      <td className="px-6 py-3 text-sm text-right text-gray-900">{formatCurrency(row.stock_value)}</td>
+                      <td className="font-medium text-brand-700 dark:text-brand-300">{row.item_code}</td>
+                      <td className="text-gray-700 dark:text-slate-300">{row.item_name}</td>
+                      <td className="text-gray-500 dark:text-slate-400">{row.item_group}</td>
+                      <td className="num font-medium">{row.actual_qty?.toLocaleString()}</td>
+                      <td className="num text-gray-900 dark:text-gray-100">{formatCurrency(row.stock_value)}</td>
                     </>
                   )}
                   {activeTab === 'Items' && (
@@ -280,11 +281,11 @@ export default function InventoryPage() {
       </div>
 
       {/* Mobile Card List */}
-      <div className="md:hidden card divide-y divide-gray-100">
+      <div className="md:hidden card divide-y divide-gray-100 dark:divide-slate-800">
         {loading ? (
-          <div className="px-4 py-12 text-center text-gray-400"><div className="spinner mx-auto" /></div>
+          <LoadingBlock compact label="Loading inventory…" />
         ) : data.length === 0 ? (
-          <div className="px-4 py-12 text-center text-gray-400 text-sm">No data found.</div>
+          <EmptyState compact title="No data found" description={search ? 'Try adjusting your search.' : undefined} />
         ) : (
           data.map((row, idx) => (
             <div key={idx} className={`px-4 py-3 space-y-1 ${(activeTab === 'Items' || activeTab === 'Stock Balance') ? 'active:bg-gray-50' : ''}`}
@@ -349,19 +350,13 @@ export default function InventoryPage() {
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between text-xs sm:text-sm text-gray-500">
-          <span>Showing {((page - 1) * pageSize) + 1}–{Math.min(page * pageSize, total)} of {total}</span>
-          <div className="flex gap-1">
-            <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1} className="btn-secondary px-2 py-1 text-xs" aria-label="Previous page">
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page === totalPages} className="btn-secondary px-2 py-1 text-xs" aria-label="Next page">
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
+      <PaginationBar
+        page={page}
+        totalPages={totalPages}
+        total={total}
+        pageSize={pageSize}
+        onPageChange={setPage}
+      />
     </div>
   );
 }

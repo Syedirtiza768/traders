@@ -1,8 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, FileText, PackageOpen, Plus, Search, ShoppingCart, TrendingUp } from 'lucide-react';
+import { FileText, PackageOpen, Plus, ShoppingCart, TrendingUp } from 'lucide-react';
 import { salesApi } from '../lib/api';
-import { appendPreservedListQuery, debounce, formatCurrency, formatDate, formatCompact, getStatusColor } from '../lib/utils';
+import { appendPreservedListQuery, debounce, formatCurrency, formatDate, formatCompact } from '../lib/utils';
+import {
+  PageHeader,
+  EmptyState,
+  LoadingBlock,
+  FilterTabs,
+  SearchField,
+  StatusBadge,
+  PaginationBar,
+  StatCard,
+} from '../components/ui';
 
 const STATUS_TABS = ['All', 'Draft', 'To Deliver and Bill', 'To Bill', 'Completed', 'Cancelled'];
 const PAGE_SIZE = 15;
@@ -107,10 +117,15 @@ export default function SalesOrdersPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div>
-        <h1 className="page-title">Sales Orders</h1>
-        <p className="mt-1 text-gray-500 text-sm">Manage confirmed selling commitments between quotations and final invoicing.</p>
-      </div>
+      <PageHeader
+        title="Sales Orders"
+        description="Manage confirmed selling commitments between quotations and final invoicing."
+        actions={
+          <button type="button" onClick={() => navigate('/sales/orders/new')} className="btn-primary flex items-center gap-2">
+            <Plus className="h-4 w-4" aria-hidden="true" /> New Sales Order
+          </button>
+        }
+      />
 
       {workflow === 'unpaid-invoices' && (
         <WorkflowFilterBanner
@@ -136,60 +151,59 @@ export default function SalesOrdersPage() {
         />
       )}
 
-      <div className="flex justify-end">
-        <button onClick={() => navigate('/sales/orders/new')} className="btn-primary flex items-center gap-2 self-start">
-          <Plus className="h-4 w-4" /> New Sales Order
-        </button>
-      </div>
-
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
-        <StatCard icon={ShoppingCart} label="Total Orders" value={total.toLocaleString()} color="blue" />
-        <StatCard icon={TrendingUp} label="Visible Order Value" value={formatCompact(visibleValue)} color="green" />
-        <StatCard icon={FileText} label="Draft Orders" value={draftOrders.toLocaleString()} color="amber" />
+        <StatCard icon={ShoppingCart} label="Total Orders" display={total.toLocaleString()} color="blue" />
+        <StatCard icon={TrendingUp} label="Visible Order Value" display={formatCompact(visibleValue)} color="green" />
+        <StatCard icon={FileText} label="Draft Orders" display={draftOrders.toLocaleString()} color="amber" />
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex gap-1 overflow-x-auto scrollbar-hide rounded-lg bg-gray-100 p-1 w-full sm:w-auto">
-          {STATUS_TABS.map((entry) => (
-            <button
-              key={entry}
-              onClick={() => {
-                updateSearchParams({ status: entry === 'All' ? null : entry, page: null });
-              }}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors ${
-                status === entry ? 'bg-white text-brand-700 shadow' : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              {entry}
-            </button>
-          ))}
-        </div>
-
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          <input type="text" placeholder="Search sales orders..." defaultValue={search} onChange={(e) => debouncedSearch(e.target.value)} className="input-field pl-9" />
-        </div>
+        <FilterTabs
+          options={[...STATUS_TABS]}
+          value={status}
+          onChange={(entry) => updateSearchParams({ status: entry === 'All' ? null : entry, page: null })}
+          ariaLabel="Sales order status"
+        />
+        <SearchField
+          placeholder="Search sales orders..."
+          aria-label="Search sales orders"
+          defaultValue={search}
+          onChange={debouncedSearch}
+        />
       </div>
 
       {/* Desktop Table */}
       <div className="hidden md:block table-container">
-        <table className="w-full">
+        <table className="data-table w-full">
           <thead>
-            <tr className="bg-gray-50">
-              <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Order</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Customer</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Date</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Delivery</th>
-              <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Amount</th>
-              <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-gray-500">Status</th>
-              <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-gray-500">Actions</th>
+            <tr>
+              <th scope="col">Order</th>
+              <th scope="col">Customer</th>
+              <th scope="col">Date</th>
+              <th scope="col">Delivery</th>
+              <th scope="col" className="text-right">Amount</th>
+              <th scope="col">Status</th>
+              <th scope="col" className="text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody>
             {loading ? (
-              <tr><td colSpan={7} className="px-6 py-12 text-center text-gray-400"><div className="spinner mx-auto" /></td></tr>
+              <tr><td colSpan={7}><LoadingBlock compact label="Loading sales orders…" /></td></tr>
             ) : filteredOrders.length === 0 ? (
-              <tr><td colSpan={7} className="px-6 py-12 text-center text-gray-400">No sales orders found.</td></tr>
+              <tr>
+                <td colSpan={7}>
+                  <EmptyState
+                    compact
+                    title="No sales orders found"
+                    description={search || status !== 'All' || workflow ? 'Try adjusting filters or search.' : undefined}
+                    action={
+                      <button type="button" className="btn-primary" onClick={() => navigate('/sales/orders/new')}>
+                        New Sales Order
+                      </button>
+                    }
+                  />
+                </td>
+              </tr>
             ) : (
               filteredOrders.map((order) => (
                 <tr
@@ -197,16 +211,14 @@ export default function SalesOrdersPage() {
                   className="cursor-pointer hover:bg-gray-50 transition-colors"
                   onClick={() => navigate(buildDetailPath(order.name))}
                 >
-                  <td className="px-6 py-3 text-sm font-medium text-brand-700">{order.name}</td>
-                  <td className="px-6 py-3 text-sm text-gray-700">{order.customer_name || order.customer || '—'}</td>
-                  <td className="px-6 py-3 text-sm text-gray-500">{formatDate(order.transaction_date)}</td>
-                  <td className="px-6 py-3 text-sm text-gray-500">{formatDate(order.delivery_date)}</td>
-                  <td className="px-6 py-3 text-right text-sm font-medium text-gray-900">{formatCurrency(order.grand_total, order.currency)}</td>
-                  <td className="px-6 py-3">
+                  <td className="font-medium text-brand-700 dark:text-brand-300">{order.name}</td>
+                  <td className="text-gray-700 dark:text-slate-300">{order.customer_name || order.customer || '—'}</td>
+                  <td className="text-gray-500 dark:text-slate-400">{formatDate(order.transaction_date)}</td>
+                  <td className="text-gray-500 dark:text-slate-400">{formatDate(order.delivery_date)}</td>
+                  <td className="num font-medium text-gray-900 dark:text-gray-100">{formatCurrency(order.grand_total, order.currency)}</td>
+                  <td>
                     <div className="flex flex-wrap gap-2">
-                      <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(order.status)}`}>
-                        {order.status || (order.docstatus === 0 ? 'Draft' : 'Submitted')}
-                      </span>
+                      <StatusBadge status={order.status || (order.docstatus === 0 ? 'Draft' : 'Submitted')} />
                       {(order.linked_invoice_count || 0) > 0 && (
                         <span className="inline-block rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
                           {order.linked_invoice_count} invoice{order.linked_invoice_count === 1 ? '' : 's'}
@@ -264,19 +276,17 @@ export default function SalesOrdersPage() {
       </div>
 
       {/* Mobile Card List */}
-      <div className="md:hidden card divide-y divide-gray-100">
+      <div className="md:hidden card divide-y divide-gray-100 dark:divide-slate-800">
         {loading ? (
-          <div className="px-4 py-12 text-center text-gray-400"><div className="spinner mx-auto" /></div>
+          <LoadingBlock compact label="Loading sales orders…" />
         ) : filteredOrders.length === 0 ? (
-          <div className="px-4 py-12 text-center text-gray-400 text-sm">No sales orders found.</div>
+          <EmptyState compact title="No sales orders found" description={search || status !== 'All' || workflow ? 'Try adjusting filters or search.' : undefined} />
         ) : (
           filteredOrders.map((order) => (
             <div key={order.name} className="px-4 py-3 space-y-1.5 active:bg-gray-50" onClick={() => navigate(buildDetailPath(order.name))}>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-brand-700">{order.name}</span>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${getStatusColor(order.status)}`}>
-                  {order.status || (order.docstatus === 0 ? 'Draft' : 'Submitted')}
-                </span>
+                <span className="text-sm font-medium text-brand-700 dark:text-brand-300">{order.name}</span>
+                <StatusBadge status={order.status || (order.docstatus === 0 ? 'Draft' : 'Submitted')} />
               </div>
               <div className="text-xs text-gray-500 truncate">{order.customer_name || order.customer || '—'}</div>
               <div className="flex items-center justify-between text-xs">
@@ -288,39 +298,13 @@ export default function SalesOrdersPage() {
         )}
       </div>
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between text-xs sm:text-sm text-gray-500">
-          <span>Showing {((page - 1) * PAGE_SIZE) + 1}–{Math.min(page * PAGE_SIZE, total)} of {total}</span>
-          <div className="flex gap-1">
-            <button onClick={() => updateSearchParams({ page: page > 2 ? String(page - 1) : null })} disabled={page === 1} className="btn-secondary px-2 py-1 text-xs">
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <button onClick={() => updateSearchParams({ page: String(Math.min(totalPages, page + 1)) })} disabled={page === totalPages} className="btn-secondary px-2 py-1 text-xs">
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function StatCard({ icon: Icon, label, value, color }: { icon: any; label: string; value: string; color: 'blue' | 'green' | 'amber' }) {
-  const tone = {
-    blue: { bg: 'bg-blue-50', fg: 'text-blue-600' },
-    green: { bg: 'bg-green-50', fg: 'text-green-600' },
-    amber: { bg: 'bg-amber-50', fg: 'text-amber-600' },
-  }[color];
-
-  return (
-    <div className="card p-4 sm:p-5">
-      <div className="flex items-center gap-2 sm:gap-3">
-        <div className={`rounded-lg p-1.5 sm:p-2 ${tone.bg}`}><Icon className={`h-4 w-4 sm:h-5 sm:w-5 ${tone.fg}`} /></div>
-        <div className="min-w-0">
-          <p className="text-[10px] sm:text-xs text-gray-500 truncate">{label}</p>
-          <p className="text-sm sm:text-lg font-bold text-gray-900">{value}</p>
-        </div>
-      </div>
+      <PaginationBar
+        page={page}
+        totalPages={totalPages}
+        total={total}
+        pageSize={PAGE_SIZE}
+        onPageChange={(p) => updateSearchParams({ page: p > 1 ? String(p) : null })}
+      />
     </div>
   );
 }

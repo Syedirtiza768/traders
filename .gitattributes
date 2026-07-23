@@ -1,0 +1,4 @@
+
+# Docker shell helpers must stay LF for Linux containers
+infra/docker/*.sh text eol=lf
+

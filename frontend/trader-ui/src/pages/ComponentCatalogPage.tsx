@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Layers, RefreshCw, Search, AlertTriangle, Plus, X, CheckCircle,
-  ChevronLeft, ChevronRight, Zap,
+  Layers, RefreshCw, AlertTriangle, Plus, X, Zap,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { catalogApi } from '../lib/api';
 import { useCompanyStore } from '../stores/companyStore';
 import { formatAmount } from '../lib/utils';
+import { PageHeader, LoadingBlock, EmptyState, AlertBanner, SearchField } from '../components/ui';
 
 function fmtAmt(n: number) {
   return formatAmount(n);
@@ -143,21 +144,25 @@ export default function ComponentCatalogPage() {
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <Layers className="w-6 h-6 text-brand-600" />
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Component Catalog</h1>
-          <span className="text-sm text-gray-400">{total} items</span>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={() => void load()} className="p-2 rounded-lg border border-gray-200 dark:border-slate-700 text-gray-500 hover:text-brand-600">
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          </button>
-          <button onClick={() => setShowCreate(true)} className="btn-primary text-sm px-4 py-2 flex items-center gap-2">
-            <Plus className="w-4 h-4" /> New SKU
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title={
+          <span className="inline-flex items-center gap-3">
+            <Layers className="w-6 h-6 text-brand-600" aria-hidden="true" />
+            Component Catalog
+            <span className="text-sm font-normal text-gray-400">{total} items</span>
+          </span>
+        }
+        actions={
+          <>
+            <button type="button" onClick={() => void load()} className="btn-secondary p-2 min-h-[44px] min-w-[44px]" aria-label="Refresh catalog">
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+            <button type="button" onClick={() => setShowCreate(true)} className="btn-primary text-sm px-4 py-2 flex items-center gap-2">
+              <Plus className="w-4 h-4" /> New SKU
+            </button>
+          </>
+        }
+      />
 
       {/* Quick entry tester */}
       <div className="bg-gray-50 dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700 rounded-xl p-4 space-y-3">
@@ -206,35 +211,35 @@ export default function ComponentCatalogPage() {
         )}
       </div>
 
-      {createSuccess && (
-        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg p-3 flex items-center justify-between text-sm text-green-700 dark:text-green-400">
-          <span><CheckCircle className="inline w-4 h-4 mr-1" />{createSuccess}</span>
-          <button onClick={() => setCreateSuccess(null)}><X className="w-4 h-4" /></button>
-        </div>
-      )}
+      {createSuccess ? (
+        <AlertBanner tone="success" onDismiss={() => setCreateSuccess(null)}>{createSuccess}</AlertBanner>
+      ) : null}
 
-      {/* Filters */}
       <div className="flex gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input type="text" placeholder="Search items…" value={filterSearch} onChange={(e) => { setFilterSearch(e.target.value); setPage(1); }} className="input-field pl-9 text-sm" />
-        </div>
+        <SearchField
+          placeholder="Search items…"
+          value={filterSearch}
+          onChange={(value) => { setFilterSearch(value); setPage(1); }}
+          className="flex-1 min-w-[200px]"
+          aria-label="Search catalog items"
+        />
         <select value={filterCategory} onChange={(e) => { setFilterCategory(e.target.value); setPage(1); }} className="input-field text-sm">
           <option value="">All Categories</option>
           {taxonomy?.categories.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
       </div>
 
-      {error && <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 text-sm text-red-700 dark:text-red-300">{error}</div>}
+      {error ? <AlertBanner tone="error">{error}</AlertBanner> : null}
 
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden">
         {loading ? (
-          <div className="flex items-center justify-center h-40"><div className="spinner" /></div>
+          <LoadingBlock compact label="Loading catalog…" />
         ) : items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-40 text-gray-400">
-            <Layers className="w-8 h-8 mb-2 opacity-40" />
-            <p className="text-sm">No component items found</p>
-          </div>
+          <EmptyState
+            compact
+            title="No component items found"
+            icon={<Layers className="h-5 w-5" aria-hidden="true" />}
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

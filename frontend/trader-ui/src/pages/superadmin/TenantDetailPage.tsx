@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { superAdminApi } from '../../lib/api';
 import { MODULE_LABELS, TENANT_MODULE_KEYS, type TenantModuleKey } from '../../lib/tenantModules';
 import { parseTenantBranding } from '../../lib/tenantBranding';
+import { PageHeader, LoadingBlock, AlertBanner, StatusBadge, EmptyState } from '../../components/ui';
 
 type TenantDetail = {
   tenant_id: string;
@@ -181,35 +182,37 @@ export default function TenantDetailPage() {
     }
   };
 
-  if (loading) return <div className="text-slate-500">Loading...</div>;
-  if (error && !tenant) return <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">{error}</div>;
+  if (loading) return <LoadingBlock label="Loading business…" />;
+  if (error && !tenant) return <AlertBanner tone="error">{error}</AlertBanner>;
   if (!tenant) return null;
 
   return (
     <div className="space-y-6 max-w-4xl">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <button type="button" onClick={() => navigate('/super-admin/tenants')} className="text-sm text-brand-700 hover:underline">
-            ← Back to businesses
-          </button>
-          <h2 className="text-2xl font-bold text-slate-900 mt-2">{tenant.tenant_name}</h2>
-          <p className="text-sm text-slate-500">{tenant.tenant_id}</p>
-        </div>
-        <div className="flex gap-2">
-          {tenant.status !== 'Active' && (
-            <button type="button" disabled={actionLoading} onClick={() => setStatus('Active')} className="px-3 py-2 rounded-lg bg-emerald-600 text-white text-sm">
-              Activate
-            </button>
-          )}
-          {tenant.status === 'Active' && (
-            <button type="button" disabled={actionLoading} onClick={() => setStatus('Suspended')} className="px-3 py-2 rounded-lg bg-amber-600 text-white text-sm">
-              Suspend
-            </button>
-          )}
-        </div>
-      </div>
+      <button type="button" onClick={() => navigate('/super-admin/tenants')} className="text-sm text-brand-700 hover:underline">
+        ← Back to businesses
+      </button>
 
-      {error && <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-700 text-sm">{error}</div>}
+      <PageHeader
+        title={tenant.tenant_name}
+        description={tenant.tenant_id}
+        meta={<StatusBadge status={tenant.status} />}
+        actions={
+          <>
+            {tenant.status !== 'Active' && (
+              <button type="button" disabled={actionLoading} onClick={() => setStatus('Active')} className="px-3 py-2 rounded-lg bg-emerald-600 text-white text-sm">
+                Activate
+              </button>
+            )}
+            {tenant.status === 'Active' && (
+              <button type="button" disabled={actionLoading} onClick={() => setStatus('Suspended')} className="px-3 py-2 rounded-lg bg-amber-600 text-white text-sm">
+                Suspend
+              </button>
+            )}
+          </>
+        }
+      />
+
+      {error ? <AlertBanner tone="error">{error}</AlertBanner> : null}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-white rounded-xl border border-slate-200 p-5">
@@ -373,9 +376,9 @@ export default function TenantDetailPage() {
       <div className="bg-white rounded-xl border border-slate-200 p-5">
         <h3 className="font-semibold text-slate-900 mb-3">Audit log</h3>
         {auditLoading ? (
-          <p className="text-sm text-slate-500">Loading audit entries...</p>
+          <LoadingBlock compact label="Loading audit entries…" />
         ) : auditRows.length === 0 ? (
-          <p className="text-sm text-slate-500">No audit entries yet.</p>
+          <EmptyState compact title="No audit entries yet." />
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">

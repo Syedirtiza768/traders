@@ -1,119 +1,109 @@
 # Frontend Screen Inventory
 
-## Title
-Traders — Complete Frontend Screen Inventory
-
-## Purpose
-Every screen, route, layout, user actions, and current status in the Traders frontend application.
-
-## Generated From
-- `frontend/trader-ui/src/App.tsx`
-- `frontend/trader-ui/src/pages/*.tsx`
-- `frontend/trader-ui/src/layouts/*.tsx`
-
-## Last Audit Basis
-All route definitions and page components — 2026-07-22
-
----
+Source: `frontend/trader-ui/src/App.tsx`  
+Last audit: **2026-07-23**
 
 ## Route Inventory
 
-| # | Path | Component | Guard | Layout | Status |
+| Path | Component | Guard / Capability | Module | Layout | Status |
 |---|---|---|---|---|---|
-| 1 | `/login` | LoginPage | None | None | ✅ Active |
-| 2 | `/` | SuperAdminDashboardPage | ProtectedRoute | DashboardLayout | ✅ Active |
-| 3 | `tenants` | TenantListPage | ProtectedRoute | DashboardLayout | ✅ Active |
-| 4 | `tenants/new` | CreateTenantPage | ProtectedRoute | DashboardLayout | ✅ Active |
-| 5 | `tenants/:tenantId` | TenantDetailPage | ProtectedRoute | DashboardLayout | ✅ Active |
-| 6 | `print` | DocumentPrintPage | ProtectedRoute | DashboardLayout | ✅ Active |
-| 7 | `*` | NotFoundPage | ProtectedRoute | None | ✅ Active |
-| 8 | `/sales` | SalesPage | ProtectedRoute | DashboardLayout | ✅ Active |
-| 9 | `/purchases` | PurchasesPage | ProtectedRoute | DashboardLayout | ✅ Active |
-| 10 | `/inventory` | InventoryPage | ProtectedRoute | DashboardLayout | ✅ Active |
-| 11 | `/customers` | CustomersPage | ProtectedRoute | DashboardLayout | ✅ Active |
-| 12 | `/suppliers` | SuppliersPage | ProtectedRoute | DashboardLayout | ✅ Active |
-| 13 | `/finance` | FinancePage | ProtectedRoute | DashboardLayout | ✅ Active |
-| 14 | `/reports` | ReportsPage | ProtectedRoute | DashboardLayout | ✅ Active |
-| 15 | `/settings` | SettingsPage | ProtectedRoute | DashboardLayout | ✅ Active |
+| `/login` | LoginPage | — | — | None | Active |
+| `/super-admin` | SuperAdminDashboardPage | `superadmin:view` | — | SuperAdminLayout | Active |
+| `/super-admin/tenants` | TenantListPage | `superadmin:view` | — | SuperAdminLayout | Active |
+| `/super-admin/tenants/new` | CreateTenantPage | `superadmin:view` | — | SuperAdminLayout | Active |
+| `/super-admin/tenants/:tenantId` | TenantDetailPage | `superadmin:view` | — | SuperAdminLayout | Active |
+| `/` | DashboardPage | `dashboard:view` | dashboard | DashboardLayout | Active |
+| `/sales` | SalesPage | `sales:view` | sales | DashboardLayout | Active |
+| `/sales/pos` | PosCheckoutPage | `sales:view` | pos | DashboardLayout | Active |
+| `/sales/documents/new` | CreateSalesDocumentHubPage | `sales:view` | sales | DashboardLayout | Active |
+| `/sales/new` | CreateSalesInvoicePage | `sales:view` | sales | DashboardLayout | Active |
+| `/sales/proforma/new` | CreateQuotationPage | `sales:view` | sales | DashboardLayout | Active |
+| `/sales/challans` | DeliveryChallansPage | `sales:view` | sales | DashboardLayout | Active |
+| `/sales/challans/new` | CreateDeliveryChallanPage | `sales:view` | sales | DashboardLayout | Active |
+| `/sales/challans/:challanId` | DeliveryChallanDetailPage | `sales:view` | sales | DashboardLayout | Active |
+| `/sales/challans/group-invoice` | GroupedInvoicePage | `sales:view` | sales | DashboardLayout | Active |
+| `/sales/returns/new` | CreateSalesReturnPage | `sales:view` | sales | DashboardLayout | Active |
+| `/sales/dispatches/new` | CreateSalesDispatchPage | `sales:view` | sales | DashboardLayout | Active |
+| `/sales/orders` | SalesOrdersPage | `sales:view` | sales | DashboardLayout | Active |
+| `/sales/orders/new` | CreateSalesOrderPage | `sales:view` | sales | DashboardLayout | Active |
+| `/sales/orders/:orderId` | SalesOrderDetailPage | `sales:view` | sales | DashboardLayout | Active |
+| `/sales/opportunities` | OpportunitiesPage | `sales:view` + opportunity | opportunity | DashboardLayout | Active |
+| `/sales/opportunities/:opportunityId` | OpportunityDetailPage | `sales:view` + opportunity | opportunity | DashboardLayout | Active |
+| `/sales/quotations` | QuotationsPage | `sales:view` | sales | DashboardLayout | Active |
+| `/sales/quotations/new` | CreateQuotationPage | `sales:view` | sales | DashboardLayout | Active |
+| `/sales/quotations/make` | MakeQuotationPage | `sales:view` | sales | DashboardLayout | Active |
+| `/sales/quotations/:quotationId/edit` | MakeQuotationPage | `sales:view` | sales | DashboardLayout | Active |
+| `/sales/quotations/:quotationId` | QuotationDetailPage | `sales:view` | sales | DashboardLayout | Active |
+| `/sales/:invoiceId` | SalesInvoiceDetailPage | `sales:view` | sales | DashboardLayout | Active |
+| `/purchases` | PurchasesPage | `purchases:view` | purchases | DashboardLayout | Active |
+| `/purchases/documents/new` | CreatePurchaseDocumentHubPage | `purchases:view` | purchases | DashboardLayout | Active |
+| `/purchases/new` | CreatePurchaseInvoicePage | `purchases:view` | purchases | DashboardLayout | Active |
+| `/purchases/returns/new` | CreatePurchaseReturnPage | `purchases:view` | purchases | DashboardLayout | Active |
+| `/purchases/receipts/new` | CreatePurchaseReceiptPage | `purchases:view` | purchases | DashboardLayout | Active |
+| `/purchases/orders` | PurchaseOrdersPage | `purchases:view` | purchases | DashboardLayout | Active |
+| `/purchases/orders/new` | CreatePurchaseOrderPage | `purchases:view` | purchases | DashboardLayout | Active |
+| `/purchases/orders/:orderId` | PurchaseOrderDetailPage | `purchases:view` | purchases | DashboardLayout | Active |
+| `/purchases/requisitions` | PurchaseRequisitionsPage | `purchases:view` | purchases | DashboardLayout | Active |
+| `/purchases/requisitions/new` | CreatePurchaseRequisitionPage | `purchases:view` | purchases | DashboardLayout | Active |
+| `/purchases/requisitions/:reqId` | PurchaseRequisitionDetailPage | `purchases:view` | purchases | DashboardLayout | Active |
+| `/purchases/rfqs` | SupplierQuotationsPage | `purchases:view` | purchases | DashboardLayout | Active |
+| `/purchases/rfqs/new` | CreateSupplierQuotationPage | `purchases:view` | purchases | DashboardLayout | Active |
+| `/purchases/rfqs/:quotationId` | SupplierQuotationDetailPage | `purchases:view` | purchases | DashboardLayout | Active |
+| `/purchases/:invoiceId` | PurchaseInvoiceDetailPage | `purchases:view` | purchases | DashboardLayout | Active |
+| `/inventory` | InventoryPage | `inventory:view` | inventory | DashboardLayout | Active |
+| `/inventory/items/new` | CreateItemPage | `inventory:view` | inventory | DashboardLayout | Active |
+| `/inventory/items/:itemId` | InventoryItemDetailPage | `inventory:view` | inventory | DashboardLayout | Active |
+| `/inventory/bundles` | ItemBundlesPage | `inventory:view` | inventory | DashboardLayout | Active |
+| `/inventory/warehouse` | WarehouseStockPage | `inventory:view` | inventory | DashboardLayout | Active |
+| `/inventory/movements` | StockMovementPage | `inventory:view` | inventory | DashboardLayout | Active |
+| `/inventory/dispatches/new` | CreateSalesDispatchPage | `inventory:view` | inventory | DashboardLayout | Active |
+| `/inventory/catalog` | ComponentCatalogPage | `inventory:view` + components | components | DashboardLayout | Active |
+| `/inventory/opening-stock` | OpeningStockPage | `inventory:view` + components | components | DashboardLayout | Active |
+| `/inventory/stock-valuation` | StockValuationPage | `inventory:view` + components | components | DashboardLayout | Active |
+| `/inventory/stock-take` | StockTakePage | `inventory:view` + components | components | DashboardLayout | Active |
+| `/components/catalog` | → `/inventory/catalog` | — | — | Redirect | Active |
+| `/components/opening-stock` | → `/inventory/opening-stock` | — | — | Redirect | Active |
+| `/components/stock-valuation` | → `/inventory/stock-valuation` | — | — | Redirect | Active |
+| `/components/stock-take` | → `/inventory/stock-take` | — | — | Redirect | Active |
+| `/components` | → `/inventory/catalog` | — | — | Redirect | Active |
+| `/customers` | CustomersPage | `customers:view` | customers | DashboardLayout | Active |
+| `/customers/new` | CreateCustomerPage | `customers:view` | customers | DashboardLayout | Active |
+| `/customers/:customerId` | CustomerDetailPage | `customers:view` | customers | DashboardLayout | Active |
+| `/customers/:customerId/statement` | CustomerStatementPage | `customers:view` | customers | DashboardLayout | Active |
+| `/customers/:customerId/edit` | EditCustomerPage | `customers:view` | customers | DashboardLayout | Active |
+| `/suppliers` | SuppliersPage | `suppliers:view` | suppliers | DashboardLayout | Active |
+| `/suppliers/new` | CreateSupplierPage | `suppliers:view` | suppliers | DashboardLayout | Active |
+| `/suppliers/:supplierId` | SupplierDetailPage | `suppliers:view` | suppliers | DashboardLayout | Active |
+| `/suppliers/:supplierId/edit` | EditSupplierPage | `suppliers:view` | suppliers | DashboardLayout | Active |
+| `/finance` | FinancePage | `finance:view` | finance | DashboardLayout | Active |
+| `/finance/journals` | JournalEntriesPage | `finance:view` | finance | DashboardLayout | Active |
+| `/finance/journals/new` | CreateJournalEntryPage | `finance:view` | finance | DashboardLayout | Active |
+| `/finance/journals/:journalId` | JournalEntryDetailPage | `finance:view` | finance | DashboardLayout | Active |
+| `/finance/payments` | PaymentEntriesPage | `finance:view` | finance | DashboardLayout | Active |
+| `/finance/payments/new` | CreatePaymentEntryPage | `finance:view` | finance | DashboardLayout | Active |
+| `/finance/payments/:paymentId` | PaymentEntryDetailPage | `finance:view` | finance | DashboardLayout | Active |
+| `/finance/day-book` | DayBookPage | `finance:view` + components | components | DashboardLayout | Active |
+| `/finance/receivables` | ReceivablesPage | `finance:view` + components | components | DashboardLayout | Active |
+| `/finance/payables` | PayablesPage | `finance:view` + components | components | DashboardLayout | Active |
+| `/finance/day-close` | DayClosePage | `finance:view` + components | components | DashboardLayout | Active |
+| `/operations` | OperationsPage | `operations:view` | operations | DashboardLayout | Active |
+| `/reports` | ReportsPage | `reports:view` | reports | DashboardLayout | Active |
+| `/settings` | SettingsPage | `settings:view` | settings | DashboardLayout | Active |
+| `/settings/audit` | AuditLogPage | `settings:view` | settings | DashboardLayout | Active |
+| `/settings/tenant-audit` | TenantBusinessAuditPage | `settings:view` | settings | DashboardLayout | Active |
+| `/settings/gst` | GstSettingsPage | `settings:view` | settings | DashboardLayout | Active |
+| `/settings/admin/users` | UserManagementPage | `settings:view` | settings | DashboardLayout | Active |
+| `/settings/admin/roles` | RoleManagementPage | `settings:view` | settings | DashboardLayout | Active |
+| `/settings/admin/company` | CompanySettingsAdminPage | `settings:view` | settings | DashboardLayout | Active |
+| `/settings/admin/fiscal-year` | FiscalYearPage | `settings:view` | settings | DashboardLayout | Active |
+| `/settings/admin/warehouses` | WarehouseManagementPage | `settings:view` | settings | DashboardLayout | Active |
+| `/settings/admin/accounting` | AccountingSettingsPage | `settings:view` | settings | DashboardLayout | Active |
+| `/print` | DocumentPrintPage | ProtectedRoute (no GatedRoute) | — | DashboardLayout | Active |
+| `*` | NotFoundPage | — | — | None | Active |
 
-## Screen Details
+**Notes**
 
-### LoginPage (`/login`)
-- **Purpose:** User authentication
-- **Layout:** Standalone (no DashboardLayout)
-- **Guard:** None (public)
-- **Actions:** Login form submit, show/hide password
-- **API Calls:** `authApi.login()`, `authApi.getLoggedUser()`
-- **Status:** ✅ Fully functional
-
-### DashboardPage (`/`)
-- **Purpose:** Business overview with KPIs, charts, and recent activity
-- **Layout:** DashboardLayout (Navbar + Sidebar)
-- **Guard:** ProtectedRoute
-- **Actions:** View-only (no mutations)
-- **API Calls:** `dashboardApi.getKPIs()`, `dashboardApi.getSalesTrend()`, `dashboardApi.getTopCustomers()`, `dashboardApi.getRecentOrders()`
-- **Status:** ✅ Fully functional
-
-### SalesPage (`/sales`)
-- **Purpose:** Sales invoice list with pagination
-- **Layout:** DashboardLayout
-- **Guard:** ProtectedRoute
-- **Actions:** View list, paginate. Buttons: New Invoice ⚠️, Filter ⚠️, Export ⚠️
-- **API Calls:** `resourceApi.list({ doctype: 'Sales Invoice' })`
-- **Status:** ⚠️ Read-only — action buttons non-functional
-
-### PurchasesPage (`/purchases`)
-- **Purpose:** Purchase invoice list with pagination
-- **Layout:** DashboardLayout
-- **Guard:** ProtectedRoute
-- **Actions:** View list, paginate. Buttons: New Purchase ⚠️, Filter ⚠️, Export ⚠️
-- **API Calls:** `resourceApi.list({ doctype: 'Purchase Invoice' })`
-- **Status:** ⚠️ Read-only — action buttons non-functional
-
-### InventoryPage (`/inventory`)
-- **Purpose:** Stock summary and low-stock alerts
-- **Layout:** DashboardLayout
-- **Guard:** ProtectedRoute
-- **Actions:** View stock, switch tabs (All/Low), search items
-- **API Calls:** `inventoryApi.getStockSummary()`, `inventoryApi.getLowStockItems()`
-- **Status:** ✅ Functional (read-only by design)
-
-### CustomersPage (`/customers`)
-- **Purpose:** Customer list as card grid
-- **Layout:** DashboardLayout
-- **Guard:** ProtectedRoute
-- **Actions:** View list, search, paginate. Button: Add Customer ⚠️
-- **API Calls:** `resourceApi.list({ doctype: 'Customer' })`
-- **Status:** ⚠️ Read-only — Add Customer button non-functional
-
-### SuppliersPage (`/suppliers`)
-- **Purpose:** Supplier list as table
-- **Layout:** DashboardLayout
-- **Guard:** ProtectedRoute
-- **Actions:** View list, search, paginate. Button: Add Supplier ⚠️
-- **API Calls:** `resourceApi.list({ doctype: 'Supplier' })`
-- **Status:** ⚠️ Read-only — Add Supplier button non-functional
-
-### FinancePage (`/finance`)
-- **Purpose:** Financial overview with P&L, cash flow, aging analysis
-- **Layout:** DashboardLayout
-- **Guard:** ProtectedRoute
-- **Actions:** View-only
-- **API Calls:** `reportsApi.getProfitAndLoss()`, `dashboardApi.getCashFlowSummary()`, `reportsApi.getReceivableAgingSummary()`, `reportsApi.getAccountsPayable()`
-- **Status:** ✅ Fully functional (read-only)
-
-### ReportsPage (`/reports`)
-- **Purpose:** Multi-report viewer with report selector
-- **Layout:** DashboardLayout
-- **Guard:** ProtectedRoute
-- **Actions:** Switch reports, view data. Button: Export ⚠️
-- **API Calls:** `reportsApi.getAccountsReceivable()`, `reportsApi.getAccountsPayable()`, `reportsApi.getMonthlySalesReport()`, `reportsApi.getSupplierBalances()`
-- **Status:** ✅ Functional (export not implemented)
-
-### SettingsPage (`/settings`)
-- **Purpose:** System configuration forms
-- **Layout:** DashboardLayout
-- **Guard:** ProtectedRoute
-- **Actions:** Edit form fields, switch sections, Save Changes ⚠️
-- **API Calls:** ❌ None — no backend persistence
-- **Status:** ⚠️ UI-only — Save button non-functional
+- Tenant routes use `ProtectedRoute` → `TenantStatusGate` → `DashboardLayout` unless noted.
+- Super-admin routes use `SuperAdminRoute` → `SuperAdminLayout`.
+- Opportunity routes also require `requiresOpportunity` / `navFeature="opportunities"`.
+- Components module routes require `requiresComponents`.

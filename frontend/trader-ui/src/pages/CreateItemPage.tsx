@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save } from 'lucide-react';
 import { inventoryApi } from '../lib/api';
 import SearchableSelect from '../components/SearchableSelect';
+import { PageHeader, AlertBanner } from '../components/ui';
 
 export default function CreateItemPage() {
   const navigate = useNavigate();
@@ -60,20 +61,22 @@ export default function CreateItemPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <button onClick={() => navigate('/inventory')} className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
-            <ArrowLeft size={16} /> Back to Inventory
-          </button>
-          <h1 className="page-title">Add Item</h1>
-          <p className="mt-1 text-gray-500">Create a new inventory item with the minimum required fields.</p>
-        </div>
-        <button onClick={handleSave} disabled={saving || loading} className="btn-primary flex items-center gap-2 disabled:opacity-60">
-          <Save size={14} /> {saving ? 'Creating…' : 'Create Item'}
-        </button>
-      </div>
+      <PageHeader
+        title="Add Item"
+        description="Create a new inventory item with the minimum required fields."
+        actions={
+          <>
+            <button type="button" onClick={() => navigate('/inventory')} className="btn-secondary inline-flex items-center gap-2">
+              <ArrowLeft size={16} /> Back to Inventory
+            </button>
+            <button type="button" onClick={handleSave} disabled={saving || loading} className="btn-primary flex items-center gap-2 disabled:opacity-60">
+              <Save size={14} /> {saving ? 'Creating…' : 'Create Item'}
+            </button>
+          </>
+        }
+      />
 
-      {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+      {error ? <AlertBanner tone="error">{error}</AlertBanner> : null}
 
       <div className="card p-6 grid grid-cols-1 gap-4 md:grid-cols-2">
         <Field label="Item Code">

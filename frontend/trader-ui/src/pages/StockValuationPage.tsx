@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { BarChart2, RefreshCw, AlertTriangle, Calendar, DollarSign, Package, ArrowDownLeft, ArrowUpRight, ChevronDown, ChevronUp, PrinterIcon } from 'lucide-react';
+import { BarChart2, RefreshCw, AlertTriangle, DollarSign, Package, ArrowDownLeft, ArrowUpRight, ChevronDown, ChevronUp, PrinterIcon } from 'lucide-react';
 import { daybookApi } from '../lib/api';
 import { useCompanyStore } from '../stores/companyStore';
 import { formatAmount } from '../lib/utils';
 import { localTodayStr } from '../lib/navProfile';
+import { PageHeader, LoadingBlock, AlertBanner } from '../components/ui';
 
 function todayStr() { return localTodayStr(); }
 function fmtAmt(n: number) {
@@ -101,24 +102,27 @@ export default function StockValuationPage() {
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <BarChart2 className="w-6 h-6 text-purple-600" />
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Stock Valuation</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-gray-400" />
-          <input type="date" value={asOfDate} onChange={(e) => onDateChange(e.target.value)} className="input-field text-sm" />
-          <button onClick={() => void load()} className="p-2 rounded-lg border border-gray-200 dark:border-slate-700 text-gray-500 hover:text-brand-600">
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          </button>
-          {report && (
-            <button onClick={() => window.print()} className="p-2 rounded-lg border border-gray-200 dark:border-slate-700 text-gray-500 hover:text-brand-600" title="Print">
-              <PrinterIcon className="w-4 h-4" />
+      <PageHeader
+        title={
+          <span className="inline-flex items-center gap-3">
+            <BarChart2 className="w-6 h-6 text-purple-600" aria-hidden="true" />
+            Stock Valuation
+          </span>
+        }
+        actions={
+          <>
+            <input type="date" value={asOfDate} onChange={(e) => onDateChange(e.target.value)} className="input-field text-sm" aria-label="As-of date" />
+            <button type="button" onClick={() => void load()} className="btn-secondary p-2 min-h-[44px] min-w-[44px]" aria-label="Refresh">
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
-          )}
-        </div>
-      </div>
+            {report && (
+              <button type="button" onClick={() => window.print()} className="btn-secondary p-2 min-h-[44px] min-w-[44px]" title="Print" aria-label="Print">
+                <PrinterIcon className="w-4 h-4" />
+              </button>
+            )}
+          </>
+        }
+      />
 
       {/* Headline tiles */}
       {report && (
@@ -150,12 +154,10 @@ export default function StockValuationPage() {
         </div>
       )}
 
-      {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 text-sm text-red-700 dark:text-red-300">{error}</div>
-      )}
+      {error ? <AlertBanner tone="error">{error}</AlertBanner> : null}
 
       {loading ? (
-        <div className="flex items-center justify-center h-48"><div className="spinner" /></div>
+        <LoadingBlock label="Loading stock valuation…" />
       ) : report ? (
         <div className="space-y-4">
           {report.groups.map((group) => {
