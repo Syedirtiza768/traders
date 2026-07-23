@@ -112,12 +112,24 @@ def _upsert_billing_address(customer, address_data):
     return doc.name
 
 
+def _format_address_display(row):
+    """Build a display string — Address.address_display is not a DB column."""
+    parts = [
+        (row.get("address_line1") or "").strip(),
+        (row.get("address_line2") or "").strip(),
+        (row.get("city") or "").strip(),
+        (row.get("state") or "").strip(),
+        (row.get("pincode") or "").strip(),
+        (row.get("country") or "").strip(),
+    ]
+    return ", ".join(p for p in parts if p and p != "—")
+
+
 def _list_addresses(customer):
-    return frappe.db.sql(
+    rows = frappe.db.sql(
         """
         SELECT a.name, a.address_type, a.address_line1, a.address_line2, a.city, a.state,
-               a.pincode, a.country, a.is_primary_address, a.is_shipping_address,
-               a.address_display
+               a.pincode, a.country, a.is_primary_address, a.is_shipping_address
         FROM `tabAddress` a
         INNER JOIN `tabDynamic Link` dl ON dl.parent = a.name AND dl.parenttype = 'Address'
         WHERE dl.link_doctype = 'Customer' AND dl.link_name = %s
@@ -126,6 +138,9 @@ def _list_addresses(customer):
         (customer,),
         as_dict=True,
     )
+    for row in rows:
+        row["address_display"] = _format_address_display(row)
+    return rows
 
 
 def _list_contacts(customer):

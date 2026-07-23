@@ -40,6 +40,10 @@ DEMO_CONFIG = {
     # Fraction of quotations that are submitted (rest stay draft for testing).
     "fraction_quotation_submit": 0.64,
 
+    # Commercial Opportunity full project chains (Opportunity→Qtn→OC→DN→SI→Payment).
+    # Only runs when the Opportunity module is enabled for the company.
+    "num_opportunity_chains": 3,
+
     # Procurement documents (optional UI coverage)
     "num_material_requests": (14, 28),
     "num_supplier_quotations": (20, 38),

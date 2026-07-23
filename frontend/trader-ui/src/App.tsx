@@ -33,6 +33,7 @@ const CreatePurchaseDocumentHubPage = lazy(() => import('./pages/CreatePurchaseD
 const CreateDeliveryChallanPage = lazy(() => import('./pages/CreateDeliveryChallanPage'));
 const DeliveryChallansPage = lazy(() => import('./pages/DeliveryChallansPage'));
 const DeliveryChallanDetailPage = lazy(() => import('./pages/DeliveryChallanDetailPage'));
+const GroupedInvoicePage = lazy(() => import('./pages/GroupedInvoicePage'));
 const PurchasesPage = lazy(() => import('./pages/PurchasesPage'));
 const PurchaseInvoiceDetailPage = lazy(() => import('./pages/PurchaseInvoiceDetailPage'));
 const PurchaseOrdersPage = lazy(() => import('./pages/PurchaseOrdersPage'));
@@ -55,6 +56,7 @@ const WarehouseStockPage = lazy(() => import('./pages/WarehouseStockPage'));
 const StockMovementPage = lazy(() => import('./pages/StockMovementPage'));
 const CustomersPage = lazy(() => import('./pages/CustomersPage'));
 const CustomerDetailPage = lazy(() => import('./pages/CustomerDetailPage'));
+const CustomerStatementPage = lazy(() => import('./pages/CustomerStatementPage'));
 const EditCustomerPage = lazy(() => import('./pages/EditCustomerPage'));
 const CreateCustomerPage = lazy(() => import('./pages/CreateCustomerPage'));
 const SuppliersPage = lazy(() => import('./pages/SuppliersPage'));
@@ -174,6 +176,7 @@ export default function App() {
         <Route path="sales/challans" element={<GatedRoute capability="sales:view" module="sales"><DeliveryChallansPage /></GatedRoute>} />
         <Route path="sales/challans/new" element={<GatedRoute capability="sales:view" module="sales"><CreateDeliveryChallanPage /></GatedRoute>} />
         <Route path="sales/challans/:challanId" element={<GatedRoute capability="sales:view" module="sales"><DeliveryChallanDetailPage /></GatedRoute>} />
+        <Route path="sales/challans/group-invoice" element={<GatedRoute capability="sales:view" module="sales"><GroupedInvoicePage /></GatedRoute>} />
         <Route path="sales/returns/new" element={<GatedRoute capability="sales:view" module="sales"><CreateSalesReturnPage /></GatedRoute>} />
         <Route path="sales/dispatches/new" element={<GatedRoute capability="sales:view" module="sales"><CreateSalesDispatchPage /></GatedRoute>} />
         <Route path="sales/orders" element={<GatedRoute capability="sales:view" module="sales"><SalesOrdersPage /></GatedRoute>} />
@@ -227,6 +230,7 @@ export default function App() {
         <Route path="customers" element={<GatedRoute capability="customers:view" module="customers"><CustomersPage /></GatedRoute>} />
         <Route path="customers/new" element={<GatedRoute capability="customers:view" module="customers"><CreateCustomerPage /></GatedRoute>} />
         <Route path="customers/:customerId" element={<GatedRoute capability="customers:view" module="customers"><CustomerDetailPage /></GatedRoute>} />
+        <Route path="customers/:customerId/statement" element={<GatedRoute capability="customers:view" module="customers"><CustomerStatementPage /></GatedRoute>} />
         <Route path="customers/:customerId/edit" element={<GatedRoute capability="customers:view" module="customers"><EditCustomerPage /></GatedRoute>} />
 
         {/* Suppliers */}

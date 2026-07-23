@@ -201,6 +201,86 @@ def get_customer_ledger(customer, company=None, from_date=None, to_date=None):
     return rows
 
 
+@frappe.whitelist()
+def get_customer_statement(customer, company=None, from_date=None, to_date=None):
+    """Customer statement mirroring sahamid CustomerStatement.php.
+
+    Returns the customer header, opening balance (receivable GL movements
+    before ``from_date``), the in-range transaction list with a running
+    balance, aging buckets on unsettled submitted Sales Invoices, and the
+    closing balance. Built on the GL Entry receivable subledger so it stays
+    in lockstep with the accounting backbone.
+    """
+    company = resolve_active_company(company)
+    if not customer:
+        frappe.throw(_("Customer is required."))
+    from_date = from_date or add_months(nowdate(), -12)
+    to_date = to_date or nowdate()
+    today = nowdate()
+
+    cust = frappe.db.get_value(
+        "Customer",
+        customer,
+        ["name", "customer_name", "default_currency", "tax_id", "payment_terms", "customer_group"],
+        as_dict=True,
+    ) or {"name": customer, "customer_name": customer}
+
+    opening = frappe.db.sql("""
+        SELECT COALESCE(SUM(gle.debit - gle.credit), 0) AS opening_balance
+        FROM `tabGL Entry` gle
+        WHERE gle.company = %s AND gle.party_type = 'Customer'
+              AND gle.party = %s AND gle.is_cancelled = 0
+              AND gle.posting_date < %s
+    """, (company, customer, from_date), as_dict=True)[0].get("opening_balance") or 0.0
+
+    rows = frappe.db.sql("""
+        SELECT gle.posting_date, gle.voucher_type, gle.voucher_no,
+               gle.debit, gle.credit, gle.remarks,
+               gle.against_voucher_type, gle.against_voucher
+        FROM `tabGL Entry` gle
+        WHERE gle.company = %s AND gle.party_type = 'Customer'
+              AND gle.party = %s AND gle.is_cancelled = 0
+              AND gle.posting_date >= %s AND gle.posting_date <= %s
+        ORDER BY gle.posting_date, gle.creation
+    """, (company, customer, from_date, to_date), as_dict=True)
+
+    balance = flt(opening)
+    for row in rows:
+        balance += flt(row.debit) - flt(row.credit)
+        row["balance"] = flt(balance)
+
+    aging = frappe.db.sql("""
+        SELECT
+            SUM(CASE WHEN DATEDIFF(%s, posting_date) <= 30 THEN outstanding_amount ELSE 0 END) AS b0_30,
+            SUM(CASE WHEN DATEDIFF(%s, posting_date) BETWEEN 31 AND 60 THEN outstanding_amount ELSE 0 END) AS b31_60,
+            SUM(CASE WHEN DATEDIFF(%s, posting_date) BETWEEN 61 AND 90 THEN outstanding_amount ELSE 0 END) AS b61_90,
+            SUM(CASE WHEN DATEDIFF(%s, posting_date) > 90 THEN outstanding_amount ELSE 0 END) AS b90_plus,
+            SUM(outstanding_amount) AS total_outstanding
+        FROM `tabSales Invoice`
+        WHERE company = %s AND customer = %s
+              AND docstatus = 1 AND outstanding_amount > 0
+    """, (today, today, today, today, company, customer), as_dict=True)[0] or {}
+
+    closing = flt(opening + sum(flt(r.debit) - flt(r.credit) for r in rows))
+
+    return {
+        "customer": cust,
+        "company": company,
+        "from_date": from_date,
+        "to_date": to_date,
+        "opening_balance": flt(opening),
+        "closing_balance": closing,
+        "transactions": rows,
+        "aging": {
+            "0-30": flt(aging.get("b0_30") or 0),
+            "31-60": flt(aging.get("b31_60") or 0),
+            "61-90": flt(aging.get("b61_90") or 0),
+            "90+": flt(aging.get("b90_plus") or 0),
+            "total_outstanding": flt(aging.get("total_outstanding") or 0),
+        },
+    }
+
+
 # ────────────────────────────────────────────────────────────────
 # 5.  SUPPLIER LEDGER
 # ────────────────────────────────────────────────────────────────

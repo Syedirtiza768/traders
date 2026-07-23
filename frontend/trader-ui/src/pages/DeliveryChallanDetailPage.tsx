@@ -4,6 +4,7 @@ import { ArrowLeft, Printer, Truck } from 'lucide-react';
 import { salesApi } from '../lib/api';
 import { formatDate } from '../lib/utils';
 import CommercialHierarchyEditor from '../components/CommercialHierarchyEditor';
+import { PageHeader, LoadingBlock, AlertBanner, StatusBadge } from '../components/ui';
 
 export default function DeliveryChallanDetailPage() {
   const navigate = useNavigate();
@@ -41,46 +42,79 @@ export default function DeliveryChallanDetailPage() {
     }
   };
 
+  const handleMakeInvoice = async () => {
+    if (!doc?.name) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await salesApi.createInvoiceFromChallan(doc.name);
+      const name = res.data.message?.invoice;
+      if (name) navigate(`/sales/${encodeURIComponent(name)}`);
+    } catch (err: any) {
+      setError(err?.response?.data?.exception || 'Invoice creation failed.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   if (loading) {
-    return <div className="flex justify-center py-16"><div className="spinner" /></div>;
+    return <LoadingBlock label="Loading delivery challan…" />;
   }
 
   if (!doc) {
-    return <div className="text-red-600">{error || 'Not found.'}</div>;
+    return (
+      <div className="space-y-4">
+        <button type="button" onClick={() => navigate('/sales/challans')} className="inline-flex items-center gap-2 text-sm text-brand-700">
+          <ArrowLeft size={16} /> Back to challans
+        </button>
+        <AlertBanner tone="error">{error || 'Delivery challan not found.'}</AlertBanner>
+      </div>
+    );
   }
 
   const printFormat = doc.print_format || 'delivery_challan';
 
   return (
     <div className="space-y-6">
-      <button type="button" onClick={() => navigate('/sales/challans')} className="inline-flex items-center gap-2 text-sm text-brand-700">
-        <ArrowLeft size={16} /> Back to challans
-      </button>
-
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-brand-700">
-            <Truck className="h-5 w-5" />
-            <span className="text-sm font-medium uppercase tracking-wide">Delivery Challan</span>
+      <PageHeader
+        title={doc.name}
+        description={`${doc.customer_name || doc.customer} · ${formatDate(doc.posting_date)}`}
+        meta={
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 dark:text-brand-300">
+              <Truck className="h-4 w-4" aria-hidden="true" />
+              Delivery Challan
+            </span>
+            <StatusBadge status={doc.status || (doc.docstatus === 0 ? 'Draft' : 'Submitted')} />
           </div>
-          <h1 className="page-title mt-1">{doc.name}</h1>
-          <p className="text-gray-500">{doc.customer_name || doc.customer} · {formatDate(doc.posting_date)}</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {doc.docstatus === 0 && (
-            <button type="button" onClick={handleSubmit} disabled={submitting} className="btn-primary">
-              {submitting ? 'Submitting…' : 'Submit'}
+        }
+        actions={
+          <>
+            <button type="button" onClick={() => navigate('/sales/challans')} className="btn-secondary inline-flex items-center gap-2">
+              <ArrowLeft size={16} /> Back
             </button>
-          )}
-          <button
-            type="button"
-            onClick={() => navigate(`/print?doctype=Delivery%20Note&name=${encodeURIComponent(doc.name)}&format=${printFormat}`)}
-            className="btn-secondary flex items-center gap-2"
-          >
-            <Printer size={14} /> Print
-          </button>
-        </div>
-      </div>
+            {doc.docstatus === 0 && (
+              <button type="button" onClick={handleSubmit} disabled={submitting} className="btn-primary">
+                {submitting ? 'Submitting…' : 'Submit'}
+              </button>
+            )}
+            {doc.docstatus === 1 && (doc.per_billed ?? 0) < 100 && (
+              <button type="button" onClick={handleMakeInvoice} disabled={submitting} className="btn-primary">
+                {submitting ? 'Creating…' : 'Make Invoice'}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => navigate(`/print?doctype=Delivery%20Note&name=${encodeURIComponent(doc.name)}&format=${printFormat}`)}
+              className="btn-secondary flex items-center gap-2"
+            >
+              <Printer size={14} /> Print
+            </button>
+          </>
+        }
+      />
+
+      {error ? <AlertBanner tone="error" onDismiss={() => setError(null)}>{error}</AlertBanner> : null}
 
       <div className="card overflow-hidden">
         <table className="min-w-full text-sm">

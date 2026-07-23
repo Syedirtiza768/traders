@@ -14,6 +14,7 @@ import json
 import frappe
 from frappe import _
 from trader_app.api.company import resolve_active_company
+from trader_app.api.decision_log import log_decision
 from frappe.utils import nowdate, flt, cint
 
 
@@ -604,13 +605,97 @@ def cancel_journal_entry(name):
 # 4.  DOCTYPE EVENT HOOKS
 # ────────────────────────────────────────────────────────────────
 
+def _post_withhold_gl_on_allocation(payment_entry):
+    """Sahamid-style GL on allocation: when a receipt settles a Sales Invoice,
+    move the WHT and GST-withhold portions out of receivable into the configured
+    withhold accounts. Opt-in via the Trader AR Profile; no-op otherwise.
+
+    ERPNext already posts exchange gain/loss on allocation natively, so this
+    layer intentionally does NOT duplicate FX posting — only the withhold GL
+    that sahamid posts when an invoice first settles (CustomerAllocations.php).
+    """
+    if getattr(payment_entry, "party_type", None) != "Customer":
+        return
+    if getattr(payment_entry, "payment_type", None) != "Receive":
+        return
+    company = getattr(payment_entry, "company", None)
+    try:
+        from trader_app.api.ar import get_active_ar_profile
+        profile = get_active_ar_profile(company)
+    except Exception:
+        return
+    if not profile or not cint(profile.get("withhold_reporting_enabled", 0)):
+        return
+
+    wht_account = profile.get("wht_account")
+    gst_account = profile.get("gst_withhold_account")
+    wht_percent = flt(profile.get("default_wht_percent", 0) or 0)
+    gst_percent = flt(profile.get("default_gst_withhold_percent", 0) or 0)
+    if (not wht_account or not wht_percent) and (not gst_account or not gst_percent):
+        return
+
+    posted = []
+    for ref in (payment_entry.get("references") or []):
+        if ref.reference_doctype != "Sales Invoice" or not ref.allocated_amount:
+            continue
+        si = frappe.db.get_value(
+            "Sales Invoice", ref.reference_name,
+            ["outstanding_amount", "grand_total", "base_total_taxes_and_charges", "debit_to", "docstatus"],
+            as_dict=True,
+        )
+        if not si or si.docstatus != 1:
+            continue
+        # Only when this receipt settles the invoice (outstanding ~ 0 after allocation).
+        if flt(si.outstanding_amount) > 0.01:
+            continue
+        receivable = si.debit_to
+        if not receivable:
+            continue
+        wht_amount = round(flt(si.grand_total) * wht_percent / 100.0, 2) if wht_account and wht_percent else 0.0
+        gst_amount = round(flt(si.base_total_taxes_and_charges or 0) * gst_percent / 100.0, 2) if gst_account and gst_percent else 0.0
+        if wht_amount <= 0 and gst_amount <= 0:
+            continue
+
+        je = frappe.new_doc("Journal Entry")
+        je.voucher_type = "Journal Entry"
+        je.company = company
+        je.posting_date = nowdate()
+        je.user_remark = "Withhold GL on settlement of {0} by {1}".format(
+            ref.reference_name, payment_entry.name
+        )
+        if wht_amount:
+            je.append("accounts", {"account": wht_account, "debit_in_account_currency": wht_amount})
+            je.append("accounts", {"account": receivable, "credit_in_account_currency": wht_amount})
+        if gst_amount:
+            je.append("accounts", {"account": gst_account, "debit_in_account_currency": gst_amount})
+            je.append("accounts", {"account": receivable, "credit_in_account_currency": gst_amount})
+        je.insert(ignore_permissions=True)
+        je.submit()
+        posted.append({"invoice": ref.reference_name, "wht": wht_amount, "gst": gst_amount, "je": je.name})
+
+    if posted:
+        log_decision(
+            "posting", company=company, outcome="applied",
+            message="Withhold GL posted on allocation for {0} invoice(s)".format(len(posted)),
+            output={"journals": posted}, reference_doctype="Payment Entry",
+            reference_name=payment_entry.name, policy="ar_profile",
+        )
+
+
 def on_payment_entry_submit(doc, method):
-    """Runs on Payment Entry submit — publish realtime event."""
+    """Runs on Payment Entry submit — publish realtime event + sahamid-style withhold GL."""
     frappe.publish_realtime(
         "payment_entry_submitted",
         {"payment": doc.name, "party": doc.party, "amount": doc.paid_amount},
         user=frappe.session.user,
     )
+    try:
+        _post_withhold_gl_on_allocation(doc)
+    except Exception:
+        frappe.log_error(
+            frappe.get_traceback(),
+            "Trader withhold GL on allocation failed for {0}".format(doc.name),
+        )
 
 
 # ────────────────────────────────────────────────────────────────

@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Building2, CreditCard, Edit, FilePlus2, Mail, MapPin, Phone, Plus, ReceiptText, TrendingUp, User, Ban, BookOpen, Trash2 } from 'lucide-react';
 import { customersApi } from '../lib/api';
-import { appendPreservedListQuery, formatCurrency, formatDate, getActiveCurrency, getStatusColor, isOperationsContext, isReportContext } from '../lib/utils';
+import { appendPreservedListQuery, formatCurrency, formatDate, getActiveCurrency, isOperationsContext, isReportContext } from '../lib/utils';
+import { PageHeader, LoadingBlock, AlertBanner, StatusBadge, EmptyState } from '../components/ui';
 import { useTenantStore } from '../stores/tenantStore';
 import { useCompanyStore } from '../stores/companyStore';
 import PartySettleModal from '../components/PartySettleModal';
@@ -167,7 +168,7 @@ export default function CustomerDetailPage() {
   };
 
   if (loading) {
-    return <div className="py-16 flex justify-center"><div className="spinner" /></div>;
+    return <LoadingBlock label="Loading customer…" />;
   }
 
   if (error || !customer) {
@@ -177,26 +178,23 @@ export default function CustomerDetailPage() {
           <ArrowLeft className="w-4 h-4" />
           {backLabel}
         </button>
-        <div className="card p-8 text-center text-gray-500">{error || 'Customer not found.'}</div>
+        <AlertBanner tone="error">{error || 'Customer not found.'}</AlertBanner>
       </div>
     );
   }
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <button onClick={() => navigate(backToPath)} className="mb-3 inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
-            <ArrowLeft className="w-4 h-4" />
-            {backLabel}
-          </button>
-          <h1 className="page-title">{customer.customer_name || customer.name}</h1>
-          <p className="mt-1 text-gray-500">Customer 360 view for `{customer.name}`</p>
-        </div>
-        <div className="rounded-full px-3 py-1 text-sm font-medium bg-blue-50 text-blue-700">
-          {customer.customer_group || 'Customer'}
-        </div>
-      </div>
+      <button onClick={() => navigate(backToPath)} className="inline-flex items-center gap-2 text-sm text-brand-700 hover:text-brand-800">
+        <ArrowLeft className="w-4 h-4" />
+        {backLabel}
+      </button>
+
+      <PageHeader
+        title={customer.customer_name || customer.name}
+        description={<>Customer 360 view for <code className="text-sm">{customer.name}</code></>}
+        meta={<StatusBadge status={customer.customer_group || 'Customer'} />}
+      />
 
       <div className="flex flex-wrap justify-end gap-2">
         {daybookShell ? (
@@ -212,6 +210,12 @@ export default function CustomerDetailPage() {
               className="btn-secondary flex items-center gap-2"
             >
               <Edit className="w-4 h-4" /> Edit
+            </button>
+            <button
+              onClick={() => navigate(appendPreservedListQuery(`/customers/${encodeURIComponent(customer.name)}/statement`, listSearch))}
+              className="btn-secondary flex items-center gap-2"
+            >
+              <ReceiptText className="w-4 h-4" /> Statement
             </button>
             {(customer.outstanding_amount || 0) > 0 && (
               <button onClick={() => setSettleOpen(true)} className="btn-primary">
@@ -232,6 +236,12 @@ export default function CustomerDetailPage() {
               className="btn-secondary flex items-center gap-2"
             >
               <Plus className="w-4 h-4" /> New Order
+            </button>
+            <button
+              onClick={() => navigate(appendPreservedListQuery(`/customers/${encodeURIComponent(customer.name)}/statement`, listSearch))}
+              className="btn-secondary flex items-center gap-2"
+            >
+              <ReceiptText className="w-4 h-4" /> Statement
             </button>
             <button
               onClick={() => navigate(`/customers/${encodeURIComponent(customer.name)}/edit`)}
@@ -259,9 +269,7 @@ export default function CustomerDetailPage() {
       </div>
 
       {feedback && (
-        <div className={`rounded-lg px-4 py-3 text-sm ${feedback.type === 'success' ? 'border border-green-200 bg-green-50 text-green-700' : 'border border-red-200 bg-red-50 text-red-700'}`}>
-          {feedback.message}
-        </div>
+        <AlertBanner tone={feedback.type === 'success' ? 'success' : 'error'}>{feedback.message}</AlertBanner>
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -394,7 +402,9 @@ export default function CustomerDetailPage() {
               <tbody className="divide-y divide-gray-100">
                 {transactions.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-10 text-center text-gray-400">No recent transactions found.</td>
+                    <td colSpan={6} className="p-0">
+                      <EmptyState compact title="No recent transactions found." />
+                    </td>
                   </tr>
                 ) : (
                   transactions.map((tx) => (
@@ -411,9 +421,7 @@ export default function CustomerDetailPage() {
                       <td className="px-6 py-3 text-right text-sm font-medium text-gray-900">{formatCurrency(tx.grand_total)}</td>
                       <td className="px-6 py-3 text-right text-sm font-medium text-red-600">{formatCurrency(tx.outstanding_amount)}</td>
                       <td className="px-6 py-3">
-                        <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(tx.status)}`}>
-                          {tx.status}
-                        </span>
+                        <StatusBadge status={tx.status} />
                       </td>
                       <td className="px-6 py-3 text-right">
                         {(tx.outstanding_amount || 0) > 0 ? (
@@ -443,7 +451,7 @@ export default function CustomerDetailPage() {
         {/* Mobile cards */}
         <div className="md:hidden divide-y divide-gray-100">
           {transactions.length === 0 ? (
-            <p className="px-4 py-8 text-center text-sm text-gray-400">No recent transactions found.</p>
+            <EmptyState compact title="No recent transactions found." />
           ) : (
             transactions.map((tx) => (
               <div key={`m-${tx.name}`} className="px-4 py-3">
@@ -454,9 +462,7 @@ export default function CustomerDetailPage() {
                   >
                     {tx.name}
                   </button>
-                  <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-medium whitespace-nowrap ${getStatusColor(tx.status)}`}>
-                    {tx.status}
-                  </span>
+                  <StatusBadge status={tx.status} className="text-[10px]" />
                 </div>
                 <div className="flex justify-between items-center mt-1">
                   <span className="text-xs text-gray-500">{formatDate(tx.posting_date)}</span>

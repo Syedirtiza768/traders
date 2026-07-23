@@ -1,8 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search } from 'lucide-react';
+import { Layers, Plus, Truck } from 'lucide-react';
 import { salesApi } from '../lib/api';
 import { formatDate } from '../lib/utils';
+import {
+  PageHeader,
+  EmptyState,
+  LoadingBlock,
+  SearchField,
+  StatusBadge,
+} from '../components/ui';
 
 export default function DeliveryChallansPage() {
   const navigate = useNavigate();
@@ -26,29 +33,47 @@ export default function DeliveryChallansPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="page-title">Delivery Challans</h1>
-          <p className="mt-1 text-sm text-gray-500">Goods dispatched without a sales invoice.</p>
-        </div>
-        <button type="button" onClick={() => navigate('/sales/challans/new')} className="btn-primary flex items-center gap-2 self-start">
-          <Plus className="h-4 w-4" /> New Challan
-        </button>
-      </div>
+      <PageHeader
+        title="Delivery Challans"
+        description="Goods dispatched without a sales invoice."
+        actions={
+          <>
+            <button type="button" onClick={() => navigate('/sales/challans/group-invoice')} className="btn-secondary flex items-center gap-2">
+              <Layers className="h-4 w-4" /> Group Invoice
+            </button>
+            <button type="button" onClick={() => navigate('/sales/challans/new')} className="btn-primary flex items-center gap-2">
+              <Plus className="h-4 w-4" /> New Challan
+            </button>
+          </>
+        }
+      />
 
-      <div className="relative w-full sm:w-72">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-        <input type="text" placeholder="Search challans..." className="input-field pl-9" onChange={(e) => setSearch(e.target.value)} />
-      </div>
+      <SearchField
+        placeholder="Search challans…"
+        value={search}
+        onChange={setSearch}
+        aria-label="Search delivery challans"
+      />
 
       {loading ? (
-        <div className="flex justify-center py-16"><div className="spinner" /></div>
+        <LoadingBlock label="Loading delivery challans…" />
       ) : rows.length === 0 ? (
-        <div className="card p-8 text-center text-gray-500">No delivery challans yet.</div>
+        <EmptyState
+          title="No delivery challans yet"
+          description={search ? 'Try a different search term.' : 'Create a challan when goods leave without an invoice.'}
+          icon={<Truck className="h-5 w-5" aria-hidden="true" />}
+          action={
+            !search ? (
+              <button type="button" onClick={() => navigate('/sales/challans/new')} className="btn-primary flex items-center gap-2">
+                <Plus className="h-4 w-4" /> New Challan
+              </button>
+            ) : undefined
+          }
+        />
       ) : (
         <div className="card overflow-hidden">
           <table className="min-w-full text-sm">
-            <thead className="bg-gray-50 text-left text-xs uppercase text-gray-500">
+            <thead className="bg-gray-50 text-left text-xs uppercase text-gray-500 dark:bg-slate-800 dark:text-slate-400">
               <tr>
                 <th className="px-4 py-3">Name</th>
                 <th className="px-4 py-3">Customer</th>
@@ -56,13 +81,15 @@ export default function DeliveryChallansPage() {
                 <th className="px-4 py-3">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
               {rows.map((row) => (
-                <tr key={row.name} className="cursor-pointer hover:bg-gray-50" onClick={() => navigate(`/sales/challans/${encodeURIComponent(row.name)}`)}>
-                  <td className="px-4 py-3 font-medium text-brand-700">{row.name}</td>
+                <tr key={row.name} className="cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800/50" onClick={() => navigate(`/sales/challans/${encodeURIComponent(row.name)}`)}>
+                  <td className="px-4 py-3 font-medium text-brand-700 dark:text-brand-300">{row.name}</td>
                   <td className="px-4 py-3">{row.customer_name || row.customer}</td>
                   <td className="px-4 py-3">{formatDate(row.posting_date)}</td>
-                  <td className="px-4 py-3">{row.status || (row.docstatus === 0 ? 'Draft' : 'Submitted')}</td>
+                  <td className="px-4 py-3">
+                    <StatusBadge status={row.status || (row.docstatus === 0 ? 'Draft' : 'Submitted')} />
+                  </td>
                 </tr>
               ))}
             </tbody>
