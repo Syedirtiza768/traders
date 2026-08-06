@@ -224,6 +224,11 @@ All `@frappe.whitelist()` decorated functions — 2026-08-06
 | 202 | `get_multitenant_status` | tenant | `/api/method/trader_app.api.tenant.get_multitenant_status` | none | — | 🔍 Unknown |
 | 203 | `get_tenant_config` | tenant | `/api/method/trader_app.api.tenant.get_tenant_config` | none | — | 🔍 Unknown |
 | 204 | `get_business_tenant_audit_log` | tenant | `/api/method/trader_app.api.tenant.get_business_tenant_audit_log` | page=1, page_size=20 | — | 🔍 Unknown |
+| 205 | `get_trading_entities` | trading_entity | `/api/method/trader_app.api.trading_entity.get_trading_entities` | company=None, include_inactive=0 | — | 🔍 Unknown |
+| 206 | `get_trading_entity` | trading_entity | `/api/method/trader_app.api.trading_entity.get_trading_entity` | name | — | 🔍 Unknown |
+| 207 | `create_trading_entity` | trading_entity | `/api/method/trader_app.api.trading_entity.create_trading_entity` | data=None | — | 🔍 Unknown |
+| 208 | `update_trading_entity` | trading_entity | `/api/method/trader_app.api.trading_entity.update_trading_entity` | data=None | — | 🔍 Unknown |
+| 209 | `seed_default_trading_entity` | trading_entity | `/api/method/trader_app.api.trading_entity.seed_default_trading_entity` | company=None | — | 🔍 Unknown |
 
 ## Frappe Built-in Endpoints Used
 
@@ -243,7 +248,7 @@ All `@frappe.whitelist()` decorated functions — 2026-08-06
 
 | Category | Count |
 |---|---|
-| Custom whitelisted endpoints | 204 |
-| With frontend consumer | 204 |
+| Custom whitelisted endpoints | 209 |
+| With frontend consumer | 209 |
 | Without frontend consumer (orphan) | 0 |
 | Frappe built-in endpoints used | 4 (active) + 5 (defined, unused) |
