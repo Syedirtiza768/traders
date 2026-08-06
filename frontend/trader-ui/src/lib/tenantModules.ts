@@ -14,6 +14,7 @@ export type TenantModuleKey =
   | 'components'
   | 'opportunity'
   | 'pos'
+  | 'trading_entity'
   | 'settings';
 
 export const TENANT_MODULE_KEYS: TenantModuleKey[] = [
@@ -29,6 +30,7 @@ export const TENANT_MODULE_KEYS: TenantModuleKey[] = [
   'components',
   'opportunity',
   'pos',
+  'trading_entity',
   'settings',
 ];
 
@@ -45,6 +47,7 @@ export const MODULE_LABELS: Record<TenantModuleKey, string> = {
   components: 'Components Trading',
   opportunity: 'Projects',
   pos: 'POS',
+  trading_entity: 'Trading Entity',
   settings: 'Settings',
 };
 

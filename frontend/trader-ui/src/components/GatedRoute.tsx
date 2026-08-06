@@ -14,6 +14,7 @@ export type GatedRouteProps = {
   module?: TenantModuleKey;
   requiresComponents?: boolean;
   requiresOpportunity?: boolean;
+  requiresTradingEntity?: boolean;
   /** Child-level nav feature; blocked when tenant nav profile hides it. */
   navFeature?: NavFeatureKey;
 };
@@ -27,12 +28,14 @@ export default function GatedRoute({
   module,
   requiresComponents = false,
   requiresOpportunity = false,
+  requiresTradingEntity = false,
   navFeature,
 }: GatedRouteProps) {
   const location = useLocation();
   const roles = useAuthStore((s) => s.roles);
   const componentsEnabled = useCompanyStore((s) => s.componentsEnabled);
   const opportunityEnabled = useCompanyStore((s) => s.opportunityEnabled);
+  const tradingEntityEnabled = useCompanyStore((s) => s.tradingEntityEnabled);
   const isModuleEnabled = useTenantStore((s) => s.isModuleEnabled);
   const isNavFeatureVisible = useTenantStore((s) => s.isNavFeatureVisible);
   const isPathAllowedByNavProfile = useTenantStore((s) => s.isPathAllowedByNavProfile);
@@ -45,7 +48,8 @@ export default function GatedRoute({
   const effectiveModule: TenantModuleKey | undefined =
     module
     ?? (requiresComponents ? 'components' : undefined)
-    ?? (requiresOpportunity ? 'opportunity' : undefined);
+    ?? (requiresOpportunity ? 'opportunity' : undefined)
+    ?? (requiresTradingEntity ? 'trading_entity' : undefined);
 
   if (multitenantEnabled && effectiveModule && !isModuleEnabled(effectiveModule)) {
     return (
@@ -70,6 +74,15 @@ export default function GatedRoute({
       <AccessDenied
         title="Feature not enabled"
         description="The Projects module is not enabled for this company. Enable it in Settings → Feature Flags, or provision an opportunity pack."
+      />
+    );
+  }
+
+  if (requiresTradingEntity && !tradingEntityEnabled) {
+    return (
+      <AccessDenied
+        title="Feature not enabled"
+        description="Trading Entities are not enabled for this company. Enable the Trading Entity module for this tenant."
       />
     );
   }

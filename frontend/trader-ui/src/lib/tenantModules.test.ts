@@ -31,7 +31,8 @@ describe('tenantModules', () => {
     expect(TENANT_MODULE_KEYS).toContain('components');
     expect(TENANT_MODULE_KEYS).toContain('pos');
     expect(TENANT_MODULE_KEYS).toContain('opportunity');
+    expect(TENANT_MODULE_KEYS).toContain('trading_entity');
     expect(TENANT_MODULE_KEYS).toContain('settings');
-    expect(TENANT_MODULE_KEYS.length).toBe(13);
+    expect(TENANT_MODULE_KEYS.length).toBe(14);
   });
 });

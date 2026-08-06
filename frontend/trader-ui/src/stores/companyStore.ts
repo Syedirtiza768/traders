@@ -12,6 +12,7 @@ export type CompanyOption = {
   opportunity_enabled?: boolean;
   ar_enabled?: boolean;
   customer_pack_enabled?: boolean;
+  trading_entity_enabled?: boolean;
 };
 
 interface CompanyState {
@@ -23,6 +24,7 @@ interface CompanyState {
   opportunityEnabled: boolean;
   arEnabled: boolean;
   customerPackEnabled: boolean;
+  tradingEntityEnabled: boolean;
   companies: CompanyOption[];
   initialized: boolean;
   loading: boolean;
@@ -34,6 +36,7 @@ interface CompanyState {
   setOpportunityEnabled: (enabled: boolean) => void;
   setArEnabled: (enabled: boolean) => void;
   setCustomerPackEnabled: (enabled: boolean) => void;
+  setTradingEntityEnabled: (enabled: boolean) => void;
 }
 
 registerActiveCompanyGetter(() => useCompanyStore.getState().company || undefined);
@@ -47,6 +50,7 @@ export const useCompanyStore = create<CompanyState>((set, get) => ({
   opportunityEnabled: false,
   arEnabled: false,
   customerPackEnabled: false,
+  tradingEntityEnabled: false,
   companies: [],
   initialized: false,
   loading: false,
@@ -75,6 +79,7 @@ export const useCompanyStore = create<CompanyState>((set, get) => ({
         opportunityEnabled: Boolean(active.opportunity_enabled),
         arEnabled: Boolean(active.ar_enabled),
         customerPackEnabled: Boolean(active.customer_pack_enabled),
+        tradingEntityEnabled: Boolean(active.trading_entity_enabled),
         initialized: true,
         loading: false,
       });
@@ -101,6 +106,7 @@ export const useCompanyStore = create<CompanyState>((set, get) => ({
         opportunityEnabled: Boolean(active.opportunity_enabled),
         arEnabled: Boolean(active.ar_enabled),
         customerPackEnabled: Boolean(active.customer_pack_enabled),
+        tradingEntityEnabled: Boolean(active.trading_entity_enabled),
         loading: false,
         revision: state.revision + 1,
       }));
@@ -126,5 +132,9 @@ export const useCompanyStore = create<CompanyState>((set, get) => ({
 
   setCustomerPackEnabled: (enabled: boolean) => {
     set({ customerPackEnabled: enabled });
+  },
+
+  setTradingEntityEnabled: (enabled: boolean) => {
+    set({ tradingEntityEnabled: enabled });
   },
 }));

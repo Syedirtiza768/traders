@@ -143,10 +143,22 @@ CUSTOM_FIELDS = [
     },
     {
         "dt": "Company",
+        "fieldname": "trader_trading_entity_enabled",
+        "label": "Trading Entity (DBA) Module",
+        "fieldtype": "Check",
+        "default": "0",
+        "insert_after": "trader_customer_pack_enabled",
+        "description": (
+            "When ON: Maintain Trading Entities master, assign entities on customers, and resolve "
+            "print letterhead from the customer's Trading Entity. Synced from tenant module trading_entity."
+        ),
+    },
+    {
+        "dt": "Company",
         "fieldname": "trader_sku_taxonomy",
         "label": "SKU Attribute Taxonomy (JSON)",
         "fieldtype": "Long Text",
-        "insert_after": "trader_customer_pack_enabled",
+        "insert_after": "trader_trading_entity_enabled",
         "description": (
             "Company-specific SKU attribute templates (category → form factors, capacities, grades). "
             "Merged with system seed and values from existing items."
@@ -238,11 +250,24 @@ CUSTOM_FIELDS = [
     },
     {
         "dt": "Customer",
+        "fieldname": "trader_trading_entity",
+        "label": "Trading Entity",
+        "fieldtype": "Link",
+        "options": "Trader Trading Entity",
+        "insert_after": "trader_dba",
+        "description": (
+            "Seller-side commercial identity for letterhead and list scoping. "
+            "Distinct from free-text Doing Business As (customer trading name)."
+        ),
+        "in_standard_filter": 1,
+    },
+    {
+        "dt": "Customer",
         "fieldname": "trader_opening_balance",
         "label": "Opening AR Balance",
         "fieldtype": "Currency",
         "default": "0",
-        "insert_after": "trader_dba",
+        "insert_after": "trader_trading_entity",
         "description": "Opening receivable balance imported when Components feature is first enabled.",
     },
     {

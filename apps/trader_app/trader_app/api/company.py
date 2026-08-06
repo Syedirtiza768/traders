@@ -125,6 +125,7 @@ def _company_payload(company_name):
     opportunity = getattr(doc, "trader_opportunity_enabled", None)
     ar = getattr(doc, "trader_ar_enabled", None)
     customer_pack = getattr(doc, "trader_customer_pack_enabled", None)
+    trading_entity = getattr(doc, "trader_trading_entity_enabled", None)
     return {
         "company": doc.name,
         "abbr": doc.abbr,
@@ -135,6 +136,7 @@ def _company_payload(company_name):
         "opportunity_enabled": bool(opportunity),
         "ar_enabled": bool(ar),
         "customer_pack_enabled": bool(customer_pack),
+        "trading_entity_enabled": bool(trading_entity),
     }
 
 
@@ -165,6 +167,9 @@ def get_active_company():
         "multi_currency_enabled": False,
         "components_enabled": False,
         "opportunity_enabled": False,
+        "ar_enabled": False,
+        "customer_pack_enabled": False,
+        "trading_entity_enabled": False,
     }
 
 

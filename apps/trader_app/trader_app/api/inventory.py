@@ -408,6 +408,11 @@ def validate_items_stock(items, company=None):
     company = resolve_active_company(company)
     issues = []
 
+    # Skip stock validation if zero_stock_enabled is set for the tenant
+    from trader_app.api.tenant import is_zero_stock_enabled
+    if is_zero_stock_enabled():
+        return {"valid": True, "issues": []}
+
     for idx, item in enumerate(items or []):
         item_code = (item.get("item_code") or "").strip()
         warehouse = (item.get("warehouse") or "").strip()

@@ -11,6 +11,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import useQuickAdd from '../components/useQuickAdd';
 import QuickAddProvider from '../components/QuickAddProvider';
 import { useCompanyStore } from '../stores/companyStore';
+import { useTenantStore } from '../stores/tenantStore';
 import { PageHeader, AlertBanner } from '../components/ui';
 
 export default function CreateSalesInvoicePage() {
@@ -224,23 +225,27 @@ export default function CreateSalesInvoicePage() {
       }
     }
 
-    try {
-      const stockRes = await inventoryApi.validateItemsStock(
-        validLines.map((l) => ({
-          item_code: l.item_code,
-          warehouse: l.warehouse || defaultWarehouse,
-          qty: Number(l.qty) || 0,
-        })),
-      );
-      const stockMsg = stockRes.data.message;
-      if (!stockMsg?.valid && stockMsg?.issues?.length) {
-        const first = stockMsg.issues[0];
-        setError(first.message || `Insufficient stock on line ${first.line}.`);
+    // Skip stock validation if zero_stock_enabled is set for the tenant
+    const zeroStockEnabled = useTenantStore.getState().isZeroStockEnabled();
+    if (!zeroStockEnabled) {
+      try {
+        const stockRes = await inventoryApi.validateItemsStock(
+          validLines.map((l) => ({
+            item_code: l.item_code,
+            warehouse: l.warehouse || defaultWarehouse,
+            qty: Number(l.qty) || 0,
+          })),
+        );
+        const stockMsg = stockRes.data.message;
+        if (!stockMsg?.valid && stockMsg?.issues?.length) {
+          const first = stockMsg.issues[0];
+          setError(first.message || `Insufficient stock on line ${first.line}.`);
+          return;
+        }
+      } catch (err: any) {
+        setError(err?.response?.data?.exception || 'Could not validate warehouse stock.');
         return;
       }
-    } catch (err: any) {
-      setError(err?.response?.data?.exception || 'Could not validate warehouse stock.');
-      return;
     }
 
     setSaving(true);

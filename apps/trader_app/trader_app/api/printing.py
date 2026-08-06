@@ -72,6 +72,23 @@ def get_print_data(doctype, name, view_mode="external", doc_format=None, format=
     letterhead = _get_company_letterhead(company_doc)
     company_info.update(letterhead)
 
+    # Trading Entity letterhead override (customer → entity → name/address/logo)
+    party_name = getattr(doc, "customer", None) or getattr(doc, "party_name", None)
+    if party_name:
+        from trader_app.api.trading_entity import resolve_letterhead_for_customer
+
+        te_letterhead = resolve_letterhead_for_customer(party_name, company=company)
+        if te_letterhead:
+            if te_letterhead.get("name"):
+                company_info["name"] = te_letterhead["name"]
+            if te_letterhead.get("address"):
+                company_info["address"] = te_letterhead["address"]
+            for key in ("logo", "letterhead_header", "letterhead_footer"):
+                if te_letterhead.get(key):
+                    company_info[key] = te_letterhead[key]
+            company_info["trading_entity"] = te_letterhead.get("trading_entity") or ""
+            company_info["trading_name"] = te_letterhead.get("trading_name") or ""
+
     # Customer/Party info
     party_info = _get_party_info(doc, doctype)
 

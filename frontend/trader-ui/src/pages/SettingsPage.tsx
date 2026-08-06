@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Building2, Users, Shield, Globe, RefreshCw, SlidersHorizontal, Save, ScrollText, Layers, Percent, Calendar, Warehouse, BookOpen, Briefcase, Receipt, Contact } from 'lucide-react';
+import { Building2, Users, Shield, Globe, RefreshCw, SlidersHorizontal, Save, ScrollText, Layers, Percent, Calendar, Warehouse, BookOpen, Briefcase, Receipt, Contact, Landmark } from 'lucide-react';
 import CurrencySettingsPanel from '../components/CurrencySettingsPanel';
 import SkuConfigEditor from '../components/SkuConfigEditor';
 import { settingsApi, catalogApi, opportunityApi, arApi, customerPackApi } from '../lib/api';
@@ -47,11 +47,14 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  const { componentsEnabled, setComponentsEnabled, opportunityEnabled, setOpportunityEnabled, arEnabled, setArEnabled, customerPackEnabled, setCustomerPackEnabled } = useCompanyStore();
+  const { componentsEnabled, setComponentsEnabled, opportunityEnabled, setOpportunityEnabled, arEnabled, setArEnabled, customerPackEnabled, setCustomerPackEnabled, tradingEntityEnabled } = useCompanyStore();
   const roles_ = useAuthStore((s) => s.roles);
   const tenant = useTenantStore((s) => s.tenant);
   const multitenantEnabled = useTenantStore((s) => s.enabled);
+  const isModuleEnabled = useTenantStore((s) => s.isModuleEnabled);
   const isAdmin = roles_.includes('Trader Admin') || roles_.includes('System Manager');
+  const showTradingEntities =
+    tradingEntityEnabled || (multitenantEnabled && isModuleEnabled('trading_entity'));
   const [togglingComponents, setTogglingComponents] = useState(false);
   const [togglingProject, setTogglingProject] = useState(false);
   const [togglingAr, setTogglingAr] = useState(false);
@@ -759,6 +762,9 @@ export default function SettingsPage() {
           <AdminLink to="/settings/admin/fiscal-year" label="Fiscal Year" description="Set up and switch accounting periods" icon={<Calendar size={16} />} color="text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/30" />
           <AdminLink to="/settings/admin/warehouses" label="Warehouses" description="Create and manage warehouse structure" icon={<Warehouse size={16} />} color="text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30" />
           <AdminLink to="/settings/admin/accounting" label="Accounting" description="Invoice rules, freeze dates, credit control" icon={<BookOpen size={16} />} color="text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/30" />
+          {showTradingEntities ? (
+            <AdminLink to="/settings/admin/trading-entities" label="Trading Entities" description="DBA letterheads and commercial identities" icon={<Landmark size={16} />} color="text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30" />
+          ) : null}
           <AdminLink to="/settings/gst" label="GST / Tax Settings" description="Tax templates and registration details" icon={<Percent size={16} />} color="text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/30" />
         </div>
       </div>

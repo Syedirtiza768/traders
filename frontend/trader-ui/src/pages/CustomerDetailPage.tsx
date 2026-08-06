@@ -288,6 +288,7 @@ export default function CustomerDetailPage() {
           <div className="card-body grid grid-cols-1 gap-4 md:grid-cols-2">
             <InfoRow icon={User} label="Customer Name" value={customer.customer_name || customer.name} />
             <InfoRow icon={Building2} label="Doing Business As" value={customer.trader_dba || '—'} />
+            <InfoRow icon={Building2} label="Trading Entity" value={customer.trading_entity_name || '—'} />
             <InfoRow icon={Building2} label="Customer Group" value={customer.customer_group || '—'} />
             <InfoRow icon={MapPin} label="Territory" value={customer.territory || '—'} />
             <InfoRow icon={Phone} label="Mobile" value={customer.mobile_no || '—'} />

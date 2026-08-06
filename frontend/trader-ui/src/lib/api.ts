@@ -1080,6 +1080,21 @@ export const adminApi = {
     call('trader_app.api.admin.save_accounting_settings', { data }),
 };
 
+// ─── Trading Entity (DBA) API ────────────────────────────────────
+
+export const tradingEntityApi = {
+  getList: (params?: { company?: string; include_inactive?: number }) =>
+    get('trader_app.api.trading_entity.get_trading_entities', params),
+  getDetail: (name: string) =>
+    get('trader_app.api.trading_entity.get_trading_entity', { name }),
+  create: (data: Record<string, any>) =>
+    call('trader_app.api.trading_entity.create_trading_entity', { data }),
+  update: (data: Record<string, any>) =>
+    call('trader_app.api.trading_entity.update_trading_entity', { data }),
+  seedDefault: (company?: string) =>
+    call('trader_app.api.trading_entity.seed_default_trading_entity', { company }),
+};
+
 // ─── Day-Book API (Components feature) ───────────────────────────
 
 export const daybookApi = {

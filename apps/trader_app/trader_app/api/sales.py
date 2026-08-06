@@ -431,7 +431,11 @@ def create_sales_invoice(customer, items, company=None, posting_date=None,
         warehouse = item.get("warehouse") or default_warehouse
         qty = -abs(flt(item.get("qty", 1))) if cint(is_return) else flt(item.get("qty", 1))
 
-        if cint(update_stock) and not cint(is_return) and frappe.get_cached_value("Item", item_code, "is_stock_item"):
+        # Skip stock validation if zero_stock_enabled is set for the tenant
+        from trader_app.api.tenant import is_zero_stock_enabled
+        zero_stock = is_zero_stock_enabled()
+
+        if cint(update_stock) and not cint(is_return) and not zero_stock and frappe.get_cached_value("Item", item_code, "is_stock_item"):
             _ensure_stock_available(item_code, warehouse, qty, company)
 
         serial_no = (item.get("serial_no") or "").strip()

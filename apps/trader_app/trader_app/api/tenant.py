@@ -27,10 +27,11 @@ STANDARD_MODULE_KEYS = (
     "opportunity",
     "ar",
     "pos",
+    "trading_entity",
     "settings",
 )
 
-_DEFAULT_OFF_MODULES = frozenset({"components", "opportunity", "ar"})
+_DEFAULT_OFF_MODULES = frozenset({"components", "opportunity", "ar", "trading_entity"})
 
 DEFAULT_MODULE_ROWS = [
     {"module_key": key, "enabled": 0 if key in _DEFAULT_OFF_MODULES else 1}
@@ -41,6 +42,7 @@ MODULE_COMPANY_FIELD_MAP = {
     "components": "trader_components_enabled",
     "opportunity": "trader_opportunity_enabled",
     "ar": "trader_ar_enabled",
+    "trading_entity": "trader_trading_entity_enabled",
 }
 
 # Nav profiles live in Trader Tenant.workflow_prefs JSON.
@@ -278,6 +280,40 @@ def get_enabled_module_keys(tenant):
     return rows
 
 
+def get_tenant_module_config(tenant, module_key):
+    """Get the config JSON for a specific module on a tenant."""
+    if not tenant or not module_key:
+        return {}
+
+    row = frappe.db.get_value(
+        "Trader Tenant Module",
+        {"parent": tenant, "parenttype": "Trader Tenant", "module_key": module_key},
+        "config",
+        as_dict=True,
+    )
+    if not row or not row.config:
+        return {}
+
+    try:
+        config = json.loads(row.config)
+        return config if isinstance(config, dict) else {}
+    except Exception:
+        return {}
+
+
+def is_zero_stock_enabled(tenant=None):
+    """Check if zero-stock mode is enabled for a tenant."""
+    if not is_multitenant_enabled():
+        return False
+
+    tenant = tenant or resolve_active_tenant()
+    if not tenant:
+        return False
+
+    config = get_tenant_module_config(tenant, "inventory")
+    return cint(config.get("zero_stock_enabled", 0)) == 1
+
+
 def assert_tenant_module_enabled(module_key, tenant=None, user=None):
     if not is_multitenant_enabled():
         return
@@ -338,6 +374,7 @@ def _tenant_payload(tenant_name):
         "enabled_modules": get_enabled_module_keys(doc.name),
         "workflow_prefs": workflow_prefs,
         "nav_profile": (workflow_prefs.get("nav_profile") or NAV_PROFILE_STANDARD),
+        "zero_stock_enabled": is_zero_stock_enabled(doc.name),
     }
 
 

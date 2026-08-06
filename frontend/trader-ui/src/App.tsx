@@ -83,6 +83,7 @@ const CompanySettingsAdminPage = lazy(() => import('./pages/CompanySettingsAdmin
 const FiscalYearPage = lazy(() => import('./pages/FiscalYearPage'));
 const WarehouseManagementPage = lazy(() => import('./pages/WarehouseManagementPage'));
 const AccountingSettingsPage = lazy(() => import('./pages/AccountingSettingsPage'));
+const TradingEntitiesPage = lazy(() => import('./pages/TradingEntitiesPage'));
 const PosCheckoutPage = lazy(() => import('./pages/PosCheckoutPage'));
 
 /* ---------- components-trading feature pages (flag-gated) ---------- */
@@ -264,6 +265,7 @@ export default function App() {
         <Route path="settings/admin/fiscal-year" element={<GatedRoute capability="settings:view" module="settings"><FiscalYearPage /></GatedRoute>} />
         <Route path="settings/admin/warehouses" element={<GatedRoute capability="settings:view" module="settings"><WarehouseManagementPage /></GatedRoute>} />
         <Route path="settings/admin/accounting" element={<GatedRoute capability="settings:view" module="settings"><AccountingSettingsPage /></GatedRoute>} />
+        <Route path="settings/admin/trading-entities" element={<GatedRoute capability="settings:view" module="trading_entity" requiresTradingEntity><TradingEntitiesPage /></GatedRoute>} />
         <Route path="print" element={<DocumentPrintPage />} />
       </Route>
       <Route path="*" element={<NotFoundPage />} />

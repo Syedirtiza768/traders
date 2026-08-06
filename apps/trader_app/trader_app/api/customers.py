@@ -27,13 +27,15 @@ def _parse_dict(value):
     return {}
 
 
-def _set_trader_party_fields(doc, short_code=None, opening_balance=None, dba=None):
+def _set_trader_party_fields(doc, short_code=None, opening_balance=None, dba=None, trading_entity=None):
     if short_code is not None and frappe.db.has_column(doc.doctype, "trader_short_code"):
         doc.trader_short_code = (short_code or "").strip()
     if opening_balance is not None and frappe.db.has_column(doc.doctype, "trader_opening_balance"):
         doc.trader_opening_balance = flt(opening_balance)
     if dba is not None and frappe.db.has_column(doc.doctype, "trader_dba"):
         doc.trader_dba = (dba or "").strip()
+    if trading_entity is not None and frappe.db.has_column(doc.doctype, "trader_trading_entity"):
+        doc.trader_trading_entity = (trading_entity or "").strip() or None
 
 
 def _set_credit_limit(doc, company, credit_limit):
@@ -247,6 +249,11 @@ def get_customers(page=1, page_size=20, search=None, customer_group=None):
 def get_customer_form_setup(company=None):
     """Lookups + pack settings for create/edit forms."""
     from trader_app.api.customer_pack import resolve_customer_pack_settings
+    from trader_app.api.trading_entity import (
+        get_default_entity_name,
+        is_trading_entity_enabled,
+        list_active_options,
+    )
 
     company = resolve_active_company(company)
     settings = resolve_customer_pack_settings(company)
@@ -260,6 +267,8 @@ def get_customer_form_setup(company=None):
         "Territory", filters={"is_group": 0}, pluck="name", order_by="name asc"
     )
     countries = frappe.get_all("Country", pluck="name", order_by="name asc")
+    te_enabled = is_trading_entity_enabled(company)
+    trading_entities = list_active_options(company) if te_enabled else []
     return {
         "company": company,
         "pack": settings,
@@ -267,6 +276,12 @@ def get_customer_form_setup(company=None):
         "territories": territories,
         "countries": countries,
         "customer_groups": get_customer_groups(),
+        "trading_entity": {
+            "enabled": te_enabled,
+            "entities": trading_entities,
+            "default": get_default_entity_name(company) if te_enabled else None,
+            "assignment_required": bool(te_enabled and trading_entities),
+        },
         "defaults": {
             "customer_group": _default_customer_group(),
             "territory": _default_territory(),
@@ -308,6 +323,13 @@ def get_customer_detail(name):
     result["contacts"] = _list_contacts(name)
     from trader_app.api.customer_pack import resolve_customer_pack_settings
     result["pack"] = resolve_customer_pack_settings(company)
+    entity_name = getattr(doc, "trader_trading_entity", None)
+    if entity_name and frappe.db.exists("Trader Trading Entity", entity_name):
+        result["trading_entity_name"] = frappe.db.get_value(
+            "Trader Trading Entity", entity_name, "trading_name"
+        )
+    else:
+        result["trading_entity_name"] = None
     return result
 
 
@@ -350,9 +372,10 @@ def get_customer_transactions(customer, company=None, page=1, page_size=20):
 def create_customer(customer_name, customer_group=None, territory=None, mobile_no=None,
                     email_id=None, short_code=None, opening_balance=None,
                     dba=None, tax_id=None, payment_terms=None, default_currency=None,
-                    credit_limit=None, billing_address=None):
+                    credit_limit=None, billing_address=None, trading_entity=None):
     """Create a Customer record for the Trader UI (extended when Customer pack is on)."""
     from trader_app.api.customer_pack import validate_customer_payload
+    from trader_app.api.trading_entity import validate_customer_trading_entity
 
     company = resolve_active_company()
     billing_address = _parse_dict(billing_address)
@@ -364,6 +387,7 @@ def create_customer(customer_name, customer_group=None, territory=None, mobile_n
         },
         company=company,
     )
+    validate_customer_trading_entity(trading_entity, company=company)
 
     doc = frappe.new_doc("Customer")
     doc.customer_name = customer_name
@@ -371,7 +395,13 @@ def create_customer(customer_name, customer_group=None, territory=None, mobile_n
     doc.territory = territory or _default_territory()
     doc.mobile_no = mobile_no
     doc.email_id = email_id
-    _set_trader_party_fields(doc, short_code=short_code, opening_balance=opening_balance, dba=dba)
+    _set_trader_party_fields(
+        doc,
+        short_code=short_code,
+        opening_balance=opening_balance,
+        dba=dba,
+        trading_entity=trading_entity,
+    )
     _apply_extended_fields(
         doc,
         company,
@@ -391,9 +421,10 @@ def create_customer(customer_name, customer_group=None, territory=None, mobile_n
 def update_customer(name, customer_name=None, customer_group=None, territory=None,
                     mobile_no=None, email_id=None, short_code=None, opening_balance=None,
                     dba=None, tax_id=None, payment_terms=None, default_currency=None,
-                    credit_limit=None, billing_address=None):
+                    credit_limit=None, billing_address=None, trading_entity=None):
     """Update an existing Customer record."""
     from trader_app.api.customer_pack import validate_customer_payload
+    from trader_app.api.trading_entity import validate_customer_trading_entity
 
     company = resolve_active_company()
     billing_address = _parse_dict(billing_address) if billing_address is not None else None
@@ -413,6 +444,9 @@ def update_customer(name, customer_name=None, customer_group=None, territory=Non
                 }
         validate_customer_payload(payload, company=company)
 
+    if trading_entity is not None:
+        validate_customer_trading_entity(trading_entity, company=company)
+
     doc = frappe.get_doc("Customer", name)
     doc.check_permission("write")
 
@@ -426,7 +460,13 @@ def update_customer(name, customer_name=None, customer_group=None, territory=Non
         doc.mobile_no = mobile_no
     if email_id is not None:
         doc.email_id = email_id
-    _set_trader_party_fields(doc, short_code=short_code, opening_balance=opening_balance, dba=dba)
+    _set_trader_party_fields(
+        doc,
+        short_code=short_code,
+        opening_balance=opening_balance,
+        dba=dba,
+        trading_entity=trading_entity,
+    )
     _apply_extended_fields(
         doc,
         company,

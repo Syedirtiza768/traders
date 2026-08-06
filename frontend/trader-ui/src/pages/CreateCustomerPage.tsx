@@ -15,6 +15,7 @@ type FormState = {
   trader_short_code: string;
   trader_opening_balance: string;
   trader_dba: string;
+  trader_trading_entity: string;
   tax_id: string;
   payment_terms: string;
   credit_limit: string;
@@ -35,6 +36,7 @@ const emptyForm = (): FormState => ({
   trader_short_code: '',
   trader_opening_balance: '',
   trader_dba: '',
+  trader_trading_entity: '',
   tax_id: '',
   payment_terms: '',
   credit_limit: '',
@@ -54,6 +56,11 @@ export default function CreateCustomerPage() {
   const [paymentTerms, setPaymentTerms] = useState<string[]>([]);
   const [territories, setTerritories] = useState<string[]>([]);
   const [packProfile, setPackProfile] = useState<Record<string, any>>({});
+  const [tradingEntitySetup, setTradingEntitySetup] = useState<{
+    enabled?: boolean;
+    entities?: { name: string; trading_name: string }[];
+    assignment_required?: boolean;
+  }>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +69,7 @@ export default function CreateCustomerPage() {
     () => Boolean(customerPackEnabled && packProfile.extended_master_fields),
     [customerPackEnabled, packProfile],
   );
+  const tradingEntityEnabled = Boolean(tradingEntitySetup.enabled);
 
   useEffect(() => {
     const load = async () => {
@@ -73,11 +81,13 @@ export default function CreateCustomerPage() {
         setPaymentTerms(setup.payment_terms || []);
         setTerritories(setup.territories || []);
         setPackProfile(setup.pack?.profile || {});
+        setTradingEntitySetup(setup.trading_entity || {});
         setForm((prev) => ({
           ...prev,
           customer_group: setup.defaults?.customer_group || '',
           territory: setup.defaults?.territory || '',
           country: setup.defaults?.country || '',
+          trader_trading_entity: setup.trading_entity?.default || '',
         }));
       } catch (err) {
         console.error('Failed to load customer form setup:', err);
@@ -100,6 +110,10 @@ export default function CreateCustomerPage() {
   const handleSave = async () => {
     if (!form.customer_name.trim()) {
       setError('Customer name is required.');
+      return;
+    }
+    if (tradingEntityEnabled && tradingEntitySetup.assignment_required && !form.trader_trading_entity) {
+      setError('Trading Entity is required.');
       return;
     }
     if (extended && packProfile.require_tax_id && !form.tax_id.trim()) {
@@ -131,6 +145,9 @@ export default function CreateCustomerPage() {
           ? parseFloat(form.trader_opening_balance)
           : undefined,
       };
+      if (tradingEntityEnabled) {
+        payload.trading_entity = form.trader_trading_entity || undefined;
+      }
       if (extended) {
         payload.dba = form.trader_dba || undefined;
         payload.tax_id = form.tax_id || undefined;
@@ -195,6 +212,20 @@ export default function CreateCustomerPage() {
             <input value={form.trader_dba} onChange={(e) => set('trader_dba', e.target.value)} className="input-field" placeholder="Trading name" />
           </Field>
         )}
+        {tradingEntityEnabled ? (
+          <Field label={tradingEntitySetup.assignment_required ? 'Trading Entity *' : 'Trading Entity'}>
+            <SearchableSelect
+              value={form.trader_trading_entity}
+              onChange={(v) => set('trader_trading_entity', v)}
+              options={(tradingEntitySetup.entities || []).map((e) => ({
+                label: e.trading_name,
+                value: e.name,
+              }))}
+              placeholder="Select trading entity"
+              disabled={loading}
+            />
+          </Field>
+        ) : null}
         <Field label="Customer Group">
           <SearchableSelect
             value={form.customer_group}

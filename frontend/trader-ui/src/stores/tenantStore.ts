@@ -26,6 +26,7 @@ export type TenantConfig = {
   enabled_modules?: string[];
   workflow_prefs?: WorkflowPrefs | Record<string, unknown>;
   nav_profile?: string;
+  zero_stock_enabled?: boolean;
 };
 
 interface TenantState {
@@ -39,6 +40,7 @@ interface TenantState {
   load: () => Promise<void>;
   hydrateFromSettings: (tenant: TenantConfig | null | undefined, multitenantEnabled?: boolean) => void;
   isModuleEnabled: (moduleKey: string) => boolean;
+  isZeroStockEnabled: () => boolean;
   getWorkflowPrefs: () => WorkflowPrefs;
   getNavProfile: () => NavProfileId;
   isNavFeatureVisible: (feature?: NavFeatureKey | string) => boolean;
@@ -140,6 +142,12 @@ export const useTenantStore = create<TenantState>((set, get) => ({
     const modules = state.tenant?.enabled_modules;
     if (!modules || modules.length === 0) return DEFAULT_MODULES.includes(moduleKey);
     return modules.includes(moduleKey);
+  },
+
+  isZeroStockEnabled: () => {
+    const state = get();
+    if (!state.enabled) return false;
+    return Boolean(state.tenant?.zero_stock_enabled);
   },
 
   getWorkflowPrefs: () => {

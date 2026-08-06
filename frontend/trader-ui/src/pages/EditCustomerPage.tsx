@@ -15,6 +15,7 @@ type FormState = {
   trader_short_code: string;
   trader_opening_balance: string;
   trader_dba: string;
+  trader_trading_entity: string;
   tax_id: string;
   payment_terms: string;
   credit_limit: string;
@@ -34,6 +35,11 @@ export default function EditCustomerPage() {
   const [paymentTerms, setPaymentTerms] = useState<string[]>([]);
   const [territories, setTerritories] = useState<string[]>([]);
   const [packProfile, setPackProfile] = useState<Record<string, any>>({});
+  const [tradingEntitySetup, setTradingEntitySetup] = useState<{
+    enabled?: boolean;
+    entities?: { name: string; trading_name: string }[];
+    assignment_required?: boolean;
+  }>({});
   const [form, setForm] = useState<FormState>({
     customer_name: '',
     customer_group: '',
@@ -43,6 +49,7 @@ export default function EditCustomerPage() {
     trader_short_code: '',
     trader_opening_balance: '',
     trader_dba: '',
+    trader_trading_entity: '',
     tax_id: '',
     payment_terms: '',
     credit_limit: '',
@@ -61,6 +68,7 @@ export default function EditCustomerPage() {
     () => Boolean(customerPackEnabled && packProfile.extended_master_fields),
     [customerPackEnabled, packProfile],
   );
+  const tradingEntityEnabled = Boolean(tradingEntitySetup.enabled);
 
   useEffect(() => {
     const load = async () => {
@@ -84,6 +92,7 @@ export default function EditCustomerPage() {
         setPaymentTerms(setup.payment_terms || []);
         setTerritories(setup.territories || []);
         setPackProfile(setup.pack?.profile || customer.pack?.profile || {});
+        setTradingEntitySetup(setup.trading_entity || {});
         setForm({
           customer_name: customer.customer_name || '',
           customer_group: customer.customer_group || '',
@@ -95,6 +104,7 @@ export default function EditCustomerPage() {
             ? String(customer.trader_opening_balance)
             : '',
           trader_dba: customer.trader_dba || '',
+          trader_trading_entity: customer.trader_trading_entity || '',
           tax_id: customer.tax_id || '',
           payment_terms: customer.payment_terms || '',
           credit_limit: customer.credit_limit ? String(customer.credit_limit) : '',
@@ -124,6 +134,10 @@ export default function EditCustomerPage() {
       setError('Customer name is required.');
       return;
     }
+    if (tradingEntityEnabled && tradingEntitySetup.assignment_required && !form.trader_trading_entity) {
+      setError('Trading Entity is required.');
+      return;
+    }
 
     setSaving(true);
     setError(null);
@@ -140,6 +154,9 @@ export default function EditCustomerPage() {
           ? parseFloat(form.trader_opening_balance)
           : 0,
       };
+      if (tradingEntityEnabled) {
+        payload.trading_entity = form.trader_trading_entity || '';
+      }
       if (extended) {
         payload.dba = form.trader_dba;
         payload.tax_id = form.tax_id;
@@ -197,6 +214,19 @@ export default function EditCustomerPage() {
             <input value={form.trader_dba} onChange={(e) => set('trader_dba', e.target.value)} className="input-field" />
           </Field>
         )}
+        {tradingEntityEnabled ? (
+          <Field label={tradingEntitySetup.assignment_required ? 'Trading Entity *' : 'Trading Entity'}>
+            <SearchableSelect
+              value={form.trader_trading_entity}
+              onChange={(v) => set('trader_trading_entity', v)}
+              options={(tradingEntitySetup.entities || []).map((e) => ({
+                label: e.trading_name,
+                value: e.name,
+              }))}
+              placeholder="Select trading entity"
+            />
+          </Field>
+        ) : null}
         <Field label="Customer Group">
           <SearchableSelect
             value={form.customer_group}
