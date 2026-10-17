@@ -18,30 +18,28 @@ import json
 
 import frappe
 from frappe import _
-from frappe.utils import nowdate, getdate, flt, cint, today
-
+from frappe.utils import cint, flt, getdate, nowdate, today
 from trader_app.api.company import resolve_active_company
 from trader_app.api.finance import (
     _apply_bank_reference_fields,
     _apply_payment_accounts,
     _resolve_party,
     _resolve_payment_mode,
-    allocate_payment as _allocate_payment,
-    get_open_invoices as _get_open_invoices,
-    record_invoice_payment,
 )
-
+from trader_app.api.finance import allocate_payment as _allocate_payment
+from trader_app.api.finance import get_open_invoices as _get_open_invoices
+from trader_app.api.finance import record_invoice_payment
 
 # ────────────────────────────────────────────────────────────────
 # GUARD
 # ────────────────────────────────────────────────────────────────
 
+
 def _assert_enabled(company):
     enabled = cint(frappe.db.get_value("Company", company, "trader_components_enabled") or 0)
     if not enabled:
         frappe.throw(
-            _("Components Trading feature is not enabled for company {0}. "
-              "Enable it in Settings.").format(company),
+            _("Components Trading feature is not enabled for company {0}. " "Enable it in Settings.").format(company),
             frappe.PermissionError,
         )
 
@@ -49,6 +47,7 @@ def _assert_enabled(company):
 # ────────────────────────────────────────────────────────────────
 # 1.  DAY BOOK
 # ────────────────────────────────────────────────────────────────
+
 
 @frappe.whitelist()
 def get_day_book(company=None, date=None, page=1, page_size=50):
@@ -172,9 +171,12 @@ def get_day_book(company=None, date=None, page=1, page_size=50):
     total = frappe.db.sql(
         f"SELECT COUNT(*) FROM ({voucher_union}) vouchers",
         params,
-    )[0][0]
+    )[
+        0
+    ][0]
 
-    rows = frappe.db.sql(f"""
+    rows = frappe.db.sql(
+        f"""
         SELECT * FROM (
             SELECT v.*,
                 SUM(
@@ -188,7 +190,10 @@ def get_day_book(company=None, date=None, page=1, page_size=50):
         ) ranked
         ORDER BY posted_at ASC
         LIMIT %(page_size)s OFFSET %(offset)s
-    """, {**params, "page_size": page_size, "offset": offset}, as_dict=True)
+    """,
+        {**params, "page_size": page_size, "offset": offset},
+        as_dict=True,
+    )
 
     # Compute totals for the day (unfiltered by page)
     totals = _get_day_totals(company, date)
@@ -207,29 +212,41 @@ def _get_day_totals(company, date):
     """Fast summary totals for the day."""
     params = {"company": company, "date": date}
 
-    sales_total = frappe.db.sql("""
+    sales_total = frappe.db.sql(
+        """
         SELECT COALESCE(SUM(grand_total), 0) FROM `tabSales Invoice`
         WHERE company = %(company)s AND posting_date = %(date)s
           AND docstatus = 1 AND is_return = 0
-    """, params)[0][0]
+    """,
+        params,
+    )[0][0]
 
-    purchase_total = frappe.db.sql("""
+    purchase_total = frappe.db.sql(
+        """
         SELECT COALESCE(SUM(grand_total), 0) FROM `tabPurchase Invoice`
         WHERE company = %(company)s AND posting_date = %(date)s
           AND docstatus = 1 AND is_return = 0
-    """, params)[0][0]
+    """,
+        params,
+    )[0][0]
 
-    cash_in = frappe.db.sql("""
+    cash_in = frappe.db.sql(
+        """
         SELECT COALESCE(SUM(paid_amount), 0) FROM `tabPayment Entry`
         WHERE company = %(company)s AND posting_date = %(date)s
           AND docstatus = 1 AND payment_type = 'Receive'
-    """, params)[0][0]
+    """,
+        params,
+    )[0][0]
 
-    cash_out = frappe.db.sql("""
+    cash_out = frappe.db.sql(
+        """
         SELECT COALESCE(SUM(paid_amount), 0) FROM `tabPayment Entry`
         WHERE company = %(company)s AND posting_date = %(date)s
           AND docstatus = 1 AND payment_type = 'Pay'
-    """, params)[0][0]
+    """,
+        params,
+    )[0][0]
 
     return {
         "total_sales": flt(sales_total),
@@ -243,6 +260,7 @@ def _get_day_totals(company, date):
 # ────────────────────────────────────────────────────────────────
 # 2.  DAY-CLOSE SUMMARY
 # ────────────────────────────────────────────────────────────────
+
 
 @frappe.whitelist()
 def get_day_close_summary(company=None, date=None):
@@ -282,7 +300,8 @@ def get_day_close_summary(company=None, date=None):
 
 def _get_cash_balance(company, as_of_date):
     """Sum of debit - credit on Cash/Bank GL accounts up to as_of_date."""
-    result = frappe.db.sql("""
+    result = frappe.db.sql(
+        """
         SELECT COALESCE(SUM(gl.debit - gl.credit), 0)
         FROM `tabGL Entry` gl
         INNER JOIN `tabAccount` a ON a.name = gl.account
@@ -290,23 +309,35 @@ def _get_cash_balance(company, as_of_date):
           AND gl.is_cancelled = 0
           AND a.account_type IN ('Cash', 'Bank')
           AND gl.posting_date <= %(date)s
-    """, {"company": company, "date": as_of_date})
+    """,
+        {"company": company, "date": as_of_date},
+    )
     return flt(result[0][0]) if result else 0.0
 
 
 def _get_component_stock_value(company, as_of_date=None):
     """Total stock value of component items as of a date (SLE snapshot or current Bin)."""
     as_of_date = getdate(as_of_date or today())
+    from trader_app.api.permissions import company_master_sql_filter
+
+    tenant_filter, tenant_params = company_master_sql_filter("i", company)
+    tenant_condition = "AND {0}".format(tenant_filter) if tenant_filter else ""
+    params = {"company": company, **tenant_params}
     if as_of_date >= getdate(today()):
-        result = frappe.db.sql("""
+        result = frappe.db.sql(
+            f"""
             SELECT COALESCE(SUM(b.stock_value), 0)
             FROM `tabBin` b
             INNER JOIN `tabItem` i ON i.name = b.item_code AND i.trader_component_item = 1
             INNER JOIN `tabWarehouse` w ON w.name = b.warehouse AND w.company = %(company)s
-        """, {"company": company})
+            WHERE 1=1 {tenant_condition}
+        """,
+            params,
+        )
         return flt(result[0][0]) if result else 0.0
 
-    result = frappe.db.sql("""
+    result = frappe.db.sql(
+        f"""
         SELECT COALESCE(SUM(sub.stock_value), 0)
         FROM (
             SELECT sle.stock_value,
@@ -319,31 +350,44 @@ def _get_component_stock_value(company, as_of_date=None):
             INNER JOIN `tabWarehouse` w ON w.name = sle.warehouse AND w.company = %(company)s
             WHERE sle.company = %(company)s
               AND sle.posting_date <= %(as_of_date)s
+              {tenant_condition}
         ) sub
         WHERE sub.rn = 1
-    """, {"company": company, "as_of_date": as_of_date})
+    """,
+        {**params, "as_of_date": as_of_date},
+    )
     return flt(result[0][0]) if result else 0.0
 
 
 def _get_party_opening_balance(party_type, party):
     if not frappe.db.has_column(party_type, "trader_opening_balance"):
         return 0.0
+    frappe.get_doc(party_type, party).check_permission("read")
     return flt(frappe.db.get_value(party_type, party, "trader_opening_balance") or 0)
 
 
-def _get_total_opening_balances(party_type):
+def _get_total_opening_balances(party_type, company=None):
     """Sum of trader_opening_balance across active parties."""
+    if party_type not in ("Customer", "Supplier"):
+        frappe.throw(_("party_type must be Customer or Supplier."))
     if not frappe.db.has_column(party_type, "trader_opening_balance"):
         return 0.0
-    from trader_app.api.permissions import tenant_sql_filter
-    _tf, _tp = tenant_sql_filter("`tab{0}`".format(party_type))
+    from trader_app.api.permissions import company_master_sql_filter, tenant_sql_filter
+
+    if company:
+        _tf, _tp = company_master_sql_filter("p", company)
+    else:
+        _tf, _tp = tenant_sql_filter("p")
     _tenant_cond = f"AND {_tf}" if _tf else ""
-    result = frappe.db.sql(f"""
-        SELECT COALESCE(SUM(trader_opening_balance), 0)
-        FROM `tab{party_type}`
-        WHERE disabled = 0 AND COALESCE(trader_opening_balance, 0) > 0
+    result = frappe.db.sql(
+        f"""
+        SELECT COALESCE(SUM(p.trader_opening_balance), 0)
+        FROM `tab{party_type}` p
+        WHERE p.disabled = 0 AND COALESCE(p.trader_opening_balance, 0) > 0
           {_tenant_cond}
-    """, _tp)
+    """,
+        _tp,
+    )
     return flt(result[0][0]) if result else 0.0
 
 
@@ -354,12 +398,17 @@ def _reduce_opening_balance(party_type, party, amount):
     amount = flt(amount)
     if amount <= 0:
         return 0.0
+    doc = frappe.get_doc(party_type, party)
+    doc.check_permission("write")
     current = _get_party_opening_balance(party_type, party)
     if current <= 0:
         return 0.0
     applied = min(amount, current)
     frappe.db.set_value(
-        party_type, party, "trader_opening_balance", flt(current) - applied,
+        party_type,
+        party,
+        "trader_opening_balance",
+        flt(current) - applied,
     )
     return applied
 
@@ -367,28 +416,35 @@ def _reduce_opening_balance(party_type, party, amount):
 def _get_total_outstanding(company, party_type, as_of_date):
     """Total outstanding AR (Customers) or AP (Suppliers), incl. opening balances."""
     if party_type == "Customer":
-        result = frappe.db.sql("""
+        result = frappe.db.sql(
+            """
             SELECT COALESCE(SUM(outstanding_amount), 0)
             FROM `tabSales Invoice`
             WHERE company = %(company)s AND docstatus = 1
               AND outstanding_amount > 0
               AND posting_date <= %(date)s
-        """, {"company": company, "date": as_of_date})
+        """,
+            {"company": company, "date": as_of_date},
+        )
     else:
-        result = frappe.db.sql("""
+        result = frappe.db.sql(
+            """
             SELECT COALESCE(SUM(outstanding_amount), 0)
             FROM `tabPurchase Invoice`
             WHERE company = %(company)s AND docstatus = 1
               AND outstanding_amount > 0
               AND posting_date <= %(date)s
-        """, {"company": company, "date": as_of_date})
+        """,
+            {"company": company, "date": as_of_date},
+        )
     invoice_total = flt(result[0][0]) if result else 0.0
-    return invoice_total + _get_total_opening_balances(party_type)
+    return invoice_total + _get_total_opening_balances(party_type, company)
 
 
 # ────────────────────────────────────────────────────────────────
 # 3.  STOCK VALUATION (grouped, notebook-style)
 # ────────────────────────────────────────────────────────────────
+
 
 @frappe.whitelist()
 def get_component_stock_valuation(company=None, as_of_date=None):
@@ -404,11 +460,13 @@ def get_component_stock_valuation(company=None, as_of_date=None):
     _assert_enabled(company)
     as_of_date = as_of_date or today()
 
-    from trader_app.api.permissions import tenant_sql_filter
-    _tf, _tp = tenant_sql_filter("i")
+    from trader_app.api.permissions import company_master_sql_filter
+
+    _tf, _tp = company_master_sql_filter("i", company)
     _tenant_cond = f"AND {_tf}" if _tf else ""
 
-    rows = frappe.db.sql(f"""
+    rows = frappe.db.sql(
+        f"""
         SELECT
             i.item_code, i.item_name,
             i.trader_component_category AS category,
@@ -429,7 +487,10 @@ def get_component_stock_valuation(company=None, as_of_date=None):
           {_tenant_cond}
         GROUP BY i.item_code
         ORDER BY i.trader_component_category, i.trader_component_capacity, i.trader_component_grade
-    """, {"company": company, **_tp}, as_dict=True)
+    """,
+        {"company": company, **_tp},
+        as_dict=True,
+    )
 
     # Group into notebook-style structure
     groups_map = {}
@@ -468,6 +529,7 @@ def get_component_stock_valuation(company=None, as_of_date=None):
 # 4.  IN-COMING (AR) / OUT-GOING (AP) LISTS
 # ────────────────────────────────────────────────────────────────
 
+
 @frappe.whitelist()
 def get_incoming(company=None, page=1, page_size=20, search=None):
     """AR — customers with outstanding receivable balances (In-Coming money)."""
@@ -482,21 +544,20 @@ def get_incoming(company=None, page=1, page_size=20, search=None):
     params = {"company": company}
     if search:
         search_cond = (
-            "AND (c.name LIKE %(search)s OR c.customer_name LIKE %(search)s "
-            "OR c.trader_short_code LIKE %(search)s)"
+            "AND (c.name LIKE %(search)s OR c.customer_name LIKE %(search)s " "OR c.trader_short_code LIKE %(search)s)"
         )
         params["search"] = f"%{search}%"
 
-    from trader_app.api.permissions import tenant_sql_filter
-    _tf, _tp = tenant_sql_filter("c")
+    from trader_app.api.permissions import company_master_sql_filter
+
+    _tf, _tp = company_master_sql_filter("c", company)
     tenant_cond = f"AND {_tf}" if _tf else ""
     params.update(_tp)
 
-    having = (
-        "COALESCE(SUM(si.outstanding_amount), 0) + COALESCE(c.trader_opening_balance, 0) > 0"
-    )
+    having = "COALESCE(SUM(si.outstanding_amount), 0) + COALESCE(c.trader_opening_balance, 0) > 0"
 
-    total = frappe.db.sql(f"""
+    total = frappe.db.sql(
+        f"""
         SELECT COUNT(*) FROM (
             SELECT c.name
             FROM `tabCustomer` c
@@ -507,14 +568,16 @@ def get_incoming(company=None, page=1, page_size=20, search=None):
              AND si.outstanding_amount > 0
             WHERE c.disabled = 0
               {search_cond}
-          {tenant_cond}
               {tenant_cond}
             GROUP BY c.name, c.customer_name, c.trader_short_code, c.trader_opening_balance
             HAVING {having}
         ) parties
-    """, params)[0][0]
+    """,
+        params,
+    )[0][0]
 
-    rows = frappe.db.sql(f"""
+    rows = frappe.db.sql(
+        f"""
         SELECT
             c.name AS party,
             c.customer_name,
@@ -537,9 +600,13 @@ def get_incoming(company=None, page=1, page_size=20, search=None):
         HAVING {having}
         ORDER BY total_outstanding DESC
         LIMIT %(page_size)s OFFSET %(offset)s
-    """, {**params, "page_size": page_size, "offset": offset}, as_dict=True)
+    """,
+        {**params, "page_size": page_size, "offset": offset},
+        as_dict=True,
+    )
 
-    grand_total = frappe.db.sql(f"""
+    grand_total = frappe.db.sql(
+        f"""
         SELECT COALESCE(SUM(party_total), 0) FROM (
             SELECT
                 COALESCE(SUM(si.outstanding_amount), 0)
@@ -552,12 +619,13 @@ def get_incoming(company=None, page=1, page_size=20, search=None):
              AND si.outstanding_amount > 0
             WHERE c.disabled = 0
               {search_cond}
-          {tenant_cond}
               {tenant_cond}
             GROUP BY c.name, c.trader_opening_balance
             HAVING {having}
         ) totals
-    """, params)[0][0]
+    """,
+        params,
+    )[0][0]
 
     return {
         "data": rows,
@@ -582,21 +650,20 @@ def get_outgoing(company=None, page=1, page_size=20, search=None):
     params = {"company": company}
     if search:
         search_cond = (
-            "AND (s.name LIKE %(search)s OR s.supplier_name LIKE %(search)s "
-            "OR s.trader_short_code LIKE %(search)s)"
+            "AND (s.name LIKE %(search)s OR s.supplier_name LIKE %(search)s " "OR s.trader_short_code LIKE %(search)s)"
         )
         params["search"] = f"%{search}%"
 
-    from trader_app.api.permissions import tenant_sql_filter
-    _tf, _tp = tenant_sql_filter("s")
+    from trader_app.api.permissions import company_master_sql_filter
+
+    _tf, _tp = company_master_sql_filter("s", company)
     tenant_cond = f"AND {_tf}" if _tf else ""
     params.update(_tp)
 
-    having = (
-        "COALESCE(SUM(pi.outstanding_amount), 0) + COALESCE(s.trader_opening_balance, 0) > 0"
-    )
+    having = "COALESCE(SUM(pi.outstanding_amount), 0) + COALESCE(s.trader_opening_balance, 0) > 0"
 
-    total = frappe.db.sql(f"""
+    total = frappe.db.sql(
+        f"""
         SELECT COUNT(*) FROM (
             SELECT s.name
             FROM `tabSupplier` s
@@ -607,14 +674,16 @@ def get_outgoing(company=None, page=1, page_size=20, search=None):
              AND pi.outstanding_amount > 0
             WHERE s.disabled = 0
               {search_cond}
-          {tenant_cond}
               {tenant_cond}
             GROUP BY s.name, s.supplier_name, s.trader_short_code, s.trader_opening_balance
             HAVING {having}
         ) parties
-    """, params)[0][0]
+    """,
+        params,
+    )[0][0]
 
-    rows = frappe.db.sql(f"""
+    rows = frappe.db.sql(
+        f"""
         SELECT
             s.name AS party,
             s.supplier_name,
@@ -637,9 +706,13 @@ def get_outgoing(company=None, page=1, page_size=20, search=None):
         HAVING {having}
         ORDER BY total_outstanding DESC
         LIMIT %(page_size)s OFFSET %(offset)s
-    """, {**params, "page_size": page_size, "offset": offset}, as_dict=True)
+    """,
+        {**params, "page_size": page_size, "offset": offset},
+        as_dict=True,
+    )
 
-    grand_total = frappe.db.sql(f"""
+    grand_total = frappe.db.sql(
+        f"""
         SELECT COALESCE(SUM(party_total), 0) FROM (
             SELECT
                 COALESCE(SUM(pi.outstanding_amount), 0)
@@ -652,12 +725,13 @@ def get_outgoing(company=None, page=1, page_size=20, search=None):
              AND pi.outstanding_amount > 0
             WHERE s.disabled = 0
               {search_cond}
-          {tenant_cond}
               {tenant_cond}
             GROUP BY s.name, s.trader_opening_balance
             HAVING {having}
         ) totals
-    """, params)[0][0]
+    """,
+        params,
+    )[0][0]
 
     return {
         "data": rows,
@@ -672,12 +746,20 @@ def get_outgoing(company=None, page=1, page_size=20, search=None):
 # 5.  SETTLE PARTY (one-tap payment with FIFO allocation)
 # ────────────────────────────────────────────────────────────────
 
-def _create_settlement_payment(party_type, party, amount, company, posting_date=None,
-                               mode_of_payment=None, settlement_account=None,
-                               allocations=None):
+
+def _create_settlement_payment(
+    party_type,
+    party,
+    amount,
+    company,
+    posting_date=None,
+    mode_of_payment=None,
+    settlement_account=None,
+    allocations=None,
+):
     """Create and submit a Payment Entry with invoice allocation."""
     payment_type = "Receive" if party_type == "Customer" else "Pay"
-    party = _resolve_party(party_type, party)
+    party = _resolve_party(party_type, party, company=company)
     mode_of_payment = _resolve_payment_mode(mode_of_payment or "Cash")
     posting_date = posting_date or nowdate()
 
@@ -704,16 +786,22 @@ def _create_settlement_payment(party_type, party, amount, company, posting_date=
     )
 
     unallocated_after_invoices = _allocate_payment(
-        doc, party_type, party, company, amount, allocations=allocations,
+        doc,
+        party_type,
+        party,
+        company,
+        amount,
+        allocations=allocations,
     )
-    opening_applied = _reduce_opening_balance(party_type, party, unallocated_after_invoices)
-    unallocated = flt(unallocated_after_invoices) - flt(opening_applied)
-
     fallback = doc.references[0].reference_name if doc.get("references") else party
     _apply_bank_reference_fields(doc, fallback_reference=fallback)
 
     doc.insert(ignore_permissions=False)
     doc.submit()
+    # Apply the legacy opening balance only after the Payment Entry has passed
+    # ERPNext validation and successfully submitted.
+    opening_applied = _reduce_opening_balance(party_type, party, unallocated_after_invoices)
+    unallocated = flt(unallocated_after_invoices) - flt(opening_applied)
     frappe.db.commit()
 
     return {
@@ -727,8 +815,16 @@ def _create_settlement_payment(party_type, party, amount, company, posting_date=
 
 
 @frappe.whitelist()
-def settle_party(party_type, party, amount, mode_of_payment="Cash", company=None,
-                 posting_date=None, settlement_account=None, allocations=None):
+def settle_party(
+    party_type,
+    party,
+    amount,
+    mode_of_payment="Cash",
+    company=None,
+    posting_date=None,
+    settlement_account=None,
+    allocations=None,
+):
     """Create and submit a Payment Entry to settle a party's balance.
 
     When ``allocations`` is provided, applies those invoice rows; otherwise FIFO.
@@ -766,7 +862,7 @@ def get_party_open_invoices(party_type, party, company=None):
     if party_type not in ("Customer", "Supplier"):
         frappe.throw(_("party_type must be Customer or Supplier."))
 
-    party = _resolve_party(party_type, party)
+    party = _resolve_party(party_type, party, company=company)
     rows = _get_open_invoices(party_type, party, company)
     total = sum(flt(row.outstanding_amount) for row in rows)
 
@@ -796,21 +892,24 @@ def find_or_create_party(party_type, party_name, short_code=None, company=None):
     if short_code and frappe.db.has_column(party_type, "trader_short_code"):
         existing = frappe.db.get_value(party_type, {"trader_short_code": short_code}, "name")
         if existing:
+            existing = _resolve_party(party_type, existing, company=company)
             return {"party": existing, "created": False}
 
     if not party_name:
         frappe.throw(_("Party name is required to create a new {0}.").format(party_type))
 
     try:
-        return {"party": _resolve_party(party_type, party_name), "created": False}
+        return {"party": _resolve_party(party_type, party_name, company=company), "created": False}
     except frappe.ValidationError:
         pass
 
     if party_type == "Customer":
         from trader_app.api.customers import create_customer
+
         result = create_customer(party_name)
     else:
         from trader_app.api.suppliers import create_supplier
+
         result = create_supplier(party_name)
 
     party = result["name"]
@@ -822,10 +921,20 @@ def find_or_create_party(party_type, party_name, short_code=None, company=None):
 
 
 @frappe.whitelist()
-def post_day_transaction(tx_type, party, lines=None, amount=0, mode_of_payment="Cash",
-                         posting_date=None, company=None, record_payment=0,
-                         payment_amount=None, settlement_account=None, invoice_type=None,
-                         allocations=None):
+def post_day_transaction(
+    tx_type,
+    party,
+    lines=None,
+    amount=0,
+    mode_of_payment="Cash",
+    posting_date=None,
+    company=None,
+    record_payment=0,
+    payment_amount=None,
+    settlement_account=None,
+    invoice_type=None,
+    allocations=None,
+):
     """Post a day-book transaction: sale, purchase, payment_in, or payment_out."""
     company = resolve_active_company(company)
     _assert_enabled(company)
@@ -870,7 +979,7 @@ def post_day_transaction(tx_type, party, lines=None, amount=0, mode_of_payment="
     party_type = "Customer" if tx_type == "sale" else "Supplier"
     if not party or not party.strip():
         frappe.throw(_("Select a {0}.").format(party_type.lower()))
-    party = _resolve_party(party_type, party)
+    party = _resolve_party(party_type, party, company=company)
 
     if tx_type == "sale":
         from trader_app.api.sales import create_sales_invoice, submit_sales_invoice
@@ -888,7 +997,10 @@ def post_day_transaction(tx_type, party, lines=None, amount=0, mode_of_payment="
         invoice = frappe.get_doc("Sales Invoice", invoice_result["name"])
         ref_doctype = "Sales Invoice"
     else:
-        from trader_app.api.purchases import create_purchase_invoice, submit_purchase_invoice
+        from trader_app.api.purchases import (
+            create_purchase_invoice,
+            submit_purchase_invoice,
+        )
 
         invoice_result = create_purchase_invoice(
             supplier=party,
@@ -909,9 +1021,7 @@ def post_day_transaction(tx_type, party, lines=None, amount=0, mode_of_payment="
     if cint(record_payment) and outstanding > 0:
         pay_amount = flt(payment_amount) if payment_amount else outstanding
         if pay_amount > outstanding + 0.005:
-            frappe.throw(
-                _("Payment amount {0} exceeds outstanding {1}.").format(pay_amount, outstanding)
-            )
+            frappe.throw(_("Payment amount {0} exceeds outstanding {1}.").format(pay_amount, outstanding))
         pe_result = record_invoice_payment(
             reference_doctype=ref_doctype,
             reference_name=invoice.name,
@@ -935,6 +1045,7 @@ def post_day_transaction(tx_type, party, lines=None, amount=0, mode_of_payment="
         "grand_total": flt(invoice.grand_total),
         "outstanding_amount": outstanding,
     }
+
 
 from trader_app.api._tenant_guard import apply_module_guards
 

@@ -16,13 +16,12 @@ from __future__ import unicode_literals
 
 import frappe
 from frappe.utils import flt, getdate
-
 from trader_app.api.decision_log import log_decision
-
 
 # ────────────────────────────────────────────────────────────────
 # Tax policy resolution
 # ────────────────────────────────────────────────────────────────
+
 
 def _service_matches(policy_flag, is_service):
     if not policy_flag or policy_flag == "any" or is_service is None:
@@ -63,9 +62,18 @@ def resolve_tax_policy(company, context=None, log=True):
     policies = frappe.get_all(
         "Trader Tax Policy",
         filters={"company": company, "is_active": 1},
-        fields=["name", "priority", "tax_mode", "tax_template", "rate",
-                "effective_from", "effective_to", "service_flag",
-                "customer_category", "jurisdiction"],
+        fields=[
+            "name",
+            "priority",
+            "tax_mode",
+            "tax_template",
+            "rate",
+            "effective_from",
+            "effective_to",
+            "service_flag",
+            "customer_category",
+            "jurisdiction",
+        ],
         order_by="priority asc, creation asc",
     )
     if not policies:
@@ -74,13 +82,20 @@ def resolve_tax_policy(company, context=None, log=True):
     match = match_tax_policies(policies, context)
     if log:
         log_decision(
-            "tax", company=company,
+            "tax",
+            company=company,
             outcome="applied" if match else "skipped",
-            message=("Tax policy {0} ({1})".format(match["name"], match["tax_mode"])
-                     if match else "No tax policy matched context"),
+            message=(
+                "Tax policy {0} ({1})".format(match["name"], match["tax_mode"])
+                if match
+                else "No tax policy matched context"
+            ),
             inputs=context,
-            output=(match and {"policy": match["name"], "tax_mode": match["tax_mode"],
-                               "tax_template": match["tax_template"]}) or {},
+            output=(
+                match
+                and {"policy": match["name"], "tax_mode": match["tax_mode"], "tax_template": match["tax_template"]}
+            )
+            or {},
             policy=match["name"] if match else None,
         )
     if not match:
@@ -106,8 +121,9 @@ def apply_tax_policy(doc, method=None):
     context = {
         "date": getattr(doc, "posting_date", None) or getattr(doc, "transaction_date", None),
         "is_service": None,
-        "customer_category": frappe.db.get_value("Customer", doc.customer, "customer_group")
-        if getattr(doc, "customer", None) else None,
+        "customer_category": (
+            frappe.db.get_value("Customer", doc.customer, "customer_group") if getattr(doc, "customer", None) else None
+        ),
         "jurisdiction": None,
     }
     resolved = resolve_tax_policy(company, context)
@@ -121,11 +137,30 @@ def apply_tax_policy(doc, method=None):
         doc.taxes_and_charges = template
         # Mirror ERPNext "inclusive" behavior onto rows when populated later.
         doc.flags.trader_tax_inclusive = resolved["tax_mode"] == "inclusive"
+        _populate_taxes(doc)
+
+
+def _populate_taxes(doc):
+    """Expand the stamped template into tax rows and recalculate totals.
+
+    This hook runs *after* ERPNext's own validate, so merely setting
+    ``taxes_and_charges`` leaves ``taxes`` empty and the totals untaxed. Only a
+    draft with no tax rows yet is touched; a document the user already taxed by
+    hand is left alone.
+    """
+    if getattr(doc, "docstatus", 0) != 0 or doc.get("taxes"):
+        return
+    if not hasattr(doc, "set_taxes") and not hasattr(doc, "run_method"):
+        return
+    doc.run_method("set_taxes")
+    if doc.get("taxes") and hasattr(doc, "calculate_taxes_and_totals"):
+        doc.calculate_taxes_and_totals()
 
 
 # ────────────────────────────────────────────────────────────────
 # Withholding tax resolution
 # ────────────────────────────────────────────────────────────────
+
 
 def resolve_wht(company, party_type, amount, log=True):
     """Resolve applicable WHT for a party type + amount. ``party_type`` is
@@ -146,13 +181,14 @@ def resolve_wht(company, party_type, amount, log=True):
 
     if log:
         log_decision(
-            "wht", company=company,
+            "wht",
+            company=company,
             outcome="applied" if match else "skipped",
-            message=("WHT {0} @ {1}%".format(match["section_code"], match["rate"])
-                     if match else "No WHT policy matched"),
+            message=(
+                "WHT {0} @ {1}%".format(match["section_code"], match["rate"]) if match else "No WHT policy matched"
+            ),
             inputs={"party_type": party_type, "amount": amount},
-            output=(match and {"policy": match["name"],
-                               "wht_amount": flt(amount) * flt(match["rate"]) / 100.0}) or {},
+            output=(match and {"policy": match["name"], "wht_amount": flt(amount) * flt(match["rate"]) / 100.0}) or {},
             policy=match["name"] if match else None,
         )
     if not match:
@@ -172,10 +208,17 @@ def preview_tax(company, posting_date=None, customer=None, is_service=0):
     from trader_app.api.company import resolve_active_company
 
     company = resolve_active_company(company)
+    customer_category = None
+    if customer and frappe.db.exists("Customer", customer):
+        from trader_app.api.permissions import check_master_document_company
+
+        customer_doc = check_master_document_company("Customer", customer, company, ptype="read")
+        customer_category = customer_doc.customer_group
+
     context = {
         "date": posting_date,
         "is_service": bool(int(is_service)) if str(is_service).isdigit() else None,
-        "customer_category": frappe.db.get_value("Customer", customer, "customer_group") if customer else None,
+        "customer_category": customer_category,
         "jurisdiction": None,
     }
     return resolve_tax_policy(company, context, log=False) or {"tax_mode": None, "tax_template": None}

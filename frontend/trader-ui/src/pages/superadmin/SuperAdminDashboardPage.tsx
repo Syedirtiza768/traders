@@ -46,7 +46,7 @@ export default function SuperAdminDashboardPage() {
       />
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         {cards.map(({ label, value, icon: Icon, color }) => (
-          <div key={label} className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+          <div key={label} className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-slate-500">{label}</p>
@@ -58,7 +58,7 @@ export default function SuperAdminDashboardPage() {
         ))}
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+      <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs">
         <h3 className="text-lg font-semibold text-slate-900">Quick actions</h3>
         <p className="text-sm text-slate-500 mt-1 mb-4">
           Provision a new business or review existing tenants.

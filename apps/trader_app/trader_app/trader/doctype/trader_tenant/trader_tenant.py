@@ -5,7 +5,6 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 from frappe.utils import now_datetime
-
 from trader_app.api.tenant import (
     DEFAULT_MODULE_ROWS,
     log_tenant_action,
@@ -22,19 +21,11 @@ class TraderTenant(Document):
                 "name",
             )
             if existing:
-                frappe.throw(
-                    _("Company {0} is already linked to tenant {1}.").format(
-                        self.company, existing
-                    )
-                )
+                frappe.throw(_("Company {0} is already linked to tenant {1}.").format(self.company, existing))
 
             company_tenant = frappe.db.get_value("Company", self.company, "trader_tenant")
             if company_tenant and company_tenant != self.name:
-                frappe.throw(
-                    _("Company {0} is already assigned to tenant {1}.").format(
-                        self.company, company_tenant
-                    )
-                )
+                frappe.throw(_("Company {0} is already assigned to tenant {1}.").format(self.company, company_tenant))
 
         if not self.enabled_modules:
             for row in DEFAULT_MODULE_ROWS:

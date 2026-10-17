@@ -21,7 +21,6 @@ import json
 import frappe
 from frappe import _
 from frappe.utils import cint, flt, getdate
-
 from trader_app.api.company import resolve_active_company
 from trader_app.api.tenant import (
     assert_user_limit,
@@ -32,8 +31,8 @@ from trader_app.api.tenant import (
     resolve_active_tenant,
 )
 
-
 # ─── Permission helper ────────────────────────────────────────────────────────
+
 
 def _require_admin():
     """Raise PermissionError unless caller is Trader Admin / System Manager."""
@@ -43,6 +42,41 @@ def _require_admin():
     if not roles.intersection({"System Manager", "Trader Admin"}):
         frappe.throw(
             _("Only Trader Admin or System Manager can access administration settings."),
+            frappe.PermissionError,
+        )
+
+
+def _require_platform_admin():
+    """Restrict globally shared configuration to platform administrators."""
+    if frappe.session.user == "Administrator":
+        return
+    roles = set(frappe.get_roles())
+    if is_super_admin() or "System Manager" in roles:
+        return
+    frappe.throw(
+        _("Only a platform administrator can change global settings."),
+        frappe.PermissionError,
+    )
+
+
+def _assert_user_in_admin_scope(user_doc, tenant=None):
+    """Business administrators may only access users assigned to their tenant."""
+    if tenant and getattr(user_doc, "trader_tenant", None) != tenant:
+        frappe.throw(
+            _("You cannot access users outside your business account."),
+            frappe.PermissionError,
+        )
+
+
+def _assert_assignable_roles(roles, tenant=None):
+    """Prevent business administrators from granting platform-wide roles."""
+    if not tenant:
+        return
+    privileged = {"Administrator", "System Manager", "Trader Super Admin"}
+    blocked = sorted(privileged.intersection(roles or []))
+    if blocked:
+        frappe.throw(
+            _("Business administrators cannot assign platform roles: {0}.").format(", ".join(blocked)),
             frappe.PermissionError,
         )
 
@@ -68,6 +102,7 @@ def _admin_tenant_scope():
 
 # ─── 1. User Management ───────────────────────────────────────────────────────
 
+
 @frappe.whitelist()
 def get_users(search=None, page=1, page_size=20):
     """Paginated list of system users with their key Trader roles."""
@@ -80,9 +115,7 @@ def get_users(search=None, page=1, page_size=20):
     params = {}
 
     if search:
-        conditions.append(
-            "(u.name LIKE %(search)s OR u.full_name LIKE %(search)s OR u.email LIKE %(search)s)"
-        )
+        conditions.append("(u.name LIKE %(search)s OR u.full_name LIKE %(search)s OR u.email LIKE %(search)s)")
         params["search"] = "%{}%".format(search)
 
     tenant = _admin_tenant_scope()
@@ -92,9 +125,7 @@ def get_users(search=None, page=1, page_size=20):
 
     where = " AND ".join(conditions)
 
-    total = frappe.db.sql(
-        "SELECT COUNT(*) FROM `tabUser` u WHERE {}".format(where), params
-    )[0][0]
+    total = frappe.db.sql("SELECT COUNT(*) FROM `tabUser` u WHERE {}".format(where), params)[0][0]
 
     users = frappe.db.sql(
         """
@@ -137,8 +168,7 @@ def get_user_detail(user):
     doc = frappe.get_doc("User", user)
 
     tenant = _admin_tenant_scope()
-    if tenant and getattr(doc, "trader_tenant", None) and doc.trader_tenant != tenant:
-        frappe.throw(_("You cannot view users from another business account."), frappe.PermissionError)
+    _assert_user_in_admin_scope(doc, tenant)
 
     return {
         "name": doc.name,
@@ -172,6 +202,7 @@ def create_user(data=None):
     tenant = _admin_tenant_scope()
     if tenant:
         assert_user_limit(tenant)
+    _assert_assignable_roles(data.get("roles") or [], tenant)
 
     user = frappe.new_doc("User")
     user.email = email
@@ -182,7 +213,7 @@ def create_user(data=None):
     if tenant:
         user.trader_tenant = tenant
 
-    for role in (data.get("roles") or []):
+    for role in data.get("roles") or []:
         if role == "Trader Super Admin" and tenant:
             frappe.throw(_("Business admins cannot assign the Super Admin role."))
         user.append("roles", {"role": role})
@@ -207,8 +238,7 @@ def update_user(data=None):
     doc = frappe.get_doc("User", user_name)
 
     tenant = _admin_tenant_scope()
-    if tenant and getattr(doc, "trader_tenant", None) and doc.trader_tenant != tenant:
-        frappe.throw(_("You cannot modify users from another business account."), frappe.PermissionError)
+    _assert_user_in_admin_scope(doc, tenant)
 
     if "first_name" in data:
         doc.first_name = data["first_name"] or ""
@@ -217,6 +247,7 @@ def update_user(data=None):
 
     # Preserve non-Trader roles; replace Trader roles with the submitted set
     new_roles = set(data.get("roles") or [])
+    _assert_assignable_roles(new_roles, tenant)
     doc.roles = [r for r in doc.roles if not r.role.startswith("Trader ")]
     for role in sorted(new_roles):
         doc.append("roles", {"role": role})
@@ -232,6 +263,8 @@ def set_user_enabled(user, enabled=1):
     _require_admin()
     if user == frappe.session.user:
         frappe.throw(_("You cannot disable your own account."))
+    tenant = _admin_tenant_scope()
+    _assert_user_in_admin_scope(frappe.get_doc("User", user), tenant)
     frappe.db.set_value("User", user, "enabled", cint(enabled))
     frappe.db.commit()
     return {"ok": True}
@@ -239,10 +272,14 @@ def set_user_enabled(user, enabled=1):
 
 # ─── 2. Role Management ───────────────────────────────────────────────────────
 
+
 @frappe.whitelist()
 def get_all_roles():
     """All roles in the system, Trader roles listed first."""
     _require_admin()
+    conditions = ["name NOT IN ('Guest', 'All', 'Administrator')"]
+    if _admin_tenant_scope():
+        conditions.append("name NOT IN ('System Manager', 'Trader Super Admin')")
     return frappe.db.sql(
         """
         SELECT name,
@@ -250,12 +287,12 @@ def get_all_roles():
                IFNULL(desk_access, 0) AS desk_access,
                IFNULL(is_custom, 0) AS is_custom
         FROM `tabRole`
-        WHERE name NOT IN ('Guest', 'All', 'Administrator')
+        WHERE {conditions}
         ORDER BY
             CASE WHEN name LIKE 'Trader %%' THEN 0 ELSE 1 END,
             disabled ASC,
             name ASC
-        """,
+        """.format(conditions=" AND ".join(conditions)),
         as_dict=True,
     )
 
@@ -264,17 +301,25 @@ def get_all_roles():
 def get_role_users(role):
     """Return all users who currently hold the specified role."""
     _require_admin()
+    conditions = [
+        "hr.role = %s",
+        "hr.parenttype = 'User'",
+        "u.user_type != 'Website User'",
+    ]
+    params = [role]
+    tenant = _admin_tenant_scope()
+    if tenant:
+        conditions.append("u.trader_tenant = %s")
+        params.append(tenant)
     return frappe.db.sql(
         """
         SELECT u.name, u.full_name, u.email, u.enabled
         FROM `tabHas Role` hr
         INNER JOIN `tabUser` u ON u.name = hr.parent
-        WHERE hr.role = %s
-          AND hr.parenttype = 'User'
-          AND u.user_type != 'Website User'
+        WHERE {conditions}
         ORDER BY u.full_name
-        """,
-        (role,),
+        """.format(conditions=" AND ".join(conditions)),
+        tuple(params),
         as_dict=True,
     )
 
@@ -284,6 +329,9 @@ def assign_role_to_user(user, role):
     """Assign a role to a user if they don't already have it."""
     _require_admin()
     doc = frappe.get_doc("User", user)
+    tenant = _admin_tenant_scope()
+    _assert_user_in_admin_scope(doc, tenant)
+    _assert_assignable_roles([role], tenant)
     existing = {r.role for r in doc.roles}
     if role not in existing:
         doc.append("roles", {"role": role})
@@ -297,6 +345,7 @@ def remove_role_from_user(user, role):
     """Remove a role from a user."""
     _require_admin()
     doc = frappe.get_doc("User", user)
+    _assert_user_in_admin_scope(doc, _admin_tenant_scope())
     doc.roles = [r for r in doc.roles if r.role != role]
     doc.save(ignore_permissions=True)
     frappe.db.commit()
@@ -304,6 +353,7 @@ def remove_role_from_user(user, role):
 
 
 # ─── 3. Company Settings ──────────────────────────────────────────────────────
+
 
 @frappe.whitelist()
 def get_company_settings(company=None):
@@ -317,16 +367,17 @@ def get_company_settings(company=None):
         "country": doc.country or "",
         "default_currency": doc.default_currency or "",
         "domain": doc.domain or "",
-        "phone_no": doc.phone_no or "",
-        "company_email": doc.company_email or "",
-        "website": doc.website or "",
-        "date_of_establishment": str(doc.date_of_establishment or ""),
-        "standard_working_hours": flt(doc.standard_working_hours or 0),
-        "default_cash_account": doc.default_cash_account or "",
-        "default_payable_account": doc.default_payable_account or "",
-        "default_receivable_account": doc.default_receivable_account or "",
-        "round_off_account": doc.round_off_account or "",
-        "payment_terms": doc.payment_terms or "",
+        "phone_no": doc.get("phone_no") or "",
+        # ERPNext keeps the company's e-mail in its "email" field.
+        "company_email": doc.get("email") or "",
+        "website": doc.get("website") or "",
+        "date_of_establishment": str(doc.get("date_of_establishment") or ""),
+        "standard_working_hours": flt(doc.get("standard_working_hours") or 0),
+        "default_cash_account": doc.get("default_cash_account") or "",
+        "default_payable_account": doc.get("default_payable_account") or "",
+        "default_receivable_account": doc.get("default_receivable_account") or "",
+        "round_off_account": doc.get("round_off_account") or "",
+        "payment_terms": doc.get("payment_terms") or "",
     }
 
 
@@ -340,14 +391,22 @@ def save_company_settings(data=None):
     doc = frappe.get_doc("Company", company)
 
     _editable = [
-        "phone_no", "company_email", "website", "date_of_establishment",
-        "standard_working_hours", "default_cash_account",
-        "default_payable_account", "default_receivable_account",
-        "round_off_account", "payment_terms",
+        "phone_no",
+        "company_email",
+        "website",
+        "date_of_establishment",
+        "standard_working_hours",
+        "default_cash_account",
+        "default_payable_account",
+        "default_receivable_account",
+        "round_off_account",
+        "payment_terms",
     ]
     for field in _editable:
         if field in data:
-            setattr(doc, field, data[field] if data[field] is not None else "")
+            # ERPNext keeps the company's e-mail in its "email" field.
+            target = "email" if field == "company_email" else field
+            setattr(doc, target, data[field] if data[field] is not None else "")
 
     doc.save(ignore_permissions=True)
     frappe.db.commit()
@@ -356,19 +415,17 @@ def save_company_settings(data=None):
 
 # ─── 4. Fiscal Year ───────────────────────────────────────────────────────────
 
+
 @frappe.whitelist()
 def get_fiscal_years():
     """All fiscal years with active flag derived from Global Defaults."""
-    _require_admin()
+    _require_platform_admin()
     years = frappe.get_all(
         "Fiscal Year",
         fields=["name", "year_start_date", "year_end_date", "disabled"],
         order_by="year_start_date desc",
     )
-    active = (
-        frappe.db.get_value("Global Defaults", "Global Defaults", "current_fiscal_year")
-        or ""
-    )
+    active = frappe.db.get_value("Global Defaults", "Global Defaults", "current_fiscal_year") or ""
     for y in years:
         y["is_active"] = y["name"] == active
     return years
@@ -377,7 +434,7 @@ def get_fiscal_years():
 @frappe.whitelist()
 def create_fiscal_year(data=None):
     """Create a new fiscal year record."""
-    _require_admin()
+    _require_platform_admin()
     data = _parse(data)
 
     start = data.get("year_start_date")
@@ -398,17 +455,16 @@ def create_fiscal_year(data=None):
 @frappe.whitelist()
 def set_active_fiscal_year(name):
     """Set the active fiscal year in Global Defaults."""
-    _require_admin()
+    _require_platform_admin()
     if not frappe.db.exists("Fiscal Year", name):
         frappe.throw(_("Fiscal year '{0}' not found.").format(name))
-    frappe.db.set_value(
-        "Global Defaults", "Global Defaults", "current_fiscal_year", name
-    )
+    frappe.db.set_value("Global Defaults", "Global Defaults", "current_fiscal_year", name)
     frappe.db.commit()
     return {"ok": True}
 
 
 # ─── 5. Warehouse Management ──────────────────────────────────────────────────
+
 
 @frappe.whitelist()
 def get_warehouses(company=None):
@@ -464,6 +520,12 @@ def update_warehouse(data=None):
         frappe.throw(_("Warehouse name is required."))
 
     doc = frappe.get_doc("Warehouse", wh_name)
+    if _admin_tenant_scope() and not doc.company:
+        frappe.throw(
+            _("Business administrators cannot update a warehouse without a company."),
+            frappe.PermissionError,
+        )
+    resolve_active_company(doc.company)
     if "city" in data:
         doc.city = data["city"] or ""
     if "warehouse_type" in data:
@@ -477,10 +539,11 @@ def update_warehouse(data=None):
 
 # ─── 6. Accounting Settings ───────────────────────────────────────────────────
 
+
 @frappe.whitelist()
 def get_accounting_settings():
     """Return the ERPNext Accounts Settings singleton."""
-    _require_admin()
+    _require_platform_admin()
     doc = frappe.get_doc("Accounts Settings")
 
     def _bool(field):
@@ -518,7 +581,7 @@ def get_accounting_settings():
 @frappe.whitelist()
 def save_accounting_settings(data=None):
     """Persist changes to the Accounts Settings singleton."""
-    _require_admin()
+    _require_platform_admin()
     data = _parse(data)
 
     doc = frappe.get_doc("Accounts Settings")
@@ -549,6 +612,7 @@ def save_accounting_settings(data=None):
     doc.save(ignore_permissions=True)
     frappe.db.commit()
     return {"ok": True, "message": "Accounting settings saved."}
+
 
 from trader_app.api._tenant_guard import apply_module_guards
 

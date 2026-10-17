@@ -312,6 +312,19 @@ export const salesApi = {
   createDeliveryNote: (data: Record<string, any>) =>
     call('trader_app.api.sales.create_delivery_note', data),
 
+  createChallanFromOrder: (order: string) =>
+    call('trader_app.api.sales.create_delivery_challan_from_order', { order }),
+
+  getOrderStockPosition: (order: string) =>
+    get('trader_app.api.back_to_back.get_order_stock_position', { order }),
+
+  createPurchaseOrderForOrder: (order: string, supplier: string, rates?: Record<string, number>) =>
+    call('trader_app.api.back_to_back.create_purchase_order_for_order', { order, supplier, rates: rates ? JSON.stringify(rates) : undefined }),
+
+  /** Post the goods receipt of a purchase order bought for this order, so the stock is on hand. */
+  receivePurchaseOrderForOrder: (order: string, purchaseOrder: string) =>
+    call('trader_app.api.back_to_back.receive_purchase_order_for_order', { order, purchase_order: purchaseOrder }),
+
   submitDeliveryNote: (name: string) =>
     call('trader_app.api.sales.submit_delivery_note', { name }),
 
@@ -353,8 +366,8 @@ export const opportunityApi = {
   update: (name: string, data: Record<string, any>) =>
     call('trader_app.api.opportunity.update_opportunity', { name, data }),
 
-  close: (name: string, close_stage: string) =>
-    call('trader_app.api.opportunity.close_opportunity', { name, close_stage }),
+  close: (name: string, close_stage: string, close_reason?: string) =>
+    call('trader_app.api.opportunity.close_opportunity', { name, close_stage, close_reason }),
 
   reopen: (name: string) =>
     call('trader_app.api.opportunity.reopen_opportunity', { name }),
@@ -400,12 +413,22 @@ export const opportunityApi = {
     opportunity: string;
     source_quotation?: string;
     customer_po_no?: string;
+    /** `{ "<line>": <option> }`: the option the customer accepted per line. */
+    selected_options?: Record<string, number>;
+    /** Quote line numbers this customer PO covers; the rest of the quotation stays for other POs. */
+    lines?: number[];
   }) => call('trader_app.api.opportunity.create_order_confirmation', params),
 
-  createDeliveryNote: (opportunity: string, source_oc?: string) =>
+  /** Lines of an Order Confirmation with what is still to deliver on each (the challan line picker). */
+  deliveryPlan: (opportunity: string, source_oc?: string) =>
+    get('trader_app.api.opportunity.get_delivery_plan_for_opportunity', { opportunity, source_oc }),
+
+  /** `lines`: the Order Confirmation line numbers this challan covers; omit to cover every line. */
+  createDeliveryNote: (opportunity: string, source_oc?: string, lines?: number[]) =>
     call('trader_app.api.opportunity.create_delivery_note_for_opportunity', {
       opportunity,
       source_oc,
+      lines,
     }),
 
   listInvoiceableDeliveryNotes: (opportunity: string) =>
@@ -418,18 +441,71 @@ export const opportunityApi = {
     auto_submit?: 0 | 1;
   }) => call('trader_app.api.opportunity.create_invoice_for_opportunity', params),
 
-  saveCommercialOptions: (doctype: string, name: string, commercial_options: unknown) =>
+  saveCommercialOptions: (doctype: string, name: string, commercial_options: unknown, expectedModified?: string) =>
     call('trader_app.api.opportunity.save_commercial_options', {
       doctype,
       name,
       commercial_options,
+      expected_modified: expectedModified || undefined,
     }),
+
+  duplicateQuotation: (name: string, forceNew = false, company?: string) =>
+    call('trader_app.api.opportunity.duplicate_quotation_for_opportunity', {
+      name,
+      force_new: forceNew ? 1 : 0,
+      company,
+    }),
+
+  createReturnDeliveryNote: (deliveryNote: string, company?: string) =>
+    call('trader_app.api.opportunity.create_return_delivery_note', { delivery_note: deliveryNote, company }),
+
+  getReconciliation: (opportunity: string, company?: string) =>
+    get('trader_app.api.reconciliation.get_opportunity_reconciliation', { opportunity, company }),
+
+  getFulfilment: (opportunity: string) =>
+    get('trader_app.api.fulfilment.get_fulfilment_progress', { opportunity }),
 
   toggleFeature: (enabled: boolean, company?: string) =>
     call('trader_app.api.settings.toggle_opportunity_feature', { enabled: enabled ? 1 : 0, company }),
 };
 
 // ─── Customer AR API (AR-DOC) ────────────────────────────────────
+
+export type GatePassItem = { item_code: string; qty: number };
+
+export const gatePassApi = {
+  dispatchStatus: (deliveryNote: string) =>
+    get('trader_app.api.gate_pass.get_dispatch_status', { delivery_note: deliveryNote }),
+
+  list: (params?: { company?: string; delivery_note?: string; opportunity?: string; status?: string }) =>
+    get('trader_app.api.gate_pass.list_gate_passes', params),
+
+  create: (params: {
+    delivery_note: string;
+    items?: GatePassItem[];
+    vehicle_no?: string;
+    driver_name?: string;
+    driver_phone?: string;
+    received_by?: string;
+    remarks?: string;
+  }) => call('trader_app.api.gate_pass.create_gate_pass', params),
+
+  cancel: (name: string) => call('trader_app.api.gate_pass.cancel_gate_pass', { name }),
+};
+
+export const arTrackerApi = {
+  invoicePayments: (params?: {
+    company?: string;
+    customer?: string;
+    opportunity?: string;
+    as_of?: string;
+    status?: string;
+    include_settled?: 0 | 1;
+  }) => get('trader_app.api.ar_tracking.get_invoice_payment_tracker', params),
+
+  invoicePaymentHistory: (invoice: string) =>
+    get('trader_app.api.ar_tracking.get_invoice_payment_history', { invoice }),
+};
 
 export const arApi = {
   getSettings: (company?: string) =>
@@ -662,6 +738,13 @@ export const suppliersApi = {
     call('trader_app.api.suppliers.disable_supplier', { name }),};
 
 // ─── Finance API ─────────────────────────────────────────────────
+
+export const approvalsApi = {
+  getStatus: (doctype: string, name: string) =>
+    get('trader_app.api.approvals.get_approval_status', { doctype, name }),
+  approve: (doctype: string, name: string, reason: string) =>
+    call('trader_app.api.approvals.approve', { doctype, name, reason }),
+};
 
 export const financeApi = {
   getPaymentEntries: (params?: Record<string, any>) =>

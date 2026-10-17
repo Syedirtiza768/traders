@@ -35,9 +35,9 @@ class BaseGenerator:
     def run(self):
         """Execute the generator with progress tracking."""
         self.start_time = now_datetime()
-        print(f"\n{'='*60}")
+        print("\n" + "=" * 60)
         print(f"🔄 Starting: {self.name} Generator")
-        print(f"{'='*60}")
+        print("=" * 60)
 
         try:
             self.generate()
@@ -47,10 +47,7 @@ class BaseGenerator:
         except Exception as e:
             self.errors.append(str(e))
             print(f"❌ {self.name}: Failed — {str(e)}")
-            frappe.log_error(
-                message=frappe.get_traceback(),
-                title=f"Demo Seed Error: {self.name}"
-            )
+            frappe.log_error(message=frappe.get_traceback(), title=f"Demo Seed Error: {self.name}")
             raise
 
     def run_validation(self):

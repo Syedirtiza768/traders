@@ -222,7 +222,7 @@ export default function CreateJournalEntryPage() {
                   type="button"
                   onClick={() => applyTemplate(template.key)}
                   disabled={loadingAccounts}
-                  className={`rounded-xl border bg-white p-4 text-left transition hover:border-brand-300 hover:shadow-sm disabled:opacity-60 ${activeTemplate === template.key ? 'border-brand-300 ring-1 ring-brand-200' : 'border-gray-200'}`}
+                  className={`rounded-xl border bg-white p-4 text-left transition hover:border-brand-300 hover:shadow-xs disabled:opacity-60 ${activeTemplate === template.key ? 'border-brand-300 ring-1 ring-brand-200' : 'border-gray-200'}`}
                 >
                   <div className="text-sm font-semibold text-gray-900">{template.label}</div>
                   <div className="mt-1 text-xs leading-5 text-gray-500">{template.description}</div>
@@ -241,7 +241,7 @@ export default function CreateJournalEntryPage() {
                 checked={syncPairedAmounts}
                 onChange={(e) => setSyncPairedAmounts(e.target.checked)}
                 disabled={lines.length !== 2}
-                className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-3 focus:ring-brand-500"
               />
               <span>
                 Sync paired amounts for two-line entries

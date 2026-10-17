@@ -12,6 +12,7 @@ import {
   User,
 } from 'lucide-react';
 import { salesApi, opportunityApi, inventoryApi } from '../lib/api';
+import ApprovalPanel from '../components/ApprovalPanel';
 import { appendPreservedListQuery, extractFrappeError, formatCurrency, formatDate, getActiveCurrency, isOperationsContext } from '../lib/utils';
 import { PageHeader, LoadingBlock, AlertBanner, StatusBadge } from '../components/ui';
 import CommercialHierarchyEditor, { type CreatedHierarchyItem } from '../components/CommercialHierarchyEditor';
@@ -35,6 +36,7 @@ export default function QuotationDetailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [revising, setRevising] = useState(false);
+  const [duplicating, setDuplicating] = useState(false);
   const [savingOrder, setSavingOrder] = useState(false);
   const [orderDetails, setOrderDetails] = useState<OrderDetails>(orderDetailsFromQuotation(null));
   const [warehouses, setWarehouses] = useState<any[]>([]);
@@ -161,6 +163,27 @@ export default function QuotationDetailPage() {
       setFeedback({ type: 'error', message: extractFrappeError(err, 'Could not create revision.') });
     } finally {
       setRevising(false);
+    }
+  };
+
+  const handleDuplicate = async () => {
+    if (!quotation?.name) return;
+    setDuplicating(true);
+    setFeedback(null);
+    try {
+      const res = await opportunityApi.duplicateQuotation(quotation.name);
+      const created = res.data.message;
+      navigate(
+        appendPreservedListQuery(
+          `/sales/quotations/${encodeURIComponent(created.name)}/edit`,
+          searchParams.get('list'),
+        ),
+      );
+    } catch (err) {
+      console.error('Failed to duplicate quotation:', err);
+      setFeedback({ type: 'error', message: extractFrappeError(err, 'Could not duplicate this quotation.') });
+    } finally {
+      setDuplicating(false);
     }
   };
 
@@ -293,6 +316,11 @@ export default function QuotationDetailPage() {
                 {revising ? 'Creating…' : 'Create Revision'}
               </button>
             )}
+            {quotation.docstatus === 1 && quotation.trader_opportunity && (
+              <button onClick={handleDuplicate} disabled={duplicating} className="btn-secondary disabled:opacity-60">
+                {duplicating ? 'Duplicating…' : 'Duplicate'}
+              </button>
+            )}
             {quotation.docstatus === 1 && (
               <button onClick={handleCancelQuotation} disabled={cancelling} className="btn-danger disabled:opacity-60">
                 {cancelling ? 'Cancelling…' : 'Cancel Quotation'}
@@ -302,6 +330,7 @@ export default function QuotationDetailPage() {
         }
       />
 
+      {quotation && <ApprovalPanel doctype="Quotation" name={quotation.name} />}
       {feedback && (
         <AlertBanner tone={feedback.type === 'success' ? 'success' : 'error'}>{feedback.message}</AlertBanner>
       )}
@@ -370,7 +399,7 @@ export default function QuotationDetailPage() {
         <div className="card">
           <div className="card-header">
             <h2 className="text-lg font-semibold text-gray-900">Preview</h2>
-            <p className="text-sm text-gray-500">Sahamid-style inline print preview (save Order Details / hierarchy first).</p>
+            <p className="text-sm text-gray-500">Inline print preview (save Order Details / hierarchy first).</p>
           </div>
           <div className="card-body p-0">
             <iframe

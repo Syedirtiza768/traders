@@ -41,6 +41,25 @@ def parse_clause_rates(raw):
     return out
 
 
+def template_tax_rate(template_name):
+    """Total ``On Net Total`` rate of a Sales Taxes and Charges Template, or None when unset.
+
+    The printed quotation uses the rate the quoted template will actually charge, so
+    the print, the order and the invoice agree (legacy finding F-12).
+    """
+    if not template_name:
+        return None
+    import frappe
+
+    rows = frappe.get_all(
+        "Sales Taxes and Charges",
+        filters={"parent": template_name, "parenttype": "Sales Taxes and Charges Template"},
+        fields=["rate", "charge_type"],
+    )
+    rates = [flt(row.rate) for row in rows if row.charge_type == "On Net Total"]
+    return sum(rates) if rates else None
+
+
 def compute_commercial_totals(
     net,
     gst_mode="exclusive",
@@ -49,11 +68,18 @@ def compute_commercial_totals(
     rate_clause="usd",
     print_exchange="0",
     clause_rates=None,
+    gst_rate_override=None,
 ):
-    """Return net/GST/WHT/grand + optional FX columns (first-option commercial base)."""
+    """Return net/GST/WHT/grand + optional FX columns (first-option commercial base).
+
+    ``gst_rate_override`` replaces the default goods/services rate when the document
+    carries a tax template. A ``none`` GST mode still means no tax.
+    """
     net = flt(net)
     gst_mode = (gst_mode or "exclusive").lower() or "exclusive"
     gst_rate = resolve_gst_rate(gst_mode, services)
+    if gst_rate and gst_rate_override is not None:
+        gst_rate = flt(gst_rate_override)
     gst_amount = 0.0
     taxable_base = net
     if gst_mode == "exclusive" and gst_rate > 0:
@@ -109,9 +135,7 @@ def snapshot_clause_rates(company=None, as_of=None):
             snapshot[code] = 1.0
         else:
             snapshot[code] = flt(_fetch_exchange_rate(currency, base, as_of, for_selling=True)) or 1.0
-    snapshot["pkr"] = 1.0 if base == "PKR" else flt(
-        _fetch_exchange_rate("PKR", base, as_of, for_selling=True)
-    ) or 1.0
+    snapshot["pkr"] = 1.0 if base == "PKR" else flt(_fetch_exchange_rate("PKR", base, as_of, for_selling=True)) or 1.0
     return snapshot
 
 
@@ -153,6 +177,7 @@ def commercial_totals_for_quotation(doc):
         rate_clause=getattr(doc, "trader_rate_clause", None) or "usd",
         print_exchange=getattr(doc, "trader_print_exchange", "0"),
         clause_rates=getattr(doc, "trader_clause_rates", None),
+        gst_rate_override=template_tax_rate(getattr(doc, "taxes_and_charges", None)),
     )
 
 
@@ -168,6 +193,7 @@ def _whitelist(fn):
 @_whitelist
 def get_clause_rate_snapshot(company=None, as_of=None):
     """API: refresh FX clause rates snapshot for Order Details."""
+    _assert_sales_module_access()
     snap = snapshot_clause_rates(company=company, as_of=as_of)
     return {"clause_rates": snap, "clause_rates_json": json.dumps(snap)}
 
@@ -175,6 +201,7 @@ def get_clause_rate_snapshot(company=None, as_of=None):
 @_whitelist
 def get_customer_credit_check(customer, company=None, quote_amount=0):
     """Soft credit-limit nag (Sahamid-style visual only)."""
+    _assert_sales_module_access()
     import frappe
     from trader_app.api.company import resolve_active_company
 
@@ -182,6 +209,10 @@ def get_customer_credit_check(customer, company=None, quote_amount=0):
     quote_amount = flt(quote_amount)
     if not customer or not frappe.db.exists("Customer", customer):
         return {"ok": True, "over_limit": False}
+
+    from trader_app.api.permissions import check_master_document_company
+
+    check_master_document_company("Customer", customer, company, ptype="read")
 
     credit_limit = 0.0
     if frappe.db.exists("DocType", "Customer Credit Limit"):
@@ -217,10 +248,17 @@ def get_customer_credit_check(customer, company=None, quote_amount=0):
         "projected": projected,
         "over_limit": over,
         "message": (
-            "Outstanding {0} + quote {1} exceeds credit limit {2}.".format(
-                outstanding, quote_amount, credit_limit
-            )
+            "Outstanding {0} + quote {1} exceeds credit limit {2}.".format(outstanding, quote_amount, credit_limit)
             if over
             else ""
         ),
     }
+
+
+def _assert_sales_module_access():
+    """Lazy API guard so pure commercial arithmetic remains importable without Bench."""
+    from trader_app.api._tenant_guard import assert_module_role_access
+    from trader_app.api.tenant import assert_tenant_module_enabled
+
+    assert_module_role_access("sales")
+    assert_tenant_module_enabled("sales")

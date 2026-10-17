@@ -301,7 +301,7 @@ export default function UserManagementPage() {
                         ))}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-2 shrink-0">
                       <span className={`px-2 py-0.5 rounded text-xs font-medium ${u.enabled ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                         {u.enabled ? 'Active' : 'Off'}
                       </span>
@@ -389,7 +389,7 @@ export default function UserManagementPage() {
                         type="checkbox"
                         checked={form.roles.includes(r.name)}
                         onChange={() => toggleRole(r.name)}
-                        className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                        className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-3 focus:ring-brand-500"
                       />
                       <span className="text-sm text-gray-800 dark:text-gray-200">{r.name}</span>
                       {r.disabled ? <span className="ml-auto text-xs text-red-500">Disabled</span> : null}
@@ -407,7 +407,7 @@ export default function UserManagementPage() {
                     type="checkbox"
                     checked={form.send_welcome_email}
                     onChange={(e) => setForm((f) => ({ ...f, send_welcome_email: e.target.checked }))}
-                    className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                    className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-3 focus:ring-brand-500"
                   />
                   <span className="text-sm text-gray-700 dark:text-gray-300">Send welcome email with login link</span>
                 </label>

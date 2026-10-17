@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Copy, Plus, Trash2 } from 'lucide-react';
 import { inventoryApi, opportunityApi } from '../lib/api';
+import { billedAmount, effectiveSelection } from '../lib/commercialOptions';
 import { extractFrappeError, formatCurrency } from '../lib/utils';
 import { useCompanyStore } from '../stores/companyStore';
 import SearchableSelect from './SearchableSelect';
@@ -19,6 +20,8 @@ export type CommercialOption = {
   line_no: number;
   client_requirements?: string;
   option_no: number;
+  /** The option the customer accepted for this line (see lib/commercialOptions). */
+  is_selected?: number;
   option_text?: string;
   package_qty: number;
   stock_status?: string;
@@ -62,6 +65,8 @@ type Props = {
   createdItem?: CreatedHierarchyItem | null;
   onCreatedItemApplied?: () => void;
   onSaved?: () => void;
+  /** The document's `modified` stamp when it was loaded; a stale save is refused. */
+  modified?: string;
   /** Sahamid makequotation tabs: isolate BoQ / Description / Group Discount. */
   focus?: HierarchyFocus;
   /** Omit outer card chrome when embedded in a tabbed editor. */
@@ -85,6 +90,7 @@ function emptyOption(lineNo = 1, optionNo = 1): CommercialOption {
     line_no: lineNo,
     client_requirements: '',
     option_no: optionNo,
+    is_selected: 0,
     option_text: '',
     package_qty: 1,
     stock_status: 'Ex-Stock (Subject to Prior Sale)',
@@ -97,6 +103,7 @@ function cloneOption(opt: CommercialOption, lineNo: number, optionNo: number): C
     ...opt,
     line_no: lineNo,
     option_no: optionNo,
+    is_selected: 0,
     qty_invoiced: 0,
     items: opt.items.map((it) => ({ ...it, qty_invoiced: 0 })),
   };
@@ -108,6 +115,7 @@ function normalizeOptions(raw: unknown): CommercialOption[] {
     line_no: Number(row.line_no) || idx + 1,
     client_requirements: row.client_requirements || '',
     option_no: Number(row.option_no) || 1,
+    is_selected: row.is_selected ? 1 : 0,
     option_text: row.option_text || '',
     package_qty: Number(row.package_qty) || 1,
     stock_status: row.stock_status || '',
@@ -187,6 +195,7 @@ export default function CommercialHierarchyEditor({
   createdItem,
   onCreatedItemApplied,
   onSaved,
+  modified,
   focus = 'full',
   plain = false,
 }: Props) {
@@ -336,17 +345,14 @@ export default function CommercialHierarchyEditor({
     [options],
   );
 
-  const billedTotal = useMemo(() => {
-    const firstByLine = new Map<number, CommercialOption>();
-    for (const opt of options) {
-      const cur = firstByLine.get(opt.line_no);
-      if (!cur || opt.option_no < cur.option_no) firstByLine.set(opt.line_no, opt);
-    }
-    return Array.from(firstByLine.values()).reduce(
-      (sum, opt) => sum + opt.items.reduce((s, it) => s + itemAmount(it, opt.package_qty), 0),
-      0,
-    );
-  }, [options]);
+  // A quotation is valued on its first options; orders, challans and invoices bill the
+  // option the customer accepted on each line (lowest option when none is accepted).
+  const billingUsesAccepted = doctype !== 'Quotation';
+  const billing = useMemo(
+    () => effectiveSelection(options, billingUsesAccepted),
+    [options, billingUsesAccepted],
+  );
+  const billedTotal = useMemo(() => billedAmount(options, billing), [options, billing]);
 
   if (!show) return null;
 
@@ -418,6 +424,19 @@ export default function CommercialHierarchyEditor({
     ]);
   };
 
+  /** Mark the option the customer accepted; the other options on its line become alternates. */
+  const acceptOption = (index: number) => {
+    setOptions((prev) => {
+      const target = prev[index];
+      if (!target) return prev;
+      return prev.map((row) =>
+        row.line_no === target.line_no
+          ? { ...row, is_selected: row.option_no === target.option_no ? 1 : 0 }
+          : row,
+      );
+    });
+  };
+
   const removeOption = (index: number) => {
     setOptions((prev) => prev.filter((_, i) => i !== index));
   };
@@ -474,7 +493,7 @@ export default function CommercialHierarchyEditor({
         ...opt,
         items: opt.items.filter((it) => it.item_code.trim()),
       }));
-      await opportunityApi.saveCommercialOptions(doctype, name, payload);
+      await opportunityApi.saveCommercialOptions(doctype, name, payload, modified);
       setFeedback({ type: 'success', message: 'Commercial hierarchy saved. Flat items synced.' });
       onSaved?.();
     } catch (err) {
@@ -501,7 +520,7 @@ export default function CommercialHierarchyEditor({
             </h2>
             <p className="text-sm text-gray-500">
               {focus === 'description'
-                ? 'Client requirements and option commercial text (Sahamid Description tab).'
+                ? 'Client requirements and option commercial text (Description tab).'
                 : focus === 'group-discount'
                   ? 'Apply a discount percent to all items of a brand.'
                   : 'Line → Option → Item. Add alternate options on the same line. First option per line is billed.'}
@@ -511,7 +530,10 @@ export default function CommercialHierarchyEditor({
           {showHeaderTotals ? (
             <div className="text-sm font-medium text-gray-800 space-y-0.5 text-right">
               <div>All options: {formatCurrency(total, currency)}</div>
-              <div className="text-green-700">Billed (1st options): {formatCurrency(billedTotal, currency)}</div>
+              <div className="text-green-700">
+                {billingUsesAccepted ? 'Billed (accepted per line)' : 'Billed (1st options)'}:{' '}
+                {formatCurrency(billedTotal, currency)}
+              </div>
             </div>
           ) : null}
         </div>
@@ -614,29 +636,35 @@ export default function CommercialHierarchyEditor({
           ))
         ) : (
           options.map((opt, optIndex) => {
-            const isFirstOnLine =
-              options
-                .filter((o) => o.line_no === opt.line_no)
-                .every((o) => o.option_no >= opt.option_no) ||
-              Math.min(
-                ...options.filter((o) => o.line_no === opt.line_no).map((o) => o.option_no),
-              ) === opt.option_no;
+            const isBilled = billing[opt.line_no] === opt.option_no;
+            const isAccepted = billingUsesAccepted && Boolean(opt.is_selected);
             return (
               <div
                 key={`opt-${optIndex}`}
                 className={`rounded-xl border p-4 space-y-3 ${
-                  isFirstOnLine ? 'border-gray-200 bg-gray-50/60' : 'border-amber-200 bg-amber-50/40'
+                  isBilled ? 'border-gray-200 bg-gray-50/60' : 'border-amber-200 bg-amber-50/40'
                 }`}
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm font-semibold text-gray-900">
                     Line {opt.line_no} · Option {opt.option_no}
-                    {!isFirstOnLine ? (
+                    {!isBilled ? (
                       <span className="ml-2 text-xs font-medium text-amber-700">Alternate (not billed)</span>
+                    ) : isAccepted ? (
+                      <span className="ml-2 text-xs font-medium text-green-700">Accepted by customer</span>
                     ) : null}
                   </p>
                   {!readOnly ? (
                     <div className="flex flex-wrap gap-2">
+                      {billingUsesAccepted && !isBilled ? (
+                        <button
+                          type="button"
+                          className="text-xs font-medium text-green-700 hover:underline"
+                          onClick={() => acceptOption(optIndex)}
+                        >
+                          Mark as accepted
+                        </button>
+                      ) : null}
                       <button
                         type="button"
                         className="text-xs text-brand-700 hover:underline"
@@ -744,7 +772,7 @@ export default function CommercialHierarchyEditor({
                       disabled={readOnly}
                       value={opt.option_text || ''}
                       onChange={(e) => updateOption(optIndex, { option_text: e.target.value })}
-                      placeholder="Commercial option text (Sahamid Description tab)"
+                      placeholder="Commercial option text (Description tab)"
                     />
                   </label>
                 </>

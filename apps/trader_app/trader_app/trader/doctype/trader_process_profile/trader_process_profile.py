@@ -22,8 +22,9 @@ class TraderProcessProfile(Document):
             )
             if other:
                 frappe.throw(
-                    _("Company {0} already has an enforcing process profile ({1}). "
-                      "Deactivate it first.").format(self.company, other)
+                    _("Company {0} already has an enforcing process profile ({1}). " "Deactivate it first.").format(
+                        self.company, other
+                    )
                 )
 
         # Each target doctype should declare exactly one initial state.

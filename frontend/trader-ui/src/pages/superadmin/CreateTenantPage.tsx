@@ -89,7 +89,7 @@ export default function CreateTenantPage() {
         <AlertBanner tone="success">
           Tenant <strong>{created.tenant_id}</strong> provisioned successfully.
         </AlertBanner>
-        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-4">
+        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-xs font-medium text-slate-500">Email</p>
@@ -128,7 +128,7 @@ export default function CreateTenantPage() {
 
       {error ? <AlertBanner tone="error">{error}</AlertBanner> : null}
 
-      <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-slate-200 p-6 space-y-5 shadow-sm">
+      <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-slate-200 p-6 space-y-5 shadow-xs">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <label className="block">
             <span className="text-sm font-medium text-slate-700">Business name *</span>

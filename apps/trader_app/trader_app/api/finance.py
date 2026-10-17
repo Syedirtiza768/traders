@@ -13,19 +13,27 @@ import json
 
 import frappe
 from frappe import _
+from frappe.utils import cint, flt, nowdate
 from trader_app.api.company import resolve_active_company
 from trader_app.api.decision_log import log_decision
-from frappe.utils import nowdate, flt, cint
-
 
 # ────────────────────────────────────────────────────────────────
 # 1.  PAYMENT ENTRIES
 # ────────────────────────────────────────────────────────────────
 
+
 @frappe.whitelist()
-def get_payment_entries(company=None, party_type=None, party=None,
-                        payment_type=None, from_date=None, to_date=None,
-                        page=1, page_size=20, search=None):
+def get_payment_entries(
+    company=None,
+    party_type=None,
+    party=None,
+    payment_type=None,
+    from_date=None,
+    to_date=None,
+    page=1,
+    page_size=20,
+    search=None,
+):
     """Paginated Payment Entries."""
     company = resolve_active_company(company)
     page = cint(page) or 1
@@ -56,11 +64,10 @@ def get_payment_entries(company=None, party_type=None, party=None,
 
     where = " AND ".join(conditions)
 
-    total = frappe.db.sql(
-        f"SELECT COUNT(*) FROM `tabPayment Entry` pe WHERE {where}", params
-    )[0][0]
+    total = frappe.db.sql(f"SELECT COUNT(*) FROM `tabPayment Entry` pe WHERE {where}", params)[0][0]
 
-    rows = frappe.db.sql(f"""
+    rows = frappe.db.sql(
+        f"""
         SELECT pe.name, pe.posting_date, pe.payment_type,
                pe.party_type, pe.party, pe.party_name,
                pe.paid_amount, pe.received_amount,
@@ -70,7 +77,10 @@ def get_payment_entries(company=None, party_type=None, party=None,
         WHERE {where}
         ORDER BY pe.posting_date DESC, pe.creation DESC
         LIMIT %(page_size)s OFFSET %(offset)s
-    """, {**params, "page_size": page_size, "offset": offset}, as_dict=True)
+    """,
+        {**params, "page_size": page_size, "offset": offset},
+        as_dict=True,
+    )
 
     return {"data": rows, "total": cint(total), "page": page, "page_size": page_size}
 
@@ -125,10 +135,12 @@ def get_payment_entry_setup(company=None):
 # 2.  OPEN INVOICES & ALLOCATION (shared with daybook)
 # ────────────────────────────────────────────────────────────────
 
+
 def get_open_invoices(party_type, party, company):
     """Open submitted invoices for a party, oldest first."""
     if party_type == "Customer":
-        return frappe.db.sql("""
+        return frappe.db.sql(
+            """
             SELECT name, outstanding_amount, posting_date
             FROM `tabSales Invoice`
             WHERE customer = %(party)s
@@ -136,9 +148,13 @@ def get_open_invoices(party_type, party, company):
               AND docstatus = 1
               AND outstanding_amount > 0
             ORDER BY posting_date ASC, creation ASC
-        """, {"party": party, "company": company}, as_dict=True)
+        """,
+            {"party": party, "company": company},
+            as_dict=True,
+        )
 
-    return frappe.db.sql("""
+    return frappe.db.sql(
+        """
         SELECT name, outstanding_amount, posting_date
         FROM `tabPurchase Invoice`
         WHERE supplier = %(party)s
@@ -146,7 +162,10 @@ def get_open_invoices(party_type, party, company):
           AND docstatus = 1
           AND outstanding_amount > 0
         ORDER BY posting_date ASC, creation ASC
-    """, {"party": party, "company": company}, as_dict=True)
+    """,
+        {"party": party, "company": company},
+        as_dict=True,
+    )
 
 
 def payment_reference_doctype(party_type):
@@ -174,11 +193,14 @@ def allocate_payment_to_invoices(pe, party_type, party, company, amount):
         alloc = min(remaining, flt(inv.outstanding_amount))
         if alloc <= 0:
             continue
-        pe.append("references", {
-            "reference_doctype": ref_doctype,
-            "reference_name": inv.name,
-            "allocated_amount": alloc,
-        })
+        pe.append(
+            "references",
+            {
+                "reference_doctype": ref_doctype,
+                "reference_name": inv.name,
+                "allocated_amount": alloc,
+            },
+        )
         remaining -= alloc
 
     return remaining
@@ -187,9 +209,7 @@ def allocate_payment_to_invoices(pe, party_type, party, company, amount):
 def allocate_payment_manual(pe, party_type, party, company, amount, allocations):
     """Apply user-specified invoice allocations. Returns unallocated remainder."""
     ref_doctype = payment_reference_doctype(party_type)
-    open_map = {
-        inv.name: inv for inv in get_open_invoices(party_type, party, company)
-    }
+    open_map = {inv.name: inv for inv in get_open_invoices(party_type, party, company)}
     total_allocated = 0.0
 
     for row in allocations:
@@ -200,21 +220,18 @@ def allocate_payment_manual(pe, party_type, party, company, amount, allocations)
         if not ref_name:
             frappe.throw(_("Each allocation row must include reference_name."))
         if ref_name not in open_map:
-            frappe.throw(
-                _("Invoice {0} is not open for this party.").format(ref_name)
-            )
+            frappe.throw(_("Invoice {0} is not open for this party.").format(ref_name))
         outstanding = flt(open_map[ref_name].outstanding_amount)
         if alloc > outstanding + 0.005:
-            frappe.throw(
-                _("Allocation {0} exceeds outstanding {1} on {2}.").format(
-                    alloc, outstanding, ref_name
-                )
-            )
-        pe.append("references", {
-            "reference_doctype": ref_doctype,
-            "reference_name": ref_name,
-            "allocated_amount": alloc,
-        })
+            frappe.throw(_("Allocation {0} exceeds outstanding {1} on {2}.").format(alloc, outstanding, ref_name))
+        pe.append(
+            "references",
+            {
+                "reference_doctype": ref_doctype,
+                "reference_name": ref_name,
+                "allocated_amount": alloc,
+            },
+        )
         total_allocated += alloc
 
     if total_allocated > flt(amount) + 0.005:
@@ -251,7 +268,7 @@ def get_open_invoices_for_payment(party_type, party, company=None):
     if party_type not in ("Customer", "Supplier"):
         frappe.throw(_("party_type must be Customer or Supplier."))
 
-    party = _resolve_party(party_type, party)
+    party = _resolve_party(party_type, party, company=company)
     rows = get_open_invoices(party_type, party, company)
     total = sum(flt(row.outstanding_amount) for row in rows)
 
@@ -267,14 +284,31 @@ def get_open_invoices_for_payment(party_type, party, company=None):
 # 3.  CREATE PAYMENT
 # ────────────────────────────────────────────────────────────────
 
+
 @frappe.whitelist()
-def create_payment_entry(payment_type, party_type, party, amount,
-                         company=None, posting_date=None,
-                         reference_doctype=None, reference_name=None,
-                         mode_of_payment=None, paid_to=None, paid_from=None,
-                         reference_no=None, reference_date=None,
-                         allocations=None):
+def create_payment_entry(
+    payment_type,
+    party_type,
+    party,
+    amount,
+    company=None,
+    posting_date=None,
+    reference_doctype=None,
+    reference_name=None,
+    mode_of_payment=None,
+    paid_to=None,
+    paid_from=None,
+    reference_no=None,
+    reference_date=None,
+    allocations=None,
+    wht_amount=None,
+    wht_account=None,
+):
     """Create a Payment Entry from the UI.
+
+    ``wht_amount`` is income tax the customer withholds from this receipt. It is a deduction row on the Payment
+    Entry: the allocations clear the gross invoice amount, the cash received is the gross less the withholding,
+    and the withheld amount is debited to ``wht_account`` (the WHT recoverable asset).
 
     Allocation modes (AR-DOC):
     - ``allocations`` list: explicit multi-invoice rows (empty list = on-account)
@@ -283,8 +317,12 @@ def create_payment_entry(payment_type, party_type, party, amount,
     - else: unallocated receipt (on-account)
     """
     company = resolve_active_company(company)
+    if party_type not in ("Customer", "Supplier"):
+        frappe.throw(_("party_type must be Customer or Supplier."))
+    if not mode_of_payment:
+        frappe.throw(_("Choose a mode of payment: cash, cheque, wire transfer, or another mode mapped to an account."))
     mode_of_payment = _resolve_payment_mode(mode_of_payment)
-    party = _resolve_party(party_type, party)
+    party = _resolve_party(party_type, party, company=company)
     pay_amount = flt(amount)
 
     pe = frappe.new_doc("Payment Entry")
@@ -295,35 +333,55 @@ def create_payment_entry(payment_type, party_type, party, amount,
     pe.posting_date = posting_date or nowdate()
     pe.paid_amount = pay_amount
     pe.received_amount = pay_amount
+    deduction = flt(wht_amount or 0)
+    if deduction:
+        if payment_type != "Receive" or party_type != "Customer":
+            frappe.throw(_("Withholding tax is deducted from customer receipts only."))
+        if not wht_account:
+            frappe.throw(_("Name the withholding tax account."))
+        if deduction >= pay_amount:
+            frappe.throw(_("Withholding tax must be less than the amount settled."))
+        # ERPNext credits the party with paid + deductions, so the paid (cash) amount is the net and the
+        # allocations below still cover the gross settled amount.
+        pe.paid_amount = pay_amount - deduction
+        pe.received_amount = pay_amount - deduction
+        pe.append("deductions", {"account": wht_account, "amount": deduction,
+                                 "cost_center": frappe.get_cached_value("Company", company, "cost_center")})
     if mode_of_payment:
         pe.mode_of_payment = mode_of_payment
 
     settlement_account, party_account = _apply_payment_accounts(
-        pe, company, payment_type, party_type, party,
-        mode_of_payment, paid_to, paid_from,
+        pe,
+        company,
+        payment_type,
+        party_type,
+        party,
+        mode_of_payment,
+        paid_to,
+        paid_from,
     )
 
     unallocated = pay_amount
     parsed_alloc = parse_allocations(allocations)
     if parsed_alloc is not None:
-        unallocated = allocate_payment(
-            pe, party_type, party, company, pay_amount, allocations=parsed_alloc
-        )
+        unallocated = allocate_payment(pe, party_type, party, company, pay_amount, allocations=parsed_alloc)
     elif reference_doctype and reference_name:
-        pe.append("references", {
-            "reference_doctype": reference_doctype,
-            "reference_name": reference_name,
-            "allocated_amount": pay_amount,
-        })
+        pe.append(
+            "references",
+            {
+                "reference_doctype": reference_doctype,
+                "reference_name": reference_name,
+                "allocated_amount": pay_amount,
+            },
+        )
         unallocated = 0.0
     else:
         try:
             from trader_app.api.ar import resolve_ar_settings
+
             profile = resolve_ar_settings(company).get("profile") or {}
             if cint(profile.get("auto_allocate_on_receipt")):
-                unallocated = allocate_payment(
-                    pe, party_type, party, company, pay_amount, allocations=None
-                )
+                unallocated = allocate_payment(pe, party_type, party, company, pay_amount, allocations=None)
         except Exception:
             # AR module / profile optional — leave unallocated if unavailable.
             pass
@@ -350,10 +408,17 @@ def create_payment_entry(payment_type, party_type, party, amount,
 
 
 @frappe.whitelist()
-def record_invoice_payment(reference_doctype, reference_name, amount,
-                           mode_of_payment=None, settlement_account=None,
-                           posting_date=None, reference_no=None,
-                           reference_date=None, submit=1):
+def record_invoice_payment(
+    reference_doctype,
+    reference_name,
+    amount,
+    mode_of_payment=None,
+    settlement_account=None,
+    posting_date=None,
+    reference_no=None,
+    reference_date=None,
+    submit=1,
+):
     """Record and optionally submit a payment against an invoice into a bank/cash account."""
     if reference_doctype not in ("Sales Invoice", "Purchase Invoice"):
         frappe.throw(_("Only Sales Invoice and Purchase Invoice are supported."))
@@ -369,9 +434,7 @@ def record_invoice_payment(reference_doctype, reference_name, amount,
     if pay_amount <= 0:
         frappe.throw(_("Enter a valid payment amount."))
     if pay_amount > outstanding + 0.005:
-        frappe.throw(
-            _("Payment amount {0} exceeds outstanding {1}.").format(pay_amount, outstanding)
-        )
+        frappe.throw(_("Payment amount {0} exceeds outstanding {1}.").format(pay_amount, outstanding))
 
     company = invoice.company
     if reference_doctype == "Sales Invoice":
@@ -396,16 +459,24 @@ def record_invoice_payment(reference_doctype, reference_name, amount,
         pe.mode_of_payment = mode_of_payment
 
     applied_account, _party_account = _apply_payment_accounts(
-        pe, company, payment_type, party_type, party, mode_of_payment,
+        pe,
+        company,
+        payment_type,
+        party_type,
+        party,
+        mode_of_payment,
         paid_to=settlement_account if payment_type == "Receive" else None,
         paid_from=settlement_account if payment_type == "Pay" else None,
     )
 
-    pe.append("references", {
-        "reference_doctype": reference_doctype,
-        "reference_name": reference_name,
-        "allocated_amount": pay_amount,
-    })
+    pe.append(
+        "references",
+        {
+            "reference_doctype": reference_doctype,
+            "reference_name": reference_name,
+            "allocated_amount": pay_amount,
+        },
+    )
 
     _apply_bank_reference_fields(
         pe,
@@ -416,14 +487,24 @@ def record_invoice_payment(reference_doctype, reference_name, amount,
 
     pe.insert(ignore_permissions=False)
 
+    approval_note = ""
     if cint(submit):
-        pe.submit()
+        try:
+            pe.submit()
+        except frappe.ValidationError as exc:
+            if "needs an approval" not in str(exc):
+                raise
+            # The draft stays saved, so an approver can record the approval on it and submit it (G-APR-01).
+            approval_note = str(exc)[:300]
         frappe.db.commit()
 
     invoice.reload()
+    submitted = bool(cint(submit)) and not approval_note
     return {
         "name": pe.name,
-        "status": "Submitted" if cint(submit) else "Draft",
+        "status": "Submitted" if submitted else "Draft",
+        "approval_required": bool(approval_note),
+        "message": approval_note,
         "settlement_account": applied_account,
         "outstanding_amount": flt(invoice.outstanding_amount),
         "paid_amount": flt(invoice.paid_amount),
@@ -444,9 +525,9 @@ def submit_payment_entry(name):
 # 3.  JOURNAL ENTRIES
 # ────────────────────────────────────────────────────────────────
 
+
 @frappe.whitelist()
-def get_journal_entries(company=None, from_date=None, to_date=None,
-                        page=1, page_size=20):
+def get_journal_entries(company=None, from_date=None, to_date=None, page=1, page_size=20):
     """Paginated Journal Entries."""
     company = resolve_active_company(company)
     page = cint(page) or 1
@@ -465,11 +546,10 @@ def get_journal_entries(company=None, from_date=None, to_date=None,
 
     where = " AND ".join(conditions)
 
-    total = frappe.db.sql(
-        f"SELECT COUNT(*) FROM `tabJournal Entry` je WHERE {where}", params
-    )[0][0]
+    total = frappe.db.sql(f"SELECT COUNT(*) FROM `tabJournal Entry` je WHERE {where}", params)[0][0]
 
-    rows = frappe.db.sql(f"""
+    rows = frappe.db.sql(
+        f"""
         SELECT je.name, je.posting_date, je.voucher_type,
                je.total_debit, je.total_credit,
                je.user_remark, je.docstatus
@@ -477,7 +557,10 @@ def get_journal_entries(company=None, from_date=None, to_date=None,
         WHERE {where}
         ORDER BY je.posting_date DESC, je.creation DESC
         LIMIT %(page_size)s OFFSET %(offset)s
-    """, {**params, "page_size": page_size, "offset": offset}, as_dict=True)
+    """,
+        {**params, "page_size": page_size, "offset": offset},
+        as_dict=True,
+    )
 
     return {"data": rows, "total": cint(total), "page": page, "page_size": page_size}
 
@@ -505,22 +588,26 @@ def get_accounts(company=None, search=None, limit=100):
 
     where = " AND ".join(conditions)
 
-    rows = frappe.db.sql(f"""
+    rows = frappe.db.sql(
+        f"""
         SELECT name, account_name, account_number, account_type, root_type
         FROM `tabAccount`
         WHERE {where}
         ORDER BY root_type ASC, account_name ASC, name ASC
         LIMIT %(limit)s
-    """, params, as_dict=True)
+    """,
+        params,
+        as_dict=True,
+    )
 
     return rows
 
 
 @frappe.whitelist()
-def create_journal_entry(voucher_type=None, posting_date=None,
-                         user_remark=None, accounts=None, company=None):
+def create_journal_entry(voucher_type=None, posting_date=None, user_remark=None, accounts=None, company=None):
     """Create a balanced draft Journal Entry from the UI."""
     import json
+
     if isinstance(accounts, str):
         accounts = json.loads(accounts)
 
@@ -545,12 +632,14 @@ def create_journal_entry(voucher_type=None, posting_date=None,
 
         total_debit += debit
         total_credit += credit
-        cleaned_accounts.append({
-            "account": account,
-            "debit_in_account_currency": debit,
-            "credit_in_account_currency": credit,
-            "user_remark": row.get("user_remark") or user_remark,
-        })
+        cleaned_accounts.append(
+            {
+                "account": account,
+                "debit_in_account_currency": debit,
+                "credit_in_account_currency": credit,
+                "user_remark": row.get("user_remark") or user_remark,
+            }
+        )
 
     if len(cleaned_accounts) < 2:
         frappe.throw(_("Add at least two non-empty account lines."))
@@ -605,10 +694,12 @@ def cancel_journal_entry(name):
 # 4.  DOCTYPE EVENT HOOKS
 # ────────────────────────────────────────────────────────────────
 
+
 def _post_withhold_gl_on_allocation(payment_entry):
     """Sahamid-style GL on allocation: when a receipt settles a Sales Invoice,
-    move the WHT and GST-withhold portions out of receivable into the configured
-    withhold accounts. Opt-in via the Trader AR Profile; no-op otherwise.
+    move the GST-withhold portion out of receivable into the configured withhold
+    account. Opt-in via the Trader AR Profile; no-op otherwise. Income-tax
+    withholding is a deduction on the receipt, not a posting from here.
 
     ERPNext already posts exchange gain/loss on allocation natively, so this
     layer intentionally does NOT duplicate FX posting — only the withhold GL
@@ -621,25 +712,28 @@ def _post_withhold_gl_on_allocation(payment_entry):
     company = getattr(payment_entry, "company", None)
     try:
         from trader_app.api.ar import get_active_ar_profile
+
         profile = get_active_ar_profile(company)
     except Exception:
         return
     if not profile or not cint(profile.get("withhold_reporting_enabled", 0)):
         return
 
-    wht_account = profile.get("wht_account")
+    # Income-tax withholding is not posted here. A customer's withholding is a deduction on its receipt, at the policy
+    # rate on the services base (create_payment_entry, wht_amount). The grand-total posting that stood here was wrong for
+    # mixed invoices and never matched a net receipt (G-TAX-05).
     gst_account = profile.get("gst_withhold_account")
-    wht_percent = flt(profile.get("default_wht_percent", 0) or 0)
     gst_percent = flt(profile.get("default_gst_withhold_percent", 0) or 0)
-    if (not wht_account or not wht_percent) and (not gst_account or not gst_percent):
+    if not gst_account or not gst_percent:
         return
 
     posted = []
-    for ref in (payment_entry.get("references") or []):
+    for ref in payment_entry.get("references") or []:
         if ref.reference_doctype != "Sales Invoice" or not ref.allocated_amount:
             continue
         si = frappe.db.get_value(
-            "Sales Invoice", ref.reference_name,
+            "Sales Invoice",
+            ref.reference_name,
             ["outstanding_amount", "grand_total", "base_total_taxes_and_charges", "debit_to", "docstatus"],
             as_dict=True,
         )
@@ -651,34 +745,36 @@ def _post_withhold_gl_on_allocation(payment_entry):
         receivable = si.debit_to
         if not receivable:
             continue
-        wht_amount = round(flt(si.grand_total) * wht_percent / 100.0, 2) if wht_account and wht_percent else 0.0
-        gst_amount = round(flt(si.base_total_taxes_and_charges or 0) * gst_percent / 100.0, 2) if gst_account and gst_percent else 0.0
-        if wht_amount <= 0 and gst_amount <= 0:
+        gst_amount = (
+            round(flt(si.base_total_taxes_and_charges or 0) * gst_percent / 100.0, 2)
+            if gst_account and gst_percent
+            else 0.0
+        )
+        if gst_amount <= 0:
             continue
 
         je = frappe.new_doc("Journal Entry")
         je.voucher_type = "Journal Entry"
         je.company = company
-        je.posting_date = nowdate()
-        je.user_remark = "Withhold GL on settlement of {0} by {1}".format(
-            ref.reference_name, payment_entry.name
-        )
-        if wht_amount:
-            je.append("accounts", {"account": wht_account, "debit_in_account_currency": wht_amount})
-            je.append("accounts", {"account": receivable, "credit_in_account_currency": wht_amount})
+        je.posting_date = payment_entry.posting_date
+        je.user_remark = "Withhold GL on settlement of {0} by {1}".format(ref.reference_name, payment_entry.name)
         if gst_amount:
             je.append("accounts", {"account": gst_account, "debit_in_account_currency": gst_amount})
             je.append("accounts", {"account": receivable, "credit_in_account_currency": gst_amount})
         je.insert(ignore_permissions=True)
         je.submit()
-        posted.append({"invoice": ref.reference_name, "wht": wht_amount, "gst": gst_amount, "je": je.name})
+        posted.append({"invoice": ref.reference_name, "gst": gst_amount, "je": je.name})
 
     if posted:
         log_decision(
-            "posting", company=company, outcome="applied",
+            "posting",
+            company=company,
+            outcome="applied",
             message="Withhold GL posted on allocation for {0} invoice(s)".format(len(posted)),
-            output={"journals": posted}, reference_doctype="Payment Entry",
-            reference_name=payment_entry.name, policy="ar_profile",
+            output={"journals": posted},
+            reference_doctype="Payment Entry",
+            reference_name=payment_entry.name,
+            policy="ar_profile",
         )
 
 
@@ -702,20 +798,31 @@ def on_payment_entry_submit(doc, method):
 # 5.  OUTSTANDING SUMMARY
 # ────────────────────────────────────────────────────────────────
 
+
 @frappe.whitelist()
 def get_outstanding_summary(company=None):
     """Receivable + Payable totals."""
     company = resolve_active_company(company)
 
-    receivable = flt(frappe.db.sql("""
+    receivable = flt(
+        frappe.db.sql(
+            """
         SELECT COALESCE(SUM(outstanding_amount), 0) FROM `tabSales Invoice`
         WHERE company = %s AND docstatus = 1 AND outstanding_amount > 0
-    """, (company,))[0][0])
+    """,
+            (company,),
+        )[0][0]
+    )
 
-    payable = flt(frappe.db.sql("""
+    payable = flt(
+        frappe.db.sql(
+            """
         SELECT COALESCE(SUM(outstanding_amount), 0) FROM `tabPurchase Invoice`
         WHERE company = %s AND docstatus = 1 AND outstanding_amount > 0
-    """, (company,))[0][0])
+    """,
+            (company,),
+        )[0][0]
+    )
 
     return {
         "receivable": receivable,
@@ -727,6 +834,7 @@ def get_outstanding_summary(company=None):
 # ────────────────────────────────────────────────────────────────
 #    HELPERS
 # ────────────────────────────────────────────────────────────────
+
 
 def _get_default_account(company, account_type):
     """Get default cash or bank account for the company."""
@@ -852,15 +960,17 @@ def _ensure_company_bank_accounts(company):
         if frappe.db.exists("Account", full_name):
             continue
         try:
-            frappe.get_doc({
-                "doctype": "Account",
-                "account_name": account_name,
-                "parent_account": parent_name,
-                "company": company,
-                "account_type": "Bank",
-                "account_currency": currency,
-                "is_group": 0,
-            }).insert(ignore_permissions=True)
+            frappe.get_doc(
+                {
+                    "doctype": "Account",
+                    "account_name": account_name,
+                    "parent_account": parent_name,
+                    "company": company,
+                    "account_type": "Bank",
+                    "account_currency": currency,
+                    "is_group": 0,
+                }
+            ).insert(ignore_permissions=True)
             created = True
         except frappe.DuplicateEntryError:
             pass
@@ -877,8 +987,7 @@ def _get_mode_of_payment_account(company, mode_of_payment):
     )
 
 
-def _resolve_settlement_account(company, payment_type, mode_of_payment=None,
-                                paid_to=None, paid_from=None):
+def _resolve_settlement_account(company, payment_type, mode_of_payment=None, paid_to=None, paid_from=None):
     """Resolve the cash/bank account for Receive (paid_to) or Pay (paid_from)."""
     explicit = paid_to if payment_type == "Receive" else paid_from
     if explicit:
@@ -900,36 +1009,61 @@ def _resolve_settlement_account(company, payment_type, mode_of_payment=None,
         if mapped:
             return mapped
         mode_type = frappe.db.get_value("Mode of Payment", mode_of_payment, "type")
-        account_type = "Bank" if mode_type == "Bank" else "Cash"
-        account = _get_default_account(company, account_type)
+        if mode_of_payment != "Cash" and mode_type != "Cash":
+            # A non-cash mode names its own account. It never falls back to the cash account (G-PAY-02).
+            frappe.throw(
+                _("Mode of payment {0} has no account for {1}. Name the bank account or map the mode to one.").format(
+                    mode_of_payment, company
+                )
+            )
+        account = _get_default_account(company, "Cash")
         if account:
             return account
 
     return _get_default_account(company, "Cash") or _get_default_account(company, "Bank")
 
 
-def _resolve_party(party_type, party):
+def _resolve_party(party_type, party, company=None):
     """Accept party doc name or display name from deep links."""
+    if party_type not in ("Customer", "Supplier"):
+        frappe.throw(_("party_type must be Customer or Supplier."))
     if not party:
         frappe.throw(_("Party is required."))
 
     if frappe.db.exists(party_type, party):
-        return party
+        resolved = party
+    else:
+        name_field = "customer_name" if party_type == "Customer" else "supplier_name"
+        resolved = frappe.db.get_value(party_type, {name_field: party}, "name")
+        if not resolved:
+            resolved = frappe.db.get_value(
+                party_type,
+                {name_field: ["like", f"%{party}%"]},
+                "name",
+            )
+        if not resolved:
+            frappe.throw(_("{0} {1} was not found.").format(party_type, party))
 
-    name_field = "customer_name" if party_type == "Customer" else "supplier_name"
-    resolved = frappe.db.get_value(party_type, {name_field: party}, "name")
-    if resolved:
-        return resolved
+    # Direct DB name searches do not apply DocType permissions. Enforce normal
+    # read and tenant checks before the caller returns balances or builds a payment.
+    doc = frappe.get_doc(party_type, resolved)
+    doc.check_permission("read")
+    if company:
+        from trader_app.api.permissions import company_master_sql_filter
 
-    resolved = frappe.db.get_value(
-        party_type,
-        {name_field: ["like", f"%{party}%"]},
-        "name",
-    )
-    if resolved:
-        return resolved
-
-    frappe.throw(_("{0} {1} was not found.").format(party_type, party))
+        scope_condition, scope_params = company_master_sql_filter("p", company)
+        if scope_condition:
+            rows = frappe.db.sql(
+                "SELECT p.name FROM `tab{0}` p WHERE p.name = %(party)s AND {1}".format(party_type, scope_condition),
+                {"party": resolved, **scope_params},
+                as_dict=True,
+            )
+            if not rows:
+                frappe.throw(
+                    _("This party is outside the company's business account."),
+                    frappe.PermissionError,
+                )
+    return resolved
 
 
 def _get_party_ledger_account(company, party_type, party):
@@ -938,8 +1072,7 @@ def _get_party_ledger_account(company, party_type, party):
     return get_party_account(party_type, party, company)
 
 
-def _apply_bank_reference_fields(pe, reference_no=None, reference_date=None,
-                                 fallback_reference=None):
+def _apply_bank_reference_fields(pe, reference_no=None, reference_date=None, fallback_reference=None):
     """ERPNext requires reference_no and reference_date when settlement account is Bank."""
     bank_account = pe.paid_to if pe.payment_type == "Receive" else pe.paid_from
     if not bank_account:
@@ -962,12 +1095,11 @@ def _apply_bank_reference_fields(pe, reference_no=None, reference_date=None,
         pe.reference_no = f"{pe.payment_type}-{pe.party}-{pe.posting_date}"
 
 
-def _apply_payment_accounts(pe, company, payment_type, party_type, party,
-                            mode_of_payment=None, paid_to=None, paid_from=None):
+def _apply_payment_accounts(
+    pe, company, payment_type, party_type, party, mode_of_payment=None, paid_to=None, paid_from=None
+):
     """Set bank/cash and receivable/payable accounts before insert."""
-    settlement_account = _resolve_settlement_account(
-        company, payment_type, mode_of_payment, paid_to, paid_from
-    )
+    settlement_account = _resolve_settlement_account(company, payment_type, mode_of_payment, paid_to, paid_from)
     if not settlement_account:
         frappe.throw(_("No cash or bank account found for company {0}.").format(company))
 
@@ -983,11 +1115,16 @@ def _apply_payment_accounts(pe, company, payment_type, party_type, party,
     return settlement_account, party_account
 
 
-def _apply_settlement_account(pe, company, payment_type, mode_of_payment=None,
-                              paid_to=None, paid_from=None):
+def _apply_settlement_account(pe, company, payment_type, mode_of_payment=None, paid_to=None, paid_from=None):
     settlement_account, _party_account = _apply_payment_accounts(
-        pe, company, payment_type, pe.party_type, pe.party,
-        mode_of_payment, paid_to, paid_from,
+        pe,
+        company,
+        payment_type,
+        pe.party_type,
+        pe.party,
+        mode_of_payment,
+        paid_to,
+        paid_from,
     )
     return settlement_account
 
@@ -1019,9 +1156,7 @@ def _ensure_payment_modes(company=None):
 
     cash_account = _get_default_account(company, "Cash")
     bank_account = _get_default_account(company, "Bank")
-    bank_accounts = [
-        row.name for row in _get_settlement_accounts(company) if row.account_type == "Bank"
-    ]
+    bank_accounts = [row.name for row in _get_settlement_accounts(company) if row.account_type == "Bank"]
 
     mode_account_map = {
         "Cash": cash_account,
@@ -1039,15 +1174,16 @@ def _ensure_payment_modes(company=None):
             "name",
         )
         if existing:
-            frappe.db.set_value(
-                "Mode of Payment Account", existing, "default_account", default_account
-            )
+            frappe.db.set_value("Mode of Payment Account", existing, "default_account", default_account)
         else:
             mop = frappe.get_doc("Mode of Payment", mode_name)
-            mop.append("accounts", {
-                "company": company,
-                "default_account": default_account,
-            })
+            mop.append(
+                "accounts",
+                {
+                    "company": company,
+                    "default_account": default_account,
+                },
+            )
             mop.save(ignore_permissions=True)
 
     frappe.db.commit()
@@ -1064,6 +1200,7 @@ def _resolve_payment_mode(mode_of_payment):
 
     first = frappe.db.get_value("Mode of Payment", {"enabled": 1}, "name", order_by="name asc")
     return first  # may be None if table is still empty — ERPNext will use its own default
+
 
 from trader_app.api._tenant_guard import apply_module_guards
 

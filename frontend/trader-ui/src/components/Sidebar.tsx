@@ -269,7 +269,7 @@ export default function Sidebar({ mobile = false, onClose }: SidebarProps) {
             className={`sidebar-link w-full justify-between ${active ? 'active' : ''}`}
           >
             <span className="flex items-center gap-3">
-              <item.icon className="w-5 h-5 flex-shrink-0" />
+              <item.icon className="w-5 h-5 shrink-0" />
               <span>{item.label}</span>
             </span>
             <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
@@ -307,7 +307,7 @@ export default function Sidebar({ mobile = false, onClose }: SidebarProps) {
         aria-current={undefined}
         onClick={mobile ? onClose : undefined}
       >
-        <item.icon className="w-5 h-5 flex-shrink-0" />
+        <item.icon className="w-5 h-5 shrink-0" />
         <span>{item.label}</span>
       </NavLink>
     );

@@ -19,8 +19,7 @@ from __future__ import unicode_literals
 import os
 
 import frappe
-from frappe.utils import cint, getdate, nowdate
-
+from frappe.utils import cint, getdate
 from trader_app.api.company import resolve_active_company
 from trader_app.api.decision_log import log_decision
 
@@ -34,6 +33,7 @@ def _company_creation_date(company):
 # Provisioning
 # ────────────────────────────────────────────────────────────────
 
+
 @frappe.whitelist()
 def provision_config_packs(company=None, activate=0):
     """Create the config packs that mirror this company's current defaults."""
@@ -46,83 +46,116 @@ def provision_config_packs(company=None, activate=0):
         from trader_app.api.invoice_types import _default_sales_tax_template
 
         template = _default_sales_tax_template(company)
-        doc = frappe.get_doc({
-            "doctype": "Trader Tax Policy",
-            "policy_name": "{0} — Standard (migrated)".format(company),
-            "company": company, "is_active": activate, "priority": 100,
-            "tax_mode": "exclusive", "effective_from": _company_creation_date(company),
-            "service_flag": "any", "tax_template": template, "rate": 18,
-        }).insert(ignore_permissions=True)
+        doc = frappe.get_doc(
+            {
+                "doctype": "Trader Tax Policy",
+                "policy_name": "{0} — Standard (migrated)".format(company),
+                "company": company,
+                "is_active": activate,
+                "priority": 100,
+                "tax_mode": "exclusive",
+                "effective_from": _company_creation_date(company),
+                "service_flag": "any",
+                "tax_template": template,
+                "rate": 18,
+            }
+        ).insert(ignore_permissions=True)
         created["tax"] = doc.name
 
     # Grouping policy ← current default behavior (same debtor, unlimited)
     if not frappe.db.exists("Trader Grouping Policy", {"company": company}):
-        doc = frappe.get_doc({
-            "doctype": "Trader Grouping Policy",
-            "policy_name": "{0} — Default Grouping (migrated)".format(company),
-            "company": company, "is_active": activate,
-            "same_debtor_required": 1, "max_docs_per_group": 0,
-            "allow_partial_delivery": 1, "auto_submit_invoice": 0,
-        }).insert(ignore_permissions=True)
+        doc = frappe.get_doc(
+            {
+                "doctype": "Trader Grouping Policy",
+                "policy_name": "{0} — Default Grouping (migrated)".format(company),
+                "company": company,
+                "is_active": activate,
+                "same_debtor_required": 1,
+                "max_docs_per_group": 0,
+                "allow_partial_delivery": 1,
+                "auto_submit_invoice": 0,
+            }
+        ).insert(ignore_permissions=True)
         created["grouping"] = doc.name
 
     # FX policy ← only when the company already uses multi-currency
-    if frappe.db.get_value("Company", company, "trader_multi_currency_enabled") \
-            and not frappe.db.exists("Trader FX Policy", {"company": company}):
-        doc = frappe.get_doc({
-            "doctype": "Trader FX Policy",
-            "policy_name": "{0} — FX Clause (migrated)".format(company),
-            "company": company, "is_active": activate,
-            "snapshot_trigger": "finalize", "validity_days": 7, "print_mode": "both",
-        }).insert(ignore_permissions=True)
+    if frappe.db.get_value("Company", company, "trader_multi_currency_enabled") and not frappe.db.exists(
+        "Trader FX Policy", {"company": company}
+    ):
+        doc = frappe.get_doc(
+            {
+                "doctype": "Trader FX Policy",
+                "policy_name": "{0} — FX Clause (migrated)".format(company),
+                "company": company,
+                "is_active": activate,
+                "snapshot_trigger": "finalize",
+                "validity_days": 7,
+                "print_mode": "both",
+            }
+        ).insert(ignore_permissions=True)
         created["fx"] = doc.name
 
     # Posting profile ← company default accounts (ALWAYS inactive; never auto-touch the GL)
     if not frappe.db.exists("Trader Posting Profile", {"company": company, "event": "sales_invoice"}):
-        vals = frappe.db.get_value(
-            "Company", company,
-            ["default_receivable_account", "default_income_account", "cost_center", "round_off_account"],
-            as_dict=True,
-        ) or {}
-        doc = frappe.get_doc({
-            "doctype": "Trader Posting Profile",
-            "profile_name": "{0} — Sales Posting (migrated)".format(company),
-            "company": company, "is_active": 0, "event": "sales_invoice",
-            "receivable_account": vals.get("default_receivable_account"),
-            "income_account": vals.get("default_income_account"),
-            "cost_center": vals.get("cost_center"),
-            "round_off_account": vals.get("round_off_account"),
-        }).insert(ignore_permissions=True)
+        vals = (
+            frappe.db.get_value(
+                "Company",
+                company,
+                ["default_receivable_account", "default_income_account", "cost_center", "round_off_account"],
+                as_dict=True,
+            )
+            or {}
+        )
+        doc = frappe.get_doc(
+            {
+                "doctype": "Trader Posting Profile",
+                "profile_name": "{0} — Sales Posting (migrated)".format(company),
+                "company": company,
+                "is_active": 0,
+                "event": "sales_invoice",
+                "receivable_account": vals.get("default_receivable_account"),
+                "income_account": vals.get("default_income_account"),
+                "cost_center": vals.get("cost_center"),
+                "round_off_account": vals.get("round_off_account"),
+            }
+        ).insert(ignore_permissions=True)
         created["posting"] = doc.name
 
     # Process profile documenting the lifecycle (NOT enforced)
     if not frappe.db.exists("Trader Process Profile", {"company": company}):
-        doc = frappe.get_doc({
-            "doctype": "Trader Process Profile",
-            "profile_name": "{0} — Sales Lifecycle (migrated)".format(company),
-            "company": company, "is_active": 1, "enforce_states": 0,
-            "states": [
-                {"target_doctype": "Quotation", "state": "Draft", "is_initial": 1},
-                {"target_doctype": "Quotation", "state": "Sent"},
-                {"target_doctype": "Quotation", "state": "Accepted", "is_final": 1},
-                {"target_doctype": "Delivery Note", "state": "Draft", "is_initial": 1},
-                {"target_doctype": "Delivery Note", "state": "Delivered", "is_final": 1},
-                {"target_doctype": "Sales Invoice", "state": "Draft", "is_initial": 1},
-                {"target_doctype": "Sales Invoice", "state": "Posted", "is_final": 1},
-            ],
-            "transitions": [
-                {"target_doctype": "Quotation", "from_state": "Draft", "to_state": "Sent"},
-                {"target_doctype": "Quotation", "from_state": "Sent", "to_state": "Accepted"},
-                {"target_doctype": "Delivery Note", "from_state": "Draft", "to_state": "Delivered"},
-                {"target_doctype": "Sales Invoice", "from_state": "Draft", "to_state": "Posted"},
-            ],
-        }).insert(ignore_permissions=True)
+        doc = frappe.get_doc(
+            {
+                "doctype": "Trader Process Profile",
+                "profile_name": "{0} — Sales Lifecycle (migrated)".format(company),
+                "company": company,
+                "is_active": 1,
+                "enforce_states": 0,
+                "states": [
+                    {"target_doctype": "Quotation", "state": "Draft", "is_initial": 1},
+                    {"target_doctype": "Quotation", "state": "Sent"},
+                    {"target_doctype": "Quotation", "state": "Accepted", "is_final": 1},
+                    {"target_doctype": "Delivery Note", "state": "Draft", "is_initial": 1},
+                    {"target_doctype": "Delivery Note", "state": "Delivered", "is_final": 1},
+                    {"target_doctype": "Sales Invoice", "state": "Draft", "is_initial": 1},
+                    {"target_doctype": "Sales Invoice", "state": "Posted", "is_final": 1},
+                ],
+                "transitions": [
+                    {"target_doctype": "Quotation", "from_state": "Draft", "to_state": "Sent"},
+                    {"target_doctype": "Quotation", "from_state": "Sent", "to_state": "Accepted"},
+                    {"target_doctype": "Delivery Note", "from_state": "Draft", "to_state": "Delivered"},
+                    {"target_doctype": "Sales Invoice", "from_state": "Draft", "to_state": "Posted"},
+                ],
+            }
+        ).insert(ignore_permissions=True)
         created["process"] = doc.name
 
     log_decision(
-        "other", company=company, outcome="applied",
+        "other",
+        company=company,
+        outcome="applied",
         message="Provisioned config packs ({0} created, activate={1})".format(len(created), activate),
-        output=created, policy="migration_toolkit",
+        output=created,
+        policy="migration_toolkit",
     )
     frappe.db.commit()
     return {"company": company, "created": created, "activated": bool(activate)}
@@ -147,28 +180,24 @@ def provision_opportunity_pack(company=None, template="minimal", activate=0):
     defaults = build_profile_defaults(template)
 
     created = None
-    existing = frappe.db.get_value(
-        "Trader Opportunity Profile", {"company": company}, "name"
-    )
+    existing = frappe.db.get_value("Trader Opportunity Profile", {"company": company}, "name")
     if not existing:
-        doc = frappe.get_doc({
-            "doctype": "Trader Opportunity Profile",
-            "profile_name": "{0} — Opportunity ({1})".format(company, template),
-            "company": company,
-            "is_active": 1 if activate else 0,
-            **defaults,
-        }).insert(ignore_permissions=True)
+        doc = frappe.get_doc(
+            {
+                "doctype": "Trader Opportunity Profile",
+                "profile_name": "{0} — Opportunity ({1})".format(company, template),
+                "company": company,
+                "is_active": 1 if activate else 0,
+                **defaults,
+            }
+        ).insert(ignore_permissions=True)
         created = doc.name
         existing = doc.name
     elif activate:
-        frappe.db.set_value(
-            "Trader Opportunity Profile", existing, "is_active", 1, update_modified=False
-        )
+        frappe.db.set_value("Trader Opportunity Profile", existing, "is_active", 1, update_modified=False)
 
     if activate:
-        frappe.db.set_value(
-            "Company", company, "trader_opportunity_enabled", 1, update_modified=False
-        )
+        frappe.db.set_value("Company", company, "trader_opportunity_enabled", 1, update_modified=False)
         # Keep tenant module flag in sync when multi-tenant is wired.
         tenant = frappe.db.get_value("Company", company, "trader_tenant")
         if tenant and frappe.db.exists("Trader Tenant", tenant):
@@ -180,9 +209,7 @@ def provision_opportunity_pack(company=None, template="minimal", activate=0):
             if rows:
                 for row in rows:
                     if not cint(row.enabled):
-                        frappe.db.set_value(
-                            "Trader Tenant Module", row.name, "enabled", 1, update_modified=False
-                        )
+                        frappe.db.set_value("Trader Tenant Module", row.name, "enabled", 1, update_modified=False)
             else:
                 tdoc = frappe.get_doc("Trader Tenant", tenant)
                 tdoc.append("enabled_modules", {"module_key": "opportunity", "enabled": 1})
@@ -191,28 +218,26 @@ def provision_opportunity_pack(company=None, template="minimal", activate=0):
 
     # Ensure grouping policy exists for partial invoicing (inert if not activated).
     grouping_created = None
-    if defaults.get("partial_invoicing") and not frappe.db.exists(
-        "Trader Grouping Policy", {"company": company}
-    ):
-        gdoc = frappe.get_doc({
-            "doctype": "Trader Grouping Policy",
-            "policy_name": "{0} — Default Grouping (opportunity)".format(company),
-            "company": company,
-            "is_active": 1 if activate else 0,
-            "same_debtor_required": 1,
-            "max_docs_per_group": 0,
-            "allow_partial_delivery": 1,
-            "auto_submit_invoice": 0,
-        }).insert(ignore_permissions=True)
+    if defaults.get("partial_invoicing") and not frappe.db.exists("Trader Grouping Policy", {"company": company}):
+        gdoc = frappe.get_doc(
+            {
+                "doctype": "Trader Grouping Policy",
+                "policy_name": "{0} — Default Grouping (opportunity)".format(company),
+                "company": company,
+                "is_active": 1 if activate else 0,
+                "same_debtor_required": 1,
+                "max_docs_per_group": 0,
+                "allow_partial_delivery": 1,
+                "auto_submit_invoice": 0,
+            }
+        ).insert(ignore_permissions=True)
         grouping_created = gdoc.name
 
     log_decision(
         "other",
         company=company,
         outcome="applied",
-        message="Provisioned opportunity pack template={0} activate={1}".format(
-            template, activate
-        ),
+        message="Provisioned opportunity pack template={0} activate={1}".format(template, activate),
         output={
             "profile": existing,
             "created": created,
@@ -230,9 +255,7 @@ def provision_opportunity_pack(company=None, template="minimal", activate=0):
         "grouping_created": grouping_created,
         "template": template,
         "activated": bool(activate),
-        "opportunity_enabled": bool(
-            cint(frappe.db.get_value("Company", company, "trader_opportunity_enabled") or 0)
-        ),
+        "opportunity_enabled": bool(cint(frappe.db.get_value("Company", company, "trader_opportunity_enabled") or 0)),
     }
 
 
@@ -256,24 +279,22 @@ def provision_ar_pack(company=None, template="minimal", activate=0):
     created = None
     existing = frappe.db.get_value("Trader AR Profile", {"company": company}, "name")
     if not existing:
-        doc = frappe.get_doc({
-            "doctype": "Trader AR Profile",
-            "profile_name": "{0} — AR ({1})".format(company, template),
-            "company": company,
-            "is_active": 1 if activate else 0,
-            **defaults,
-        }).insert(ignore_permissions=True)
+        doc = frappe.get_doc(
+            {
+                "doctype": "Trader AR Profile",
+                "profile_name": "{0} — AR ({1})".format(company, template),
+                "company": company,
+                "is_active": 1 if activate else 0,
+                **defaults,
+            }
+        ).insert(ignore_permissions=True)
         created = doc.name
         existing = doc.name
     elif activate:
-        frappe.db.set_value(
-            "Trader AR Profile", existing, "is_active", 1, update_modified=False
-        )
+        frappe.db.set_value("Trader AR Profile", existing, "is_active", 1, update_modified=False)
 
     if activate:
-        frappe.db.set_value(
-            "Company", company, "trader_ar_enabled", 1, update_modified=False
-        )
+        frappe.db.set_value("Company", company, "trader_ar_enabled", 1, update_modified=False)
         tenant = frappe.db.get_value("Company", company, "trader_tenant")
         if tenant and frappe.db.exists("Trader Tenant", tenant):
             rows = frappe.get_all(
@@ -284,9 +305,7 @@ def provision_ar_pack(company=None, template="minimal", activate=0):
             if rows:
                 for row in rows:
                     if not cint(row.enabled):
-                        frappe.db.set_value(
-                            "Trader Tenant Module", row.name, "enabled", 1, update_modified=False
-                        )
+                        frappe.db.set_value("Trader Tenant Module", row.name, "enabled", 1, update_modified=False)
             else:
                 tdoc = frappe.get_doc("Trader Tenant", tenant)
                 tdoc.append("enabled_modules", {"module_key": "ar", "enabled": 1})
@@ -312,9 +331,7 @@ def provision_ar_pack(company=None, template="minimal", activate=0):
         "created": created,
         "template": template,
         "activated": bool(activate),
-        "ar_enabled": bool(
-            cint(frappe.db.get_value("Company", company, "trader_ar_enabled") or 0)
-        ),
+        "ar_enabled": bool(cint(frappe.db.get_value("Company", company, "trader_ar_enabled") or 0)),
     }
 
 
@@ -335,36 +352,30 @@ def provision_customer_pack(company=None, template="minimal", activate=0):
     defaults = build_profile_defaults(template)
 
     created = None
-    existing = frappe.db.get_value(
-        "Trader Customer Profile", {"company": company}, "name"
-    )
+    existing = frappe.db.get_value("Trader Customer Profile", {"company": company}, "name")
     if not existing:
-        doc = frappe.get_doc({
-            "doctype": "Trader Customer Profile",
-            "profile_name": "{0} — Customer ({1})".format(company, template),
-            "company": company,
-            "is_active": 1 if activate else 0,
-            **defaults,
-        }).insert(ignore_permissions=True)
+        doc = frappe.get_doc(
+            {
+                "doctype": "Trader Customer Profile",
+                "profile_name": "{0} — Customer ({1})".format(company, template),
+                "company": company,
+                "is_active": 1 if activate else 0,
+                **defaults,
+            }
+        ).insert(ignore_permissions=True)
         created = doc.name
         existing = doc.name
     elif activate:
-        frappe.db.set_value(
-            "Trader Customer Profile", existing, "is_active", 1, update_modified=False
-        )
+        frappe.db.set_value("Trader Customer Profile", existing, "is_active", 1, update_modified=False)
 
     if activate:
-        frappe.db.set_value(
-            "Company", company, "trader_customer_pack_enabled", 1, update_modified=False
-        )
+        frappe.db.set_value("Company", company, "trader_customer_pack_enabled", 1, update_modified=False)
 
     log_decision(
         "other",
         company=company,
         outcome="applied",
-        message="Provisioned customer pack template={0} activate={1}".format(
-            template, activate
-        ),
+        message="Provisioned customer pack template={0} activate={1}".format(template, activate),
         output={
             "profile": existing,
             "created": created,
@@ -389,6 +400,7 @@ def provision_customer_pack(company=None, template="minimal", activate=0):
 # ────────────────────────────────────────────────────────────────
 # Status & parity
 # ────────────────────────────────────────────────────────────────
+
 
 @frappe.whitelist()
 def migration_status(company=None):
@@ -422,24 +434,26 @@ def parity_report(company=None):
     from trader_app.api.invoice_types import _default_sales_tax_template
 
     legacy_template = _default_sales_tax_template(company)
-    policy_template = frappe.db.get_value(
-        "Trader Tax Policy", {"company": company}, "tax_template"
+    policy_template = frappe.db.get_value("Trader Tax Policy", {"company": company}, "tax_template")
+    checks.append(
+        {
+            "dimension": "tax_template",
+            "legacy": legacy_template,
+            "config": policy_template,
+            "match": (legacy_template or None) == (policy_template or None),
+        }
     )
-    checks.append({
-        "dimension": "tax_template",
-        "legacy": legacy_template, "config": policy_template,
-        "match": (legacy_template or None) == (policy_template or None),
-    })
 
     # Grouping: legacy behavior is "same debtor required".
-    same_debtor = frappe.db.get_value(
-        "Trader Grouping Policy", {"company": company}, "same_debtor_required"
+    same_debtor = frappe.db.get_value("Trader Grouping Policy", {"company": company}, "same_debtor_required")
+    checks.append(
+        {
+            "dimension": "grouping_same_debtor",
+            "legacy": 1,
+            "config": cint(same_debtor),
+            "match": cint(same_debtor) == 1,
+        }
     )
-    checks.append({
-        "dimension": "grouping_same_debtor",
-        "legacy": 1, "config": cint(same_debtor),
-        "match": cint(same_debtor) == 1,
-    })
 
     passed = all(c["match"] for c in checks)
     return {"company": company, "passed": passed, "checks": checks}
@@ -448,6 +462,7 @@ def parity_report(company=None):
 # ────────────────────────────────────────────────────────────────
 # Deprecation aid — "no tenant logic in core" checklist (PRD §11)
 # ────────────────────────────────────────────────────────────────
+
 
 @frappe.whitelist()
 def audit_hardcoded_branches():
@@ -470,3 +485,8 @@ def audit_hardcoded_branches():
         except OSError:
             continue
     return {"clean": not hits, "hits": hits}
+
+
+from trader_app.api._tenant_guard import apply_module_guards
+
+apply_module_guards(globals(), "settings")

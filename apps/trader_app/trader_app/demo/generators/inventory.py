@@ -10,10 +10,16 @@ Creates:
 from __future__ import unicode_literals
 
 import random
-from datetime import datetime
+
 import frappe
 from frappe.utils import getdate
 from trader_app.demo.seed_engine.base import BaseGenerator
+
+
+def _items_without_warehouse_stock(items, stocked_item_codes):
+    """Avoid creating a second opening receipt for the same item and warehouse."""
+    stocked_item_codes = set(stocked_item_codes)
+    return [item for item in items if item["name"] not in stocked_item_codes]
 
 
 class InventoryGenerator(BaseGenerator):
@@ -42,7 +48,7 @@ class InventoryGenerator(BaseGenerator):
             # Process items in batches for stock entry
             batch_size = 1 if self.debug_single_doc else 20
             for batch_start in range(0, len(items), batch_size):
-                batch = items[batch_start:batch_start + batch_size]
+                batch = items[batch_start : batch_start + batch_size]
                 warehouse = random.choice(warehouses)
 
                 self._create_stock_entry(batch, company, warehouse, start_date)
@@ -54,12 +60,19 @@ class InventoryGenerator(BaseGenerator):
 
             # Create secondary warehouse stock for some items
             if not self.debug_single_doc:
-                secondary_items = random.sample(items, min(len(items) // 3, 100))
+                secondary_warehouse = f"Secondary Warehouse - {abbr}"
+                already_stocked = frappe.get_all(
+                    "Bin",
+                    filters={"warehouse": secondary_warehouse, "actual_qty": [">", 0]},
+                    pluck="item_code",
+                    limit_page_length=0,
+                )
+                candidates = _items_without_warehouse_stock(items, already_stocked)
+                secondary_items = random.sample(candidates, min(len(candidates) // 3, 100))
                 for batch_start in range(0, len(secondary_items), batch_size):
-                    batch = secondary_items[batch_start:batch_start + batch_size]
-                    warehouse = f"Secondary Warehouse - {abbr}"
+                    batch = secondary_items[batch_start : batch_start + batch_size]
 
-                    self._create_stock_entry(batch, company, warehouse, start_date)
+                    self._create_stock_entry(batch, company, secondary_warehouse, start_date)
                     self._commit_batch()
 
             frappe.db.commit()
@@ -73,39 +86,46 @@ class InventoryGenerator(BaseGenerator):
         if frappe.db.exists("Stock Entry Type", "Material Receipt"):
             return
 
-        doc = frappe.get_doc({
-            "doctype": "Stock Entry Type",
-            "name": "Material Receipt",
-            "stock_entry_type": "Material Receipt",
-            "purpose": "Material Receipt",
-        })
+        doc = frappe.get_doc(
+            {
+                "doctype": "Stock Entry Type",
+                "name": "Material Receipt",
+                "stock_entry_type": "Material Receipt",
+                "purpose": "Material Receipt",
+            }
+        )
         doc.insert(ignore_permissions=True)
 
     def _create_stock_entry(self, items, company, warehouse, posting_date):
         """Create a stock entry (Material Receipt) for a batch of items."""
-        se = frappe.get_doc({
-            "doctype": "Stock Entry",
-            "purpose": "Material Receipt",
-            "stock_entry_type": "Material Receipt",
-            "company": company,
-            "posting_date": posting_date,
-            "posting_time": "09:00:00",
-        })
+        se = frappe.get_doc(
+            {
+                "doctype": "Stock Entry",
+                "purpose": "Material Receipt",
+                "stock_entry_type": "Material Receipt",
+                "company": company,
+                "posting_date": posting_date,
+                "posting_time": "09:00:00",
+            }
+        )
 
         for item in items:
             qty = self._get_opening_qty(item.get("item_group", ""))
             rate = self._get_cost_rate(item["name"])
 
-            se.append("items", {
-                "item_code": item["name"],
-                "item_name": item.get("item_name", item["name"]),
-                "qty": qty,
-                "uom": item.get("stock_uom", "Nos"),
-                "stock_uom": item.get("stock_uom", "Nos"),
-                "conversion_factor": 1,
-                "t_warehouse": warehouse,
-                "basic_rate": rate,
-            })
+            se.append(
+                "items",
+                {
+                    "item_code": item["name"],
+                    "item_name": item.get("item_name", item["name"]),
+                    "qty": qty,
+                    "uom": item.get("stock_uom", "Nos"),
+                    "stock_uom": item.get("stock_uom", "Nos"),
+                    "conversion_factor": 1,
+                    "t_warehouse": warehouse,
+                    "basic_rate": rate,
+                },
+            )
 
         try:
             se.insert(ignore_permissions=True)

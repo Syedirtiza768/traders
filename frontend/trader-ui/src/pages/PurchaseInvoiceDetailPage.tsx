@@ -12,6 +12,7 @@ import {
   Truck,
 } from 'lucide-react';
 import { purchasesApi } from '../lib/api';
+import ApprovalPanel from '../components/ApprovalPanel';
 import RecordInvoicePaymentPanel from '../components/RecordInvoicePaymentPanel';
 import { appendPreservedListQuery, extractFrappeError, formatCurrency, formatDate, getActiveCurrency, isFilterListContext, isOperationsContext, isReportContext } from '../lib/utils';
 import { PageHeader, LoadingBlock, AlertBanner, StatusBadge, EmptyState } from '../components/ui';
@@ -224,6 +225,7 @@ export default function PurchaseInvoiceDetailPage() {
         }
       />
 
+      {invoice && <ApprovalPanel doctype="Purchase Invoice" name={invoice.name} />}
       {feedback && (
         <AlertBanner tone={feedback.type === 'success' ? 'success' : 'error'}>{feedback.message}</AlertBanner>
       )}

@@ -1,5 +1,5 @@
 import { type LucideIcon } from 'lucide-react';
-import { formatCurrency, formatCompact } from '../lib/utils';
+import { formatCurrency, formatCompact, formatCompactCurrency } from '../lib/utils';
 
 interface KPICardProps {
   title: string;
@@ -56,7 +56,7 @@ export default function KPICard({
     if (loading) return '—';
     switch (format) {
       case 'currency':
-        return formatCurrency(value);
+        return formatCompactCurrency(value);
       case 'compact':
         return formatCompact(value);
       case 'number':
@@ -65,17 +65,22 @@ export default function KPICard({
         return String(value);
     }
   })();
+  const fullValue = !loading && format === 'currency' ? formatCurrency(value) : undefined;
 
   return (
     <div className="kpi-card hover:shadow-md transition-shadow duration-200">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <p className="text-xs sm:text-sm font-medium text-gray-500 truncate">{title}</p>
-          <p className={`text-lg sm:text-2xl font-bold text-gray-900 mt-1 truncate ${loading ? 'animate-pulse' : ''}`}>
+          <p className="text-xs sm:text-sm font-medium leading-tight text-gray-500 min-h-[2.25em]">{title}</p>
+          <p
+            aria-label={fullValue ? `${title}: ${fullValue}` : undefined}
+            title={fullValue}
+            className={`text-lg sm:text-2xl font-bold tabular-nums text-gray-900 mt-1 truncate ${loading ? 'animate-pulse' : ''}`}
+          >
             {formattedValue}
           </p>
         </div>
-        <div className={`${colors.iconBg} p-2 sm:p-2.5 rounded-lg flex-shrink-0`}>
+        <div className={`${colors.iconBg} p-2 sm:p-2.5 rounded-lg shrink-0`}>
           <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${colors.icon}`} />
         </div>
       </div>

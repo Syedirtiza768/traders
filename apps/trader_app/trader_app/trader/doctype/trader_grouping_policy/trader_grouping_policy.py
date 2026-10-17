@@ -15,8 +15,4 @@ class TraderGroupingPolicy(Document):
                 "name",
             )
             if other:
-                frappe.throw(
-                    _("Company {0} already has an active grouping policy ({1}).").format(
-                        self.company, other
-                    )
-                )
+                frappe.throw(_("Company {0} already has an active grouping policy ({1}).").format(self.company, other))

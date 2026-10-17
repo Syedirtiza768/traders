@@ -9,7 +9,7 @@ Usage:
   bench --site <site> execute trader_app.setup.seed_super_admin.run --kwargs \\
     "{'email': 'admin@example.com', 'password': 'Secret123!', 'migrate_existing': True}"
 
-Environment variables (override kwargs when set):
+Required environment variables when kwargs are omitted:
   TRADER_SUPER_ADMIN_EMAIL
   TRADER_SUPER_ADMIN_PASSWORD
 """
@@ -21,13 +21,9 @@ import os
 
 import frappe
 from frappe.utils import cint
-
 from trader_app.setup import create_roles
 from trader_app.setup.custom_fields import ensure_custom_fields
 
-# Development defaults only — override via env vars in any shared environment.
-DEFAULT_EMAIL = "superadmin@traders.local"
-DEFAULT_PASSWORD = "SuperAdmin@2026"
 SUPER_ADMIN_ROLE = "Trader Super Admin"
 
 
@@ -40,14 +36,17 @@ def run(
     force_password=False,
 ):
     """Create Super Admin user, enable multi-tenant flag, optionally migrate companies."""
+    email = (email or os.environ.get("TRADER_SUPER_ADMIN_EMAIL") or "").strip().lower()
+    password = password or os.environ.get("TRADER_SUPER_ADMIN_PASSWORD")
+
+    if not email or not password:
+        frappe.throw(
+            "Provide TRADER_SUPER_ADMIN_EMAIL and TRADER_SUPER_ADMIN_PASSWORD "
+            "or pass explicit email and password values."
+        )
+
     create_roles()
     ensure_custom_fields()
-
-    email = (email or os.environ.get("TRADER_SUPER_ADMIN_EMAIL") or DEFAULT_EMAIL).strip().lower()
-    password = password or os.environ.get("TRADER_SUPER_ADMIN_PASSWORD") or DEFAULT_PASSWORD
-
-    if not email:
-        frappe.throw("Super Admin email is required.")
 
     multitenant_changed = False
     if enable_multitenant:
@@ -79,7 +78,7 @@ def run(
         print("✅ Super Admin platform seed complete.")
         print("   Email:", email)
         if user_result.get("created"):
-            print("   Password: (as provided — store securely; dev default is SuperAdmin@2026)")
+            print("   Password: configured via supplied secret (value withheld)")
         print("   Multi-tenant mode:", "enabled" if enable_multitenant else "unchanged")
         if migrate_existing and migration_result:
             print(

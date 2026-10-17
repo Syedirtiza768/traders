@@ -92,12 +92,14 @@ def _ensure_address_template():
     if existing:
         frappe.db.set_value("Address Template", existing, "is_default", 1)
         return existing
-    tmpl = frappe.get_doc({
-        "doctype": "Address Template",
-        "country": "Pakistan",
-        "is_default": 1,
-        "template": "{{ address_line1 }}<br>{% if address_line2 %}{{ address_line2 }}<br>{% endif %}{{ city }}{% if state %}, {{ state }}{% endif %}<br>{{ country }}{% if pincode %} - {{ pincode }}{% endif %}",
-    })
+    tmpl = frappe.get_doc(
+        {
+            "doctype": "Address Template",
+            "country": "Pakistan",
+            "is_default": 1,
+            "template": "{{ address_line1 }}<br>{% if address_line2 %}{{ address_line2 }}<br>{% endif %}{{ city }}{% if state %}, {{ state }}{% endif %}<br>{{ country }}{% if pincode %} - {{ pincode }}{% endif %}",
+        }
+    )
     tmpl.insert(ignore_permissions=True)
     return tmpl.name
 
@@ -117,15 +119,17 @@ def _ensure_company_address(company):
         addr.save(ignore_permissions=True)
         return addr.name
 
-    addr = frappe.get_doc({
-        "doctype": "Address",
-        "address_title": company,
-        "address_type": "Billing",
-        "address_line1": ADDRESS_LINE1,
-        "city": ADDRESS_CITY,
-        "country": ADDRESS_COUNTRY,
-        "links": [{"link_doctype": "Company", "link_name": company}],
-    })
+    addr = frappe.get_doc(
+        {
+            "doctype": "Address",
+            "address_title": company,
+            "address_type": "Billing",
+            "address_line1": ADDRESS_LINE1,
+            "city": ADDRESS_CITY,
+            "country": ADDRESS_COUNTRY,
+            "links": [{"link_doctype": "Company", "link_name": company}],
+        }
+    )
     addr.insert(ignore_permissions=True)
     return addr.name
 
@@ -141,15 +145,17 @@ def _clone_admin_user(tenant, company):
         user = frappe.get_doc("User", NEW_USER)
         created = False
     else:
-        user = frappe.get_doc({
-            "doctype": "User",
-            "email": NEW_USER,
-            "first_name": old.first_name or "Bilal",
-            "last_name": old.last_name or "",
-            "send_welcome_email": 0,
-            "user_type": "System User",
-            "new_password": random_string(16),
-        })
+        user = frappe.get_doc(
+            {
+                "doctype": "User",
+                "email": NEW_USER,
+                "first_name": old.first_name or "Bilal",
+                "last_name": old.last_name or "",
+                "send_welcome_email": 0,
+                "user_type": "System User",
+                "new_password": random_string(16),
+            }
+        )
         user.insert(ignore_permissions=True)
         created = True
 
@@ -192,13 +198,15 @@ def _clone_admin_user(tenant, company):
         "User Permission",
         {"user": NEW_USER, "allow": "Company", "for_value": company},
     ):
-        frappe.get_doc({
-            "doctype": "User Permission",
-            "user": NEW_USER,
-            "allow": "Company",
-            "for_value": company,
-            "is_default": 1,
-        }).insert(ignore_permissions=True)
+        frappe.get_doc(
+            {
+                "doctype": "User Permission",
+                "user": NEW_USER,
+                "allow": "Company",
+                "for_value": company,
+                "is_default": 1,
+            }
+        ).insert(ignore_permissions=True)
 
     # Disable legacy login
     old.enabled = 0
@@ -301,15 +309,9 @@ def run(dry_run=0):
     if not assets:
         frappe.throw("Letter pad assets not found (expected image1/2/3.png under /tmp/letterpad-extract)")
 
-    logo_url = _upload_public(
-        "electrence-logo.png", assets["logo"], "Trader Tenant", tenant
-    )
-    header_url = _upload_public(
-        "electrence-letterhead-header.png", assets["header"], "Trader Tenant", tenant
-    )
-    footer_url = _upload_public(
-        "electrence-letterhead-footer.png", assets["footer"], "Trader Tenant", tenant
-    )
+    logo_url = _upload_public("electrence-logo.png", assets["logo"], "Trader Tenant", tenant)
+    header_url = _upload_public("electrence-letterhead-header.png", assets["header"], "Trader Tenant", tenant)
+    footer_url = _upload_public("electrence-letterhead-footer.png", assets["footer"], "Trader Tenant", tenant)
 
     branding = {}
     raw = tenant_doc.branding
@@ -321,23 +323,27 @@ def run(dry_run=0):
     elif isinstance(raw, dict):
         branding = dict(raw)
 
-    branding.update({
-        "appName": NEW_COMPANY,
-        "letterhead_header": header_url,
-        "letterhead_footer": footer_url,
-        "primaryColor": "#0f766e",
-        "accentColor": "#134e4a",
-    })
+    branding.update(
+        {
+            "appName": NEW_COMPANY,
+            "letterhead_header": header_url,
+            "letterhead_footer": footer_url,
+            "primaryColor": "#0f766e",
+            "accentColor": "#134e4a",
+        }
+    )
     tenant_doc.logo = logo_url
     tenant_doc.branding = branding
     tenant_doc.save(ignore_permissions=True)
-    result["steps"].append({
-        "branding": {
-            "logo": logo_url,
-            "letterhead_header": header_url,
-            "letterhead_footer": footer_url,
+    result["steps"].append(
+        {
+            "branding": {
+                "logo": logo_url,
+                "letterhead_header": header_url,
+                "letterhead_footer": footer_url,
+            }
         }
-    })
+    )
 
     # 5) Admin user clone + disable old
     user_info = _clone_admin_user(tenant, company)

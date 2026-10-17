@@ -4,9 +4,7 @@
 from __future__ import unicode_literals
 
 import frappe
-from frappe import _
-from frappe.utils import getdate, nowdate, cint
-
+from frappe.utils import cint, getdate, nowdate
 from trader_app.api.company import resolve_active_company
 
 # DocTypes whose `company` field scopes activity to the active company.
@@ -87,7 +85,9 @@ def get_audit_log(
     total = frappe.db.sql(
         f"SELECT COUNT(*) FROM `tabActivity Log` al WHERE {where}",
         params,
-    )[0][0]
+    )[
+        0
+    ][0]
 
     rows = frappe.db.sql(
         f"""

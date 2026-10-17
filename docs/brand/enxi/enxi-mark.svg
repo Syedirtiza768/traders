@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="EnXi">
+  <title>EnXi</title>
+  <!-- CBS geometry: 2px-style control radius, chamfered top inline-end corner -->
+  <path fill="#006E60" d="M4 0h96l28 28v96a4 4 0 0 1-4 4H4a4 4 0 0 1-4-4V4a4 4 0 0 1 4-4z"/>
+  <path fill="#FFFFFF" d="M33 30h22l40 68H73z"/>
+  <path fill="#83D6BD" d="M73 30h22L55 98H33z"/>
+</svg>

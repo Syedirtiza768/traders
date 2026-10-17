@@ -5,6 +5,9 @@
 .git
 **/.git
 .github
+.qa-evidence/
+.commandcode/
+.obsidian/
 
 # Dependencies & outputs (match .gitignore; also cover untracked installs)
 node_modules/

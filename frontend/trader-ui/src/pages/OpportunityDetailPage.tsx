@@ -9,12 +9,34 @@ import {
   ShoppingCart,
   Truck,
 } from 'lucide-react';
-import { opportunityApi } from '../lib/api';
+import { opportunityApi, salesApi } from '../lib/api';
+import {
+  effectiveSelection,
+  groupByLine,
+  hasAlternatives,
+  optionAmount,
+  selectionPayload,
+  type OptionSelection,
+} from '../lib/commercialOptions';
 import { extractFrappeError, formatCurrency, formatDate, getStatusColor } from '../lib/utils';
 import { LoadingBlock, AlertBanner } from '../components/ui';
 
 const CLOSE_STAGES = ['Enquiry', 'Quotation', 'Customer PO', 'Delivery', 'Other'] as const;
-const HUB_TABS = ['Details', 'Quotations', 'Order Confirmations', 'Delivery Notes', 'Invoices', 'Activity'] as const;
+const HUB_TABS = [
+  'Details',
+  'Quotations',
+  'Order Confirmations',
+  'Delivery Notes',
+  'Invoices',
+  'Reconciliation',
+  'Activity',
+] as const;
+
+const CHECK_STATUS_CLASS: Record<string, string> = {
+  pass: 'bg-green-50 text-green-700 border-green-200',
+  warn: 'bg-amber-50 text-amber-700 border-amber-200',
+  fail: 'bg-red-50 text-red-700 border-red-200',
+};
 
 type HubTab = (typeof HUB_TABS)[number];
 
@@ -35,6 +57,11 @@ export default function OpportunityDetailPage() {
   const [busy, setBusy] = useState(false);
   const [comment, setComment] = useState('');
   const [closeStage, setCloseStage] = useState<(typeof CLOSE_STAGES)[number]>('Quotation');
+  const [closeReason, setCloseReason] = useState('');
+  const [dnSourceOc, setDnSourceOc] = useState('');
+  // Challan line picker: the lines of the Order Confirmation the next challan delivers against.
+  const [dnPlan, setDnPlan] = useState<any | null>(null);
+  const [dnLines, setDnLines] = useState<number[]>([]);
   const [poNo, setPoNo] = useState('');
   const [poDate, setPoDate] = useState('');
   const [poAmount, setPoAmount] = useState('');
@@ -43,6 +70,16 @@ export default function OpportunityDetailPage() {
   const [selectedPo, setSelectedPo] = useState('');
   const [invoiceableDns, setInvoiceableDns] = useState<any[]>([]);
   const [selectedDns, setSelectedDns] = useState<string[]>([]);
+  // The option the customer accepted per line on the quotation chosen for the OC.
+  const [quotationOptions, setQuotationOptions] = useState<any[]>([]);
+  const [ocSelection, setOcSelection] = useState<OptionSelection>({});
+  // The quote lines this customer PO covers. A quotation is often split across POs, so each OC
+  // takes its own lines; a line left unticked is not ordered on this OC.
+  const [ocLines, setOcLines] = useState<number[]>([]);
+  const [reconciliation, setReconciliation] = useState<any | null>(null);
+  const [fulfilment, setFulfilment] = useState<any | null>(null);
+  const [progressLoading, setProgressLoading] = useState(false);
+  const [progressError, setProgressError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!opportunityId) {
@@ -88,6 +125,90 @@ export default function OpportunityDetailPage() {
 
   const opp = hub?.opportunity;
   const counts = opp?.counts || {};
+  // Submitted Order Confirmations (one per customer PO) that still have quantity to deliver.
+  // The order list is on the project response, next to the project record (`opp`).
+  const deliverableOcs: any[] = (hub?.order_confirmations || []).filter(
+    (oc: any) => Number(oc.docstatus) === 1 && Number(oc.per_delivered ?? 0) < 100,
+  );
+  const planOc = deliverableOcs.length === 1 ? deliverableOcs[0].name : dnSourceOc;
+
+  // Load what each line of that Order Confirmation still has to deliver; lines with nothing left start unticked.
+  useEffect(() => {
+    if (!opp?.name || !planOc) {
+      setDnPlan(null);
+      setDnLines([]);
+      return;
+    }
+    let cancelled = false;
+    opportunityApi
+      .deliveryPlan(opp.name, planOc)
+      .then((res) => {
+        if (cancelled) return;
+        const plan = res.data.message;
+        setDnPlan(plan);
+        setDnLines(
+          (plan?.lines || [])
+            .filter((line: any) => Number(line.remaining_qty) > 0)
+            .map((line: any) => Number(line.line_no)),
+        );
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setDnPlan(null);
+        setDnLines([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [opp?.name, planOc]);
+
+  useEffect(() => {
+    if (!selectedQuote) {
+      setQuotationOptions([]);
+      setOcSelection({});
+      setOcLines([]);
+      return;
+    }
+    let cancelled = false;
+    salesApi
+      .getQuotationDetail(selectedQuote)
+      .then((res) => {
+        if (cancelled) return;
+        const options = res.data.message?.trader_commercial_options ?? [];
+        setQuotationOptions(options);
+        setOcSelection(effectiveSelection(options, false));
+        setOcLines(Array.from(new Set(options.map((o: any) => Number(o.line_no)))) as number[]);
+      })
+      .catch(() => {
+        if (!cancelled) setQuotationOptions([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedQuote]);
+
+  const oppName = opp?.name as string | undefined;
+  const loadProgress = useCallback(async () => {
+    if (!oppName) return;
+    setProgressLoading(true);
+    setProgressError(null);
+    try {
+      const [recon, fulfil] = await Promise.all([
+        opportunityApi.getReconciliation(oppName),
+        opportunityApi.getFulfilment(oppName),
+      ]);
+      setReconciliation(recon.data.message);
+      setFulfilment(fulfil.data.message);
+    } catch (err) {
+      setProgressError(extractFrappeError(err, 'Could not load the reconciliation.'));
+    } finally {
+      setProgressLoading(false);
+    }
+  }, [oppName]);
+
+  useEffect(() => {
+    if (tab === 'Reconciliation') void loadProgress();
+  }, [tab, loadProgress]);
 
   const runAction = async (fn: () => Promise<unknown>, success: string) => {
     setBusy(true);
@@ -205,6 +326,10 @@ export default function OpportunityDetailPage() {
                       opportunity: opp.name,
                       source_quotation: selectedQuote || undefined,
                       customer_po_no: selectedPo || undefined,
+                      selected_options: hasAlternatives(quotationOptions)
+                        ? selectionPayload(ocSelection)
+                        : undefined,
+                      lines: quotationOptions.length ? ocLines : undefined,
                     });
                     const name = res.data.message?.name;
                     if (name) navigate(`/sales/orders/${encodeURIComponent(name)}`);
@@ -219,7 +344,11 @@ export default function OpportunityDetailPage() {
                 disabled={busy}
                 onClick={() =>
                   runAction(async () => {
-                    const res = await opportunityApi.createDeliveryNote(opp.name);
+                    const res = await opportunityApi.createDeliveryNote(
+                      opp.name,
+                      planOc || undefined,
+                      dnPlan?.lines?.length ? dnLines : undefined,
+                    );
                     const name = res.data.message?.name;
                     if (name) navigate(`/sales/challans/${encodeURIComponent(name)}`);
                   }, 'Delivery Note created.')
@@ -227,6 +356,60 @@ export default function OpportunityDetailPage() {
               >
                 Make Delivery Note
               </button>
+              {deliverableOcs.length > 1 ? (
+                <select
+                  className="input-field w-auto"
+                  aria-label="Order Confirmation this challan delivers against"
+                  value={dnSourceOc}
+                  onChange={(e) => setDnSourceOc(e.target.value)}
+                >
+                  <option value="">Choose PO…</option>
+                  {deliverableOcs.map((oc: any) => (
+                    <option key={oc.name} value={oc.name}>
+                      PO {oc.po_no || 'not set'} ({oc.name})
+                    </option>
+                  ))}
+                </select>
+              ) : null}
+              {dnPlan?.lines?.length ? (
+                <fieldset className="w-full rounded-md border border-gray-200 p-3 text-sm">
+                  <legend className="px-1 text-xs font-medium text-gray-600">
+                    Lines this challan delivers (PO {dnPlan.po_no || 'not set'})
+                  </legend>
+                  <ul className="space-y-2">
+                    {dnPlan.lines.map((line: any) => {
+                      const lineNo = Number(line.line_no);
+                      const open = Number(line.remaining_qty) > 0;
+                      return (
+                        <li key={lineNo}>
+                          <label className="flex flex-wrap items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={dnLines.includes(lineNo)}
+                              disabled={busy || !open}
+                              onChange={(e) =>
+                                setDnLines((prev) =>
+                                  e.target.checked ? [...prev, lineNo] : prev.filter((n) => n !== lineNo),
+                                )
+                              }
+                            />
+                            <span className="font-medium text-gray-900">
+                              Line {lineNo}: {line.option_text || line.client_requirements || 'Option'}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {open
+                                ? (line.items || [])
+                                    .map((item: any) => `${item.item_code} ${item.remaining_qty} of ${item.ordered_qty} left`)
+                                    .join(' · ')
+                                : 'Fully delivered'}
+                            </span>
+                          </label>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </fieldset>
+              ) : null}
               {invoiceableDns.length > 0 ? (
                 <button
                   type="button"
@@ -255,11 +438,20 @@ export default function OpportunityDetailPage() {
                   <option key={s} value={s}>{s}</option>
                 ))}
               </select>
+              <input
+                className="input-field w-auto"
+                aria-label="Closing reason"
+                placeholder={closeStage === 'Other' ? 'Reason (required)' : 'Reason (optional)'}
+                value={closeReason}
+                onChange={(e) => setCloseReason(e.target.value)}
+              />
               <button
                 type="button"
                 className="btn-secondary"
                 disabled={busy}
-                onClick={() => runAction(() => opportunityApi.close(opp.name, closeStage), 'Project closed.')}
+                onClick={() =>
+                  runAction(() => opportunityApi.close(opp.name, closeStage, closeReason.trim() || undefined), 'Project closed.')
+                }
               >
                 Close
               </button>
@@ -300,6 +492,69 @@ export default function OpportunityDetailPage() {
               </select>
             </label>
           ) : null}
+        </div>
+      ) : null}
+
+      {opp.status === 'Open' && quotationOptions.length > 0 ? (
+        <div className="card p-4 space-y-3">
+          <div>
+            <p className="text-sm font-semibold text-gray-900">Lines and options on this customer PO</p>
+            <p className="text-xs text-gray-500">
+              Tick the lines this PO covers. A quotation can be split across POs, and a line is ordered only once.
+              For each ticked line, choose one option: the order, challan and invoice bill only the option chosen here.
+            </p>
+          </div>
+          {Array.from(groupByLine(quotationOptions).entries()).map(([lineNo, lineOptions]) => {
+            const onPo = ocLines.includes(Number(lineNo));
+            return (
+            <fieldset key={lineNo} className={`space-y-1 ${onPo ? '' : 'opacity-50'}`}>
+              <legend className="flex items-center gap-2 text-xs font-medium text-gray-600">
+                <input
+                  type="checkbox"
+                  aria-label={`Line ${lineNo} on this PO`}
+                  checked={onPo}
+                  onChange={(e) =>
+                    setOcLines((prev) =>
+                      e.target.checked
+                        ? [...prev, Number(lineNo)].sort((a, b) => a - b)
+                        : prev.filter((n) => n !== Number(lineNo)),
+                    )
+                  }
+                />
+                Line {lineNo}
+              </legend>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {lineOptions.map((option: any) => {
+                  const checked = ocSelection[lineNo] === option.option_no;
+                  return (
+                    <label
+                      key={option.option_no}
+                      className={`flex cursor-pointer items-start gap-2 rounded-lg border p-2 text-sm ${
+                        checked ? 'border-green-500 bg-green-50/60' : 'border-gray-200'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name={`oc-line-${lineNo}`}
+                        className="mt-1"
+                        checked={checked}
+                        disabled={!onPo}
+                        onChange={() => setOcSelection((prev) => ({ ...prev, [lineNo]: option.option_no }))}
+                      />
+                      <span>
+                        <span className="font-medium text-gray-900">
+                          Option {option.option_no}
+                          {option.option_text ? ` · ${option.option_text}` : ''}
+                        </span>
+                        <span className="block text-xs text-gray-500">{formatCurrency(optionAmount(option))}</span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </fieldset>
+            );
+          })}
         </div>
       ) : null}
 
@@ -373,6 +628,7 @@ export default function OpportunityDetailPage() {
             {opp.status === 'Closed' ? (
               <>
                 <DetailRow label="Close stage" value={opp.close_stage || '—'} />
+                <DetailRow label="Close reason" value={opp.close_reason || '—'} />
                 <DetailRow label="Closed by" value={opp.closed_by || '—'} />
               </>
             ) : null}
@@ -495,6 +751,77 @@ export default function OpportunityDetailPage() {
         />
       )}
 
+      {tab === 'Reconciliation' && (
+        <div className="space-y-4">
+          {progressError ? <AlertBanner tone="error">{progressError}</AlertBanner> : null}
+          {progressLoading && !reconciliation ? <LoadingBlock label="Reconciling documents…" /> : null}
+          {reconciliation ? (
+            <div className="card p-5 space-y-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <h2 className="text-sm font-semibold text-gray-900">Document chain</h2>
+                <span
+                  className={`rounded-full border px-2 py-0.5 text-xs font-medium ${
+                    CHECK_STATUS_CLASS[reconciliation.status] ?? ''
+                  }`}
+                >
+                  {reconciliation.status === 'pass'
+                    ? 'All checks pass'
+                    : `${reconciliation.summary.fail} failing · ${reconciliation.summary.warn} warning`}
+                </span>
+                <button
+                  type="button"
+                  className="btn-secondary ml-auto"
+                  disabled={progressLoading}
+                  onClick={() => void loadProgress()}
+                >
+                  Refresh
+                </button>
+              </div>
+              <ul className="space-y-2">
+                {reconciliation.checks.map((check: any) => (
+                  <li
+                    key={check.id}
+                    className={`rounded-lg border p-3 text-sm ${CHECK_STATUS_CLASS[check.status] ?? ''}`}
+                  >
+                    <p className="font-medium">{check.label}</p>
+                    <p className="text-xs">{check.detail}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {fulfilment ? (
+            <div className="card p-5 space-y-3">
+              <h2 className="text-sm font-semibold text-gray-900">Ordered, delivered and invoiced</h2>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-gray-500">
+                      <th className="py-1 pr-3">Item</th>
+                      <th className="py-1 pr-3 text-right">Ordered</th>
+                      <th className="py-1 pr-3 text-right">Delivered</th>
+                      <th className="py-1 pr-3 text-right">Invoiced</th>
+                      <th className="py-1 text-right">Pending delivery</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(fulfilment.items || []).map((row: any) => (
+                      <tr key={row.item_code} className="border-t border-gray-100">
+                        <td className="py-1 pr-3">{row.item_code}</td>
+                        <td className="py-1 pr-3 text-right">{row.ordered_qty}</td>
+                        <td className="py-1 pr-3 text-right">{row.delivered_qty}</td>
+                        <td className="py-1 pr-3 text-right">{row.invoiced_qty}</td>
+                        <td className="py-1 text-right">{row.pending_delivery_qty}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      )}
+
       {tab === 'Activity' && (
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="card p-5 space-y-3">
@@ -556,7 +883,7 @@ export default function OpportunityDetailPage() {
               </ul>
             )}
             <p className="text-xs text-gray-500">
-              Use Make Quotation above for the full-page tabbed editor (Sahamid-style), or Continue /
+              Use Make Quotation above for the full-page tabbed editor, or Continue /
               Discard when a draft exists. Hierarchy copies Quote → OC → DN; first option per line is billed.
             </p>
           </div>

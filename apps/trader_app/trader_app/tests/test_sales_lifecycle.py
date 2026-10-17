@@ -75,6 +75,7 @@ if _need_stub:
     _frappe.get_all = lambda *a, **k: []
     if not hasattr(_frappe, "session"):
         _frappe.session = types.SimpleNamespace(user="tester@test.com")
+    _frappe.get_roles.return_value = ["Trader Admin"]
 
     # MagicMock auto-provides the utils we don't care about (now_datetime, etc.,
     # imported by sibling modules), while our 5 are real so arithmetic/date logic works.
@@ -90,37 +91,39 @@ else:
     _frappe.whitelist = lambda fn=None, **k: (fn if fn is not None else (lambda f: f))
 
 
-from trader_app.api.rules import evaluate_condition
-from trader_app.api.tax_policy import match_tax_policies, _service_matches
-from trader_app.api.grouped_invoicing import validate_group, DEFAULT_GROUPING
-from trader_app.api.posting import build_posting_preview
+from trader_app.api.ar import DEFAULT_INACTIVE_PROFILE as AR_DEFAULT_INACTIVE
+from trader_app.api.ar import PROFILE_TEMPLATES as AR_PROFILE_TEMPLATES
+from trader_app.api.ar import build_profile_defaults as build_ar_profile_defaults
+from trader_app.api.ar import (
+    can_access_internal_print,
+    is_within_settle_tolerance,
+    reported_outstanding,
+)
+from trader_app.api.customer_pack import (
+    DEFAULT_INACTIVE_PROFILE as CUSTOMER_PACK_INACTIVE,
+)
+from trader_app.api.customer_pack import PROFILE_TEMPLATES as CUSTOMER_PACK_TEMPLATES
+from trader_app.api.customer_pack import (
+    build_profile_defaults as build_customer_pack_defaults,
+)
+from trader_app.api.grouped_invoicing import DEFAULT_GROUPING, validate_group
+from trader_app.api.hierarchy import (
+    copy_commercial_options,
+    effective_item_qty,
+    flatten_commercial_options,
+    hierarchy_amount,
+    remaining_package_qty,
+    select_first_options,
+)
 from trader_app.api.opportunity import (
-    PROFILE_TEMPLATES,
     DEFAULT_INACTIVE_PROFILE,
+    PROFILE_TEMPLATES,
     build_profile_defaults,
     infer_display_stage,
 )
-from trader_app.api.ar import (
-    PROFILE_TEMPLATES as AR_PROFILE_TEMPLATES,
-    DEFAULT_INACTIVE_PROFILE as AR_DEFAULT_INACTIVE,
-    build_profile_defaults as build_ar_profile_defaults,
-    is_within_settle_tolerance,
-    reported_outstanding,
-    can_access_internal_print,
-)
-from trader_app.api.customer_pack import (
-    PROFILE_TEMPLATES as CUSTOMER_PACK_TEMPLATES,
-    DEFAULT_INACTIVE_PROFILE as CUSTOMER_PACK_INACTIVE,
-    build_profile_defaults as build_customer_pack_defaults,
-)
-from trader_app.api.hierarchy import (
-    effective_item_qty,
-    remaining_package_qty,
-    copy_commercial_options,
-    flatten_commercial_options,
-    hierarchy_amount,
-    select_first_options,
-)
+from trader_app.api.posting import build_posting_preview
+from trader_app.api.rules import evaluate_condition
+from trader_app.api.tax_policy import _service_matches, match_tax_policies
 
 
 # ────────────────────────────────────────────────────────────────
@@ -145,8 +148,12 @@ class RuleEngineTests(unittest.TestCase):
         node = {"all": [{"field": "a", "op": "==", "value": 1}, {"field": "b", "op": "==", "value": 2}]}
         self.assertTrue(evaluate_condition(node, {"a": 1, "b": 2}))
         self.assertFalse(evaluate_condition(node, {"a": 1, "b": 9}))
-        self.assertTrue(evaluate_condition({"any": [{"field": "a", "op": "==", "value": 1},
-                                                    {"field": "b", "op": "==", "value": 2}]}, {"a": 1, "b": 9}))
+        self.assertTrue(
+            evaluate_condition(
+                {"any": [{"field": "a", "op": "==", "value": 1}, {"field": "b", "op": "==", "value": 2}]},
+                {"a": 1, "b": 9},
+            )
+        )
         self.assertTrue(evaluate_condition({"not": {"field": "a", "op": "is_set"}}, {}))
 
     def test_existential_child_path_matching(self):
@@ -167,12 +174,28 @@ class RuleEngineTests(unittest.TestCase):
 class TaxPolicyMatchTests(unittest.TestCase):
     def _policies(self):
         return [
-            {"name": "SERVICE", "tax_mode": "exclusive", "tax_template": None, "rate": 16,
-             "effective_from": "2026-01-01", "effective_to": None, "service_flag": "service",
-             "customer_category": None, "jurisdiction": None},
-            {"name": "GOODS", "tax_mode": "exclusive", "tax_template": None, "rate": 18,
-             "effective_from": "2026-01-01", "effective_to": None, "service_flag": "goods",
-             "customer_category": None, "jurisdiction": None},
+            {
+                "name": "SERVICE",
+                "tax_mode": "exclusive",
+                "tax_template": None,
+                "rate": 16,
+                "effective_from": "2026-01-01",
+                "effective_to": None,
+                "service_flag": "service",
+                "customer_category": None,
+                "jurisdiction": None,
+            },
+            {
+                "name": "GOODS",
+                "tax_mode": "exclusive",
+                "tax_template": None,
+                "rate": 18,
+                "effective_from": "2026-01-01",
+                "effective_to": None,
+                "service_flag": "goods",
+                "customer_category": None,
+                "jurisdiction": None,
+            },
         ]
 
     def test_goods_vs_service_dimension(self):
@@ -181,22 +204,58 @@ class TaxPolicyMatchTests(unittest.TestCase):
         self.assertEqual(match_tax_policies(pol, {"date": "2026-07-07", "is_service": False})["name"], "GOODS")
 
     def test_effective_window(self):
-        expired = [{"name": "OLD", "effective_from": "2020-01-01", "effective_to": "2021-12-31",
-                    "service_flag": "any", "customer_category": None, "jurisdiction": None,
-                    "tax_mode": "exclusive", "tax_template": None, "rate": 17}]
+        expired = [
+            {
+                "name": "OLD",
+                "effective_from": "2020-01-01",
+                "effective_to": "2021-12-31",
+                "service_flag": "any",
+                "customer_category": None,
+                "jurisdiction": None,
+                "tax_mode": "exclusive",
+                "tax_template": None,
+                "rate": 17,
+            }
+        ]
         self.assertIsNone(match_tax_policies(expired, {"date": "2026-07-07", "is_service": None}))
-        future = [{"name": "FUTURE", "effective_from": "2099-01-01", "effective_to": None,
-                   "service_flag": "any", "customer_category": None, "jurisdiction": None,
-                   "tax_mode": "exclusive", "tax_template": None, "rate": 5}]
+        future = [
+            {
+                "name": "FUTURE",
+                "effective_from": "2099-01-01",
+                "effective_to": None,
+                "service_flag": "any",
+                "customer_category": None,
+                "jurisdiction": None,
+                "tax_mode": "exclusive",
+                "tax_template": None,
+                "rate": 5,
+            }
+        ]
         self.assertIsNone(match_tax_policies(future, {"date": "2026-07-07", "is_service": None}))
 
     def test_customer_category_and_jurisdiction(self):
-        pol = [{"name": "VIP", "effective_from": "2026-01-01", "effective_to": None, "service_flag": "any",
-                "customer_category": "Wholesale", "jurisdiction": "Punjab",
-                "tax_mode": "exclusive", "tax_template": None, "rate": 10}]
-        self.assertIsNotNone(match_tax_policies(pol, {"date": "2026-07-07", "customer_category": "Wholesale", "jurisdiction": "Punjab"}))
-        self.assertIsNone(match_tax_policies(pol, {"date": "2026-07-07", "customer_category": "Retail", "jurisdiction": "Punjab"}))
-        self.assertIsNone(match_tax_policies(pol, {"date": "2026-07-07", "customer_category": "Wholesale", "jurisdiction": "Sindh"}))
+        pol = [
+            {
+                "name": "VIP",
+                "effective_from": "2026-01-01",
+                "effective_to": None,
+                "service_flag": "any",
+                "customer_category": "Wholesale",
+                "jurisdiction": "Punjab",
+                "tax_mode": "exclusive",
+                "tax_template": None,
+                "rate": 10,
+            }
+        ]
+        self.assertIsNotNone(
+            match_tax_policies(pol, {"date": "2026-07-07", "customer_category": "Wholesale", "jurisdiction": "Punjab"})
+        )
+        self.assertIsNone(
+            match_tax_policies(pol, {"date": "2026-07-07", "customer_category": "Retail", "jurisdiction": "Punjab"})
+        )
+        self.assertIsNone(
+            match_tax_policies(pol, {"date": "2026-07-07", "customer_category": "Wholesale", "jurisdiction": "Sindh"})
+        )
 
     def test_first_match_wins_by_order(self):
         pol = self._policies()
@@ -237,8 +296,13 @@ class GroupingPolicyTests(unittest.TestCase):
 
 class PostingPreviewTests(unittest.TestCase):
     def test_balanced_simple_invoice(self):
-        doc = {"grand_total": 1000, "company": "X", "debit_to": "Debtors",
-               "items": [{"amount": 1000, "income_account": "Sales"}], "taxes": []}
+        doc = {
+            "grand_total": 1000,
+            "company": "X",
+            "debit_to": "Debtors",
+            "items": [{"amount": 1000, "income_account": "Sales"}],
+            "taxes": [],
+        }
         p = build_posting_preview(doc)
         self.assertTrue(p["balanced"])
         self.assertEqual(p["total_debit"], 1000)
@@ -246,19 +310,30 @@ class PostingPreviewTests(unittest.TestCase):
         self.assertEqual(len(p["entries"]), 2)
 
     def test_balanced_with_tax(self):
-        doc = {"grand_total": 1180, "company": "X", "debit_to": "Debtors",
-               "items": [{"net_amount": 1000, "income_account": "Sales"}],
-               "taxes": [{"account_head": "GST Payable", "tax_amount": 180}]}
+        doc = {
+            "grand_total": 1180,
+            "company": "X",
+            "debit_to": "Debtors",
+            "items": [{"net_amount": 1000, "income_account": "Sales"}],
+            "taxes": [{"account_head": "GST Payable", "tax_amount": 180}],
+        }
         p = build_posting_preview(doc)
         self.assertTrue(p["balanced"])
         self.assertEqual(p["total_debit"], 1180)
         self.assertEqual(p["total_credit"], 1180)
 
     def test_multiple_income_accounts_aggregate(self):
-        doc = {"grand_total": 300, "company": "X", "debit_to": "Debtors",
-               "items": [{"amount": 100, "income_account": "Sales A"},
-                         {"amount": 200, "income_account": "Sales A"},
-                         {"amount": 0, "income_account": "Sales B"}], "taxes": []}
+        doc = {
+            "grand_total": 300,
+            "company": "X",
+            "debit_to": "Debtors",
+            "items": [
+                {"amount": 100, "income_account": "Sales A"},
+                {"amount": 200, "income_account": "Sales A"},
+                {"amount": 0, "income_account": "Sales B"},
+            ],
+            "taxes": [],
+        }
         p = build_posting_preview(doc)
         credits = {e["account"]: e["credit"] for e in p["entries"] if e["credit"]}
         self.assertEqual(credits["Sales A"], 300)

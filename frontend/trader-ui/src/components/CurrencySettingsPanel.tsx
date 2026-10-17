@@ -195,7 +195,7 @@ export default function CurrencySettingsPanel() {
       <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 dark:border-slate-600 bg-gray-50/80 dark:bg-slate-800/50 px-4 py-3 max-w-xl">
         <input
           type="checkbox"
-          className="mt-1 h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+          className="mt-1 h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-3 focus:ring-brand-500"
           checked={multiEnabled}
           onChange={(e) => setMultiEnabled(e.target.checked)}
         />

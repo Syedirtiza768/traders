@@ -73,7 +73,7 @@ export default function TenantListPage() {
 
       {error ? <AlertBanner tone="error">{error}</AlertBanner> : null}
 
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
         <table className="min-w-full text-sm">
           <thead className="bg-slate-50 text-slate-500">
             <tr>

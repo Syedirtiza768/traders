@@ -8,8 +8,15 @@ Creates:
 
 from __future__ import unicode_literals
 
+import secrets
+
 import frappe
 from trader_app.demo.seed_engine.base import BaseGenerator
+
+
+def _new_demo_password():
+    """Generate an unshared password for each optional demo account."""
+    return secrets.token_urlsafe(32)
 
 
 class UserGenerator(BaseGenerator):
@@ -32,16 +39,18 @@ class UserGenerator(BaseGenerator):
             print(f"  ⏭️  User '{email}' already exists, skipping.")
             return
 
-        user = frappe.get_doc({
-            "doctype": "User",
-            "email": email,
-            "first_name": user_cfg["first_name"],
-            "last_name": user_cfg["last_name"],
-            "enabled": 1,
-            "new_password": "Demo@12345",
-            "send_welcome_email": 0,
-            "user_type": "System User",
-        })
+        user = frappe.get_doc(
+            {
+                "doctype": "User",
+                "email": email,
+                "first_name": user_cfg["first_name"],
+                "last_name": user_cfg["last_name"],
+                "enabled": 1,
+                "new_password": _new_demo_password(),
+                "send_welcome_email": 0,
+                "user_type": "System User",
+            }
+        )
 
         # Add roles
         for role_name in user_cfg.get("roles", []):

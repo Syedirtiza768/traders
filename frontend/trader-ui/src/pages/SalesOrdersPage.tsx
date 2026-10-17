@@ -31,18 +31,6 @@ function buildSalesInvoicePrefill(order: any, listSearch?: string) {
   return `/sales/new${query ? `?${query}` : ''}`;
 }
 
-function buildSalesDispatchPrefill(order: any, listSearch?: string) {
-  const params = new URLSearchParams();
-
-  if (order.customer) params.set('customer', order.customer);
-  if (order.delivery_date || order.transaction_date) params.set('postingDate', order.delivery_date || order.transaction_date);
-  if (order.name) params.set('orderName', order.name);
-  if (listSearch) params.set('list', listSearch);
-
-  const query = params.toString();
-  return `/inventory/dispatches/new${query ? `?${query}` : ''}`;
-}
-
 export default function SalesOrdersPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -236,13 +224,19 @@ export default function SalesOrdersPage() {
                       {order.customer ? (
                         <>
                           <button
-                            onClick={(e) => {
+                            onClick={async (e) => {
                               e.stopPropagation();
-                              navigate(buildSalesDispatchPrefill(order, listSearch));
+                              try {
+                                const res = await salesApi.createChallanFromOrder(order.name);
+                                const created = res.data.message?.name;
+                                if (created) navigate(appendPreservedListQuery(`/sales/challans/${encodeURIComponent(created)}`, listSearch));
+                              } catch (err: any) {
+                                window.alert(err?.response?.data?.exception || 'Could not create the delivery challan.');
+                              }
                             }}
                             className="btn-secondary text-xs"
                           >
-                            <PackageOpen className="mr-1 inline h-3.5 w-3.5" /> Dispatch
+                            <PackageOpen className="mr-1 inline h-3.5 w-3.5" /> Challan
                           </button>
                           <button
                             onClick={(e) => {

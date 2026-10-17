@@ -38,16 +38,22 @@ after_migrate = [
 fixtures = [
     {
         "dt": "Role",
-        "filters": [["name", "in", [
-            "Trader Admin",
-            "Trader Sales Manager",
-            "Trader Purchase Manager",
-            "Trader Finance Manager",
-            "Trader Inventory Manager",
-            "Trader Super Admin",
-            "Trader Staff",
-            "Trader Viewer",
-        ]]],
+        "filters": [
+            [
+                "name",
+                "in",
+                [
+                    "Trader Admin",
+                    "Trader Sales Manager",
+                    "Trader Purchase Manager",
+                    "Trader Finance Manager",
+                    "Trader Inventory Manager",
+                    "Trader Super Admin",
+                    "Trader Staff",
+                    "Trader Viewer",
+                ],
+            ]
+        ],
     },
     # Document approval workflows — declared here for future implementation.
     # Workflow JSON fixture files do not yet exist; the fixture entry is
@@ -70,47 +76,123 @@ fixtures = [
 # ── DocType Events ─────────────────────────────────────────────────
 doc_events = {
     "Sales Invoice": {
+        "before_validate": "trader_app.api.invoice_types.normalize_mapped_invoice_type",
         "validate": [
+            "trader_app.api.permissions.validate_transaction_master_tenants",
             "trader_app.api.tax_policy.apply_tax_policy",
             "trader_app.api.posting.apply_posting_profile",
             "trader_app.api.posting.apply_stock_posting_moment",
             "trader_app.api.sales.validate_sales_invoice",
             "trader_app.api.process.apply_initial_state",
             "trader_app.api.fx_policy.snapshot_on_create",
+            "trader_app.api.ar_tracking.stamp_expected_payment_date",
         ],
         "before_submit": "trader_app.api.fx_policy.snapshot_on_finalize",
         "on_submit": "trader_app.api.sales.on_sales_invoice_submit",
         "on_cancel": "trader_app.api.sales.on_sales_invoice_cancel",
     },
     "Quotation": {
-        "validate": "trader_app.api.process.apply_initial_state",
+        "validate": [
+            "trader_app.api.permissions.validate_transaction_master_tenants",
+            # Stamp the company's GST template so the saved total carries tax, as the editor shows it.
+            "trader_app.api.tax_policy.apply_tax_policy",
+            "trader_app.api.process.apply_initial_state",
+        ],
+        "before_validate": "trader_app.api.opportunity.validate_quotation_for_submit",
+        "before_submit": [
+            "trader_app.api.credit_control.enforce_customer_credit",
+            "trader_app.api.approvals.check_quotation",
+        ],
     },
     "Delivery Note": {
         "validate": [
+            "trader_app.api.permissions.validate_transaction_master_tenants",
+            "trader_app.api.tax_policy.apply_tax_policy",
+            "trader_app.api.order_linking.link_delivery_note_to_order",
             "trader_app.api.process.apply_initial_state",
             "trader_app.api.posting.apply_stock_posting_moment",
         ],
+        "before_submit": "trader_app.api.back_to_back.refuse_challan_without_stock",
+        "on_submit": "trader_app.api.stock_settlement.settle_valuation_after_commit",
+        "on_cancel": "trader_app.api.stock_settlement.settle_valuation_after_commit",
+    },
+    "Sales Order": {
+        "validate": [
+            "trader_app.api.permissions.validate_transaction_master_tenants",
+            "trader_app.api.tax_policy.apply_tax_policy",
+        ],
+    },
+    "Purchase Order": {
+        "validate": "trader_app.api.permissions.validate_transaction_master_tenants",
+        "before_submit": "trader_app.api.approvals.check_purchase_order",
+    },
+    "Purchase Receipt": {
+        "validate": "trader_app.api.permissions.validate_transaction_master_tenants",
+        "on_submit": "trader_app.api.stock_settlement.settle_valuation_after_commit",
+        "on_cancel": "trader_app.api.stock_settlement.settle_valuation_after_commit",
+    },
+    "POS Invoice": {
+        "validate": "trader_app.api.permissions.validate_transaction_master_tenants",
+    },
+    "Stock Reconciliation": {
+        "validate": "trader_app.api.permissions.validate_transaction_master_tenants",
+    },
+    "Landed Cost Voucher": {
+        "validate": "trader_app.api.permissions.validate_transaction_master_tenants",
+    },
+    "Material Request": {
+        "validate": "trader_app.api.permissions.validate_transaction_master_tenants",
+    },
+    "Request for Quotation": {
+        "validate": "trader_app.api.permissions.validate_transaction_master_tenants",
+    },
+    "Supplier Quotation": {
+        "validate": "trader_app.api.permissions.validate_transaction_master_tenants",
+    },
+    "Journal Entry": {
+        "validate": "trader_app.api.permissions.validate_transaction_master_tenants",
+    },
+    "Opportunity": {
+        "validate": "trader_app.api.permissions.validate_transaction_master_tenants",
     },
     # Tenant-stamp shared master data on creation so it is scoped to its owner.
     "Customer": {
         "before_insert": "trader_app.api.permissions.stamp_master_tenant",
+        "validate": "trader_app.api.permissions.validate_master_tenant",
     },
     "Supplier": {
         "before_insert": "trader_app.api.permissions.stamp_master_tenant",
+        "validate": "trader_app.api.permissions.validate_master_tenant",
     },
     "Item": {
         "before_insert": "trader_app.api.permissions.stamp_master_tenant",
+        "validate": "trader_app.api.permissions.validate_master_tenant",
+    },
+    "Item Bundle": {
+        "before_insert": "trader_app.api.permissions.stamp_master_tenant",
+        "validate": "trader_app.api.permissions.validate_item_bundle_tenant",
     },
     "Purchase Invoice": {
-        "validate": "trader_app.api.purchases.validate_purchase_invoice",
+        "before_validate": "trader_app.api.invoice_types.normalize_mapped_invoice_type",
+        "validate": [
+            "trader_app.api.permissions.validate_transaction_master_tenants",
+            "trader_app.api.purchases.validate_purchase_invoice",
+        ],
+        "before_submit": "trader_app.api.approvals.check_bill",
         "on_submit": "trader_app.api.purchases.on_purchase_invoice_submit",
         "on_cancel": "trader_app.api.purchases.on_purchase_invoice_cancel",
     },
     "Payment Entry": {
+        "before_validate": "trader_app.api.ar_settlement.apply_settle_tolerance",
+        "validate": "trader_app.api.permissions.validate_transaction_master_tenants",
+        "before_submit": "trader_app.api.approvals.check_payment",
         "on_submit": "trader_app.api.finance.on_payment_entry_submit",
     },
     "Stock Entry": {
-        "validate": "trader_app.api.inventory.validate_stock_entry",
+        "validate": [
+            "trader_app.api.permissions.validate_transaction_master_tenants",
+            "trader_app.api.inventory.validate_stock_entry",
+        ],
     },
 }
 
@@ -148,9 +230,11 @@ permission_query_conditions = {
     "Customer": "trader_app.api.permissions.customer_query",
     "Supplier": "trader_app.api.permissions.supplier_query",
     "Item": "trader_app.api.permissions.item_query",
+    "Item Bundle": "trader_app.api.permissions.item_bundle_query",
 }
 
 has_permission = {
+    "Company": "trader_app.api.permissions.company_document_permission",
     "Sales Invoice": "trader_app.api.permissions.has_sales_invoice_permission",
     "Purchase Invoice": "trader_app.api.permissions.has_purchase_invoice_permission",
     "Sales Order": "trader_app.api.permissions.has_sales_order_permission",
@@ -158,6 +242,10 @@ has_permission = {
     "Payment Entry": "trader_app.api.permissions.has_payment_entry_permission",
     "Delivery Note": "trader_app.api.permissions.has_delivery_note_permission",
     "Quotation": "trader_app.api.permissions.has_quotation_permission",
+    "Customer": "trader_app.api.permissions.master_document_permission",
+    "Supplier": "trader_app.api.permissions.master_document_permission",
+    "Item": "trader_app.api.permissions.master_document_permission",
+    "Item Bundle": "trader_app.api.permissions.master_document_permission",
 }
 
 # ── Boot Session ───────────────────────────────────────────────────

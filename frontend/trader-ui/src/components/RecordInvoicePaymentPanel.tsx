@@ -143,10 +143,17 @@ export default function RecordInvoicePaymentPanel({
         submit: 1,
       });
       const result = response.data.message;
-      setSuccess(
-        `Payment ${result.name} recorded into ${result.settlement_account || settlementAccount}. `
-        + `Outstanding: ${formatCurrency(result.outstanding_amount ?? 0, currency)}.`,
-      );
+      if (result.approval_required) {
+        setSuccess(
+          `Payment ${result.name} is saved as a draft. It needs an approval before it is submitted: ${result.message} `
+          + 'An approver records the approval on the payment entry, then submits it.',
+        );
+      } else {
+        setSuccess(
+          `Payment ${result.name} recorded into ${result.settlement_account || settlementAccount}. `
+          + `Outstanding: ${formatCurrency(result.outstanding_amount ?? 0, currency)}.`,
+        );
+      }
       await onRecorded();
     } catch (err: unknown) {
       console.error('Failed to record invoice payment:', err);

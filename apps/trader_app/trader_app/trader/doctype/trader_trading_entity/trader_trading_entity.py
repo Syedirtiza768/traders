@@ -34,11 +34,7 @@ class TraderTradingEntity(Document):
             "name",
         )
         if existing:
-            frappe.throw(
-                _("Trading Entity '{0}' already exists for {1}.").format(
-                    self.trading_name, self.company
-                )
-            )
+            frappe.throw(_("Trading Entity '{0}' already exists for {1}.").format(self.trading_name, self.company))
 
     def _validate_unique_code(self):
         if not self.code:
@@ -53,11 +49,7 @@ class TraderTradingEntity(Document):
             "name",
         )
         if existing:
-            frappe.throw(
-                _("Code '{0}' is already used by Trading Entity {1}.").format(
-                    self.code, existing
-                )
-            )
+            frappe.throw(_("Code '{0}' is already used by Trading Entity {1}.").format(self.code, existing))
 
     def _clear_other_defaults(self):
         others = frappe.get_all(
@@ -70,9 +62,7 @@ class TraderTradingEntity(Document):
             pluck="name",
         )
         for name in others:
-            frappe.db.set_value(
-                "Trader Trading Entity", name, "is_default", 0, update_modified=False
-            )
+            frappe.db.set_value("Trader Trading Entity", name, "is_default", 0, update_modified=False)
 
     def on_trash(self):
         if not frappe.db.has_column("Customer", "trader_trading_entity"):

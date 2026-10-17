@@ -30,6 +30,17 @@ export function formatCurrency(value: number | undefined | null, currency?: stri
   }).format(value);
 }
 
+export function formatCompactCurrency(value: number | undefined | null, currency?: string): string {
+  const cur = currency || activeCurrency;
+  return new Intl.NumberFormat('en-PK', {
+    style: 'currency',
+    currency: cur,
+    notation: 'compact',
+    compactDisplay: 'short',
+    maximumFractionDigits: 2,
+  }).format(value ?? 0);
+}
+
 /**
  * Format a monetary amount with the active company's currency code prefixed,
  * e.g. "AED 1,234.50". Used by pages that want fixed decimals and a currency
@@ -192,6 +203,18 @@ export function isWorkflowContext(listSearch: string | null | undefined): boolea
  * Pull a human-readable error message from a Frappe API error response,
  * falling back to a provided default string.
  */
+/** Server messages can carry HTML links and escaped entities; the screen shows the words only. */
+function plainMessage(text: string): string {
+  return text
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&')
+    .replace(/<[^>]*>/g, '')
+    .trim();
+}
+
 export function extractFrappeError(err: any, fallback = 'An unexpected error occurred.'): string {
   const exc = err?.response?.data?.exception
     || err?.response?.data?._server_messages
@@ -201,11 +224,11 @@ export function extractFrappeError(err: any, fallback = 'An unexpected error occ
       const parsed = JSON.parse(exc);
       if (Array.isArray(parsed) && parsed.length > 0) {
         const inner = JSON.parse(parsed[0]);
-        return inner?.message || fallback;
+        return plainMessage(inner?.message || fallback);
       }
     } catch {
-      // not JSON — return the string as-is
-      return exc;
+      // not JSON — return the message without the server's exception class prefix (frappe.exceptions.X: )
+      return plainMessage(exc.replace(/^(?:[a-z_]+\.)+[A-Z]\w*:\s*/, ''));
     }
   }
   return fallback;

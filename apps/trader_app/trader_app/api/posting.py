@@ -12,17 +12,12 @@ Nothing here is enforced unless a company has an active posting profile.
 from __future__ import unicode_literals
 
 import frappe
-from frappe import _
 from frappe.utils import flt
-
-from trader_app.api.company import resolve_active_company
 from trader_app.api.decision_log import log_decision
 
 
 def get_posting_profile(company, event="sales_invoice"):
-    name = frappe.db.get_value(
-        "Trader Posting Profile", {"company": company, "event": event, "is_active": 1}, "name"
-    )
+    name = frappe.db.get_value("Trader Posting Profile", {"company": company, "event": event, "is_active": 1}, "name")
     return frappe.get_cached_doc("Trader Posting Profile", name) if name else None
 
 
@@ -61,18 +56,24 @@ def apply_stock_posting_moment(doc, method=None):
         if doc.get("update_stock"):
             doc.update_stock = 0
             log_decision(
-                "posting", company=company, outcome="applied",
+                "posting",
+                company=company,
+                outcome="applied",
                 message="stock_posting_moment=invoice: Delivery Note will not move stock (dispatch record only).",
-                reference_doctype=doc.doctype, reference_name=doc.name or "(unsaved)",
+                reference_doctype=doc.doctype,
+                reference_name=doc.name or "(unsaved)",
                 policy="opportunity_profile",
             )
     elif doc.doctype == "Sales Invoice":
         if not doc.get("update_stock") and any(it.get("warehouse") for it in doc.get("items", [])):
             doc.update_stock = 1
             log_decision(
-                "posting", company=company, outcome="applied",
+                "posting",
+                company=company,
+                outcome="applied",
                 message="stock_posting_moment=invoice: Sales Invoice will issue stock + COGS on submit.",
-                reference_doctype=doc.doctype, reference_name=doc.name or "(unsaved)",
+                reference_doctype=doc.doctype,
+                reference_name=doc.name or "(unsaved)",
                 policy="opportunity_profile",
             )
 
@@ -96,10 +97,14 @@ def apply_posting_profile(doc, method=None):
             it.cost_center = profile.cost_center
     if changed:
         log_decision(
-            "posting", company=doc.company, outcome="applied",
+            "posting",
+            company=doc.company,
+            outcome="applied",
             message="Posting profile accounts applied",
-            output=changed, reference_doctype=doc.doctype,
-            reference_name=doc.name or "(unsaved)", policy=profile.name,
+            output=changed,
+            reference_doctype=doc.doctype,
+            reference_name=doc.name or "(unsaved)",
+            policy=profile.name,
         )
 
 
@@ -154,15 +159,27 @@ def build_posting_preview(doc):
 def preview_posting(doctype, name):
     """Dry-run: show the GL impact a document would post, without submitting it."""
     doc = frappe.get_doc(doctype, name)
+    doc.check_permission("read")
     from trader_app.api.company import assert_document_company_access
 
     assert_document_company_access(doc.get("company"))
     preview = build_posting_preview(doc)
     log_decision(
-        "posting", company=doc.get("company"), outcome="applied",
+        "posting",
+        company=doc.get("company"),
+        outcome="applied",
         message="Dry-run posting preview ({0})".format("balanced" if preview["balanced"] else "UNBALANCED"),
-        output={"total_debit": preview["total_debit"], "total_credit": preview["total_credit"],
-                "balanced": preview["balanced"]},
-        reference_doctype=doctype, reference_name=name,
+        output={
+            "total_debit": preview["total_debit"],
+            "total_credit": preview["total_credit"],
+            "balanced": preview["balanced"],
+        },
+        reference_doctype=doctype,
+        reference_name=name,
     )
     return preview
+
+
+from trader_app.api._tenant_guard import apply_module_guards
+
+apply_module_guards(globals(), "finance")

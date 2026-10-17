@@ -11,11 +11,9 @@ Customer Ref, terms. Verifies first-option totals and print payloads.
 from __future__ import unicode_literals
 
 import frappe
-from frappe.utils import cint, flt, nowdate
-
+from frappe.utils import cint, flt
 from trader_app.api.quotation_defaults import ELECTRENCE_QUOTATION_TERMS, SAMPLE_ITEMS
 from trader_app.setup.custom_fields import ensure_custom_fields
-
 
 CUSTOMER_NAME = "Fauji Cement Company Limited"
 CUSTOMER_REF = "1000009032"
@@ -31,19 +29,21 @@ def _ensure_item(spec, company):
         item.save(ignore_permissions=True)
         return code
 
-    item = frappe.get_doc({
-        "doctype": "Item",
-        "item_code": code,
-        "item_name": spec["item_name"],
-        "description": spec["description"],
-        "item_group": frappe.db.get_value("Item Group", {"parent_item_group": ["is", "set"]}, "name")
-        or frappe.db.get_value("Item Group", {}, "name")
-        or "All Item Groups",
-        "stock_uom": frappe.db.get_single_value("Stock Settings", "stock_uom") or "Nos",
-        "is_stock_item": 1,
-        "standard_rate": spec["standard_rate"],
-        "valuation_rate": spec["standard_rate"],
-    })
+    item = frappe.get_doc(
+        {
+            "doctype": "Item",
+            "item_code": code,
+            "item_name": spec["item_name"],
+            "description": spec["description"],
+            "item_group": frappe.db.get_value("Item Group", {"parent_item_group": ["is", "set"]}, "name")
+            or frappe.db.get_value("Item Group", {}, "name")
+            or "All Item Groups",
+            "stock_uom": frappe.db.get_single_value("Stock Settings", "stock_uom") or "Nos",
+            "is_stock_item": 1,
+            "standard_rate": spec["standard_rate"],
+            "valuation_rate": spec["standard_rate"],
+        }
+    )
     item.insert(ignore_permissions=True)
     return code
 
@@ -56,17 +56,19 @@ def _ensure_customer(company):
     name = CUSTOMER_NAME
     if frappe.db.exists("Customer", name):
         return name
-    cust = frappe.get_doc({
-        "doctype": "Customer",
-        "customer_name": CUSTOMER_NAME,
-        "customer_type": "Company",
-        "customer_group": frappe.db.get_single_value("Selling Settings", "customer_group")
-        or frappe.db.get_value("Customer Group", {}, "name")
-        or "All Customer Groups",
-        "territory": frappe.db.get_single_value("Selling Settings", "territory")
-        or frappe.db.get_value("Territory", {}, "name")
-        or "All Territories",
-    })
+    cust = frappe.get_doc(
+        {
+            "doctype": "Customer",
+            "customer_name": CUSTOMER_NAME,
+            "customer_type": "Company",
+            "customer_group": frappe.db.get_single_value("Selling Settings", "customer_group")
+            or frappe.db.get_value("Customer Group", {}, "name")
+            or "All Customer Groups",
+            "territory": frappe.db.get_single_value("Selling Settings", "territory")
+            or frappe.db.get_value("Territory", {}, "name")
+            or "All Territories",
+        }
+    )
     if frappe.db.has_column("Customer", "trader_tenant"):
         tenant = frappe.db.get_value("Company", company, "trader_tenant")
         if tenant:
@@ -77,15 +79,17 @@ def _ensure_customer(company):
         "Dynamic Link",
         {"link_doctype": "Customer", "link_name": cust.name, "parenttype": "Address"},
     ):
-        addr = frappe.get_doc({
-            "doctype": "Address",
-            "address_title": CUSTOMER_NAME,
-            "address_type": "Billing",
-            "address_line1": "Fauji Towers, Block - III, 68 Tipu Road, Chaklala",
-            "city": "Rawalpindi",
-            "country": "Pakistan",
-            "links": [{"link_doctype": "Customer", "link_name": cust.name}],
-        })
+        addr = frappe.get_doc(
+            {
+                "doctype": "Address",
+                "address_title": CUSTOMER_NAME,
+                "address_type": "Billing",
+                "address_line1": "Fauji Towers, Block - III, 68 Tipu Road, Chaklala",
+                "city": "Rawalpindi",
+                "country": "Pakistan",
+                "links": [{"link_doctype": "Customer", "link_name": cust.name}],
+            }
+        )
         try:
             addr.insert(ignore_permissions=True)
         except Exception:
@@ -160,8 +164,8 @@ def populate(name="SAL-QTN-2026-00010", company="Electrence"):
         persist_nested_commercial_items,
         serialize_commercial_options,
     )
-    from trader_app.api.quotation_defaults import apply_order_details_to_quotation
     from trader_app.api.opportunity import save_commercial_options
+    from trader_app.api.quotation_defaults import apply_order_details_to_quotation
 
     ensure_custom_fields()
     for spec in SAMPLE_ITEMS:
@@ -254,6 +258,7 @@ def run(company="Electrence", submit=0):
 
     if not cint(frappe.db.get_value("Company", company, "trader_opportunity_enabled")):
         from trader_app.scripts.provision_opportunity import run as provision_opp
+
         provision_opp(company=company, template="electrence", activate=1)
 
     items = [_ensure_item(spec, company) for spec in SAMPLE_ITEMS]
@@ -265,15 +270,21 @@ def run(company="Electrence", submit=0):
         if existing:
             frappe.db.set_value("Address Template", existing, "is_default", 1)
         else:
-            frappe.get_doc({
-                "doctype": "Address Template",
-                "country": "Pakistan",
-                "is_default": 1,
-                "template": "{{ address_line1 }}<br>{% if address_line2 %}{{ address_line2 }}<br>{% endif %}{{ city }}{% if state %}, {{ state }}{% endif %}<br>{{ country }}",
-            }).insert(ignore_permissions=True)
+            frappe.get_doc(
+                {
+                    "doctype": "Address Template",
+                    "country": "Pakistan",
+                    "is_default": 1,
+                    "template": "{{ address_line1 }}<br>{% if address_line2 %}{{ address_line2 }}<br>{% endif %}{{ city }}{% if state %}, {{ state }}{% endif %}<br>{{ country }}",
+                }
+            ).insert(ignore_permissions=True)
 
-    from trader_app.api.opportunity import create_opportunity, create_quotation_for_opportunity, create_quotation_revision
     from trader_app.api.hierarchy import hierarchy_amount, select_first_options
+    from trader_app.api.opportunity import (
+        create_opportunity,
+        create_quotation_for_opportunity,
+        create_quotation_revision,
+    )
     from trader_app.api.printing import get_print_data
 
     project_hub = create_opportunity(
@@ -393,9 +404,7 @@ def run(company="Electrence", submit=0):
         "terms_len": len(q.terms or ""),
         "commercial_rows": len(q.trader_commercial_options or []),
         "draft_rule_ok": True,
-        "stock_status_sample": getattr(
-            (q.trader_commercial_options or [None])[0], "stock_status", None
-        ),
+        "stock_status_sample": getattr((q.trader_commercial_options or [None])[0], "stock_status", None),
     }
 
     # CDC isolation: opportunity flag must remain off unless activated
@@ -403,9 +412,7 @@ def run(company="Electrence", submit=0):
     if cdc_rows:
         cdc = cdc_rows[0]
         result["cdc_company"] = cdc
-        result["cdc_opportunity_enabled"] = cint(
-            frappe.db.get_value("Company", cdc, "trader_opportunity_enabled") or 0
-        )
+        result["cdc_opportunity_enabled"] = cint(frappe.db.get_value("Company", cdc, "trader_opportunity_enabled") or 0)
 
     if abs(flt(q.net_total) - expected_net) > 1:
         result["ok"] = False

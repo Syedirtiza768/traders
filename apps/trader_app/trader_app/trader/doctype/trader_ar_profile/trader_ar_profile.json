@@ -28,6 +28,9 @@
   "exchange_gain_loss_account",
   "wht_account",
   "gst_withhold_account",
+  "write_off_account",
+  "section_credit",
+  "credit_limit_action",
   "section_prints",
   "print_personas_enabled",
   "secure_internal_prints",
@@ -166,6 +169,26 @@
    "fieldtype": "Link",
    "label": "GST Withhold Account",
    "options": "Account"
+  },
+  {
+   "fieldname": "write_off_account",
+   "fieldtype": "Link",
+   "label": "Settle-tolerance Write-off Account",
+   "options": "Account",
+   "description": "Expense account that absorbs a receipt shortfall no larger than the settle tolerance, so the invoice closes and the ledger stays balanced."
+  },
+  {
+   "fieldname": "section_credit",
+   "fieldtype": "Section Break",
+   "label": "Customer Credit Limit"
+  },
+  {
+   "default": "Warn",
+   "fieldname": "credit_limit_action",
+   "fieldtype": "Select",
+   "label": "When a quotation exceeds the customer credit limit",
+   "options": "Warn\nBlock",
+   "description": "Applies to quotation finalisation. Orders, challans and invoices are always checked by ERPNext against the same limit. Warn: the quotation is finalised with a warning. Block: finalisation is refused unless the user holds Accounts Manager, System Manager, Trader Admin or the credit controller role. Warnings, blocks and overrides are written to the Decision Log."
   },
   {
    "fieldname": "section_prints",

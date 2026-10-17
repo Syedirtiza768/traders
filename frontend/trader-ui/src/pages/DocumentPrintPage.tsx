@@ -7,6 +7,7 @@ import {
   Printer,
 } from 'lucide-react';
 import { printApi } from '../lib/api';
+import { getSafePrintReturnPath } from '../lib/navigation';
 import { formatCurrency, formatDate } from '../lib/utils';
 import { PageHeader, LoadingBlock, AlertBanner } from '../components/ui';
 
@@ -141,7 +142,7 @@ export default function DocumentPrintPage() {
   const doctype = searchParams.get('doctype') || 'Sales Invoice';
   const docName = searchParams.get('name') || '';
   const autoprint = searchParams.get('autoprint') === '1';
-  const returnTo = searchParams.get('return') || '';
+  const returnTo = getSafePrintReturnPath(searchParams.get('return'));
 
   const [printData, setPrintData] = useState<PrintData | null>(null);
   const [loading, setLoading] = useState(true);

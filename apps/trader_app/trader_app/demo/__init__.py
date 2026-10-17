@@ -4,7 +4,6 @@
 Entry point for demo data installation.
 Usage:
     bench --site <site> execute trader_app.demo.install_demo
-    bench --site <site> execute trader_app.demo.uninstall_demo
 """
 
 from __future__ import unicode_literals
@@ -19,11 +18,13 @@ def install_demo():
 
 
 def uninstall_demo():
-    """Remove all demo data."""
-    from trader_app.demo.installer.main import DemoInstaller
+    """Reject the legacy site-wide deletion command."""
+    import frappe
 
-    installer = DemoInstaller()
-    installer.uninstall()
+    frappe.throw(
+        "Demo uninstallation is disabled because it could delete business data. "
+        "Remove demo data by resetting its disposable site."
+    )
 
 
 def enrich_reports():
@@ -32,8 +33,8 @@ def enrich_reports():
     Usage:
         bench --site <site> execute trader_app.demo.enrich_reports
     """
-    from trader_app.demo.seed_engine.config import DEMO_CONFIG
     from trader_app.demo.generators.enrichment import EnrichmentGenerator
+    from trader_app.demo.seed_engine.config import DEMO_CONFIG
 
     gen = EnrichmentGenerator(DEMO_CONFIG)
     gen.run()

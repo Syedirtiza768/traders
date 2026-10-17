@@ -100,7 +100,7 @@ export default function ReportsPage() {
                   </h3>
                   <p className="text-sm text-gray-500 mt-1">{r.description}</p>
                 </div>
-                <ChevronRight size={18} className="text-gray-400 group-hover:text-brand-600 mt-1 flex-shrink-0" />
+                <ChevronRight size={18} className="text-gray-400 group-hover:text-brand-600 mt-1 shrink-0" />
               </div>
             </button>
           ))}

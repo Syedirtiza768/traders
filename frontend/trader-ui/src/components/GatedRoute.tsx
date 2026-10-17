@@ -11,6 +11,8 @@ import AccessDenied from '../components/AccessDenied';
 export type GatedRouteProps = {
   children: ReactNode;
   capability?: AppCapability;
+  /** Any one of these capabilities opens the page (for example, invoice screens for sales and finance staff). */
+  anyCapability?: AppCapability[];
   module?: TenantModuleKey;
   requiresComponents?: boolean;
   requiresOpportunity?: boolean;
@@ -25,6 +27,7 @@ export type GatedRouteProps = {
 export default function GatedRoute({
   children,
   capability,
+  anyCapability,
   module,
   requiresComponents = false,
   requiresOpportunity = false,
@@ -42,6 +45,10 @@ export default function GatedRoute({
   const multitenantEnabled = useTenantStore((s) => s.enabled);
 
   if (capability && !hasCapability(roles, capability)) {
+    return <AccessDenied />;
+  }
+
+  if (anyCapability && !anyCapability.some((item) => hasCapability(roles, item))) {
     return <AccessDenied />;
   }
 

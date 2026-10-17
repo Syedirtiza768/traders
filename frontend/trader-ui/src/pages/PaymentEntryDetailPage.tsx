@@ -9,6 +9,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import { financeApi } from '../lib/api';
+import ApprovalPanel from '../components/ApprovalPanel';
 import { extractFrappeError, formatCurrency, formatDate, isFilterListContext, isOperationsContext, isReportContext, isWorkflowContext } from '../lib/utils';
 import { PageHeader, LoadingBlock, AlertBanner, StatusBadge } from '../components/ui';
 
@@ -184,6 +185,7 @@ export default function PaymentEntryDetailPage() {
         }
       />
 
+      {payment && <ApprovalPanel doctype="Payment Entry" name={payment.name} />}
       {feedback && (
         <AlertBanner tone={feedback.type === 'success' ? 'success' : 'error'}>{feedback.message}</AlertBanner>
       )}

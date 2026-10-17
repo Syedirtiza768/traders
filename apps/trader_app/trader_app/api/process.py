@@ -18,7 +18,6 @@ from __future__ import unicode_literals
 
 import frappe
 from frappe import _
-
 from trader_app.api.decision_log import log_decision
 
 STATE_FIELD = "trader_workflow_state"
@@ -67,10 +66,14 @@ def apply_initial_state(doc, method=None):
         return
     doc.set(STATE_FIELD, init)
     log_decision(
-        "state", company=doc.company, outcome="applied",
+        "state",
+        company=doc.company,
+        outcome="applied",
         message="Initial state set to {0}".format(init),
-        reference_doctype=doc.doctype, reference_name=doc.name or "(unsaved)",
-        output={"state": init}, policy=profile.name,
+        reference_doctype=doc.doctype,
+        reference_name=doc.name or "(unsaved)",
+        output={"state": init},
+        policy=profile.name,
     )
 
 
@@ -80,6 +83,7 @@ def transition_state(doctype, name, to_state):
     from trader_app.api.company import assert_document_company_access
 
     doc = frappe.get_doc(doctype, name)
+    doc.check_permission("write")
     company = getattr(doc, "company", None)
     assert_document_company_access(company)
     profile = get_active_profile(company)
@@ -92,32 +96,40 @@ def transition_state(doctype, name, to_state):
 
     if not match:
         log_decision(
-            "state", company=company, outcome="block",
+            "state",
+            company=company,
+            outcome="block",
             message="Transition {0} -> {1} is not allowed".format(current, to_state),
-            reference_doctype=doctype, reference_name=name,
-            inputs={"from": current, "to": to_state}, policy=profile.name,
+            reference_doctype=doctype,
+            reference_name=name,
+            inputs={"from": current, "to": to_state},
+            policy=profile.name,
         )
         frappe.throw(_("Transition from {0} to {1} is not allowed.").format(current, to_state))
 
     if match.required_role and match.required_role not in frappe.get_roles():
         log_decision(
-            "state", company=company, outcome="block",
-            message="Missing role {0} for transition {1} -> {2}".format(
-                match.required_role, current, to_state),
-            reference_doctype=doctype, reference_name=name, policy=profile.name,
+            "state",
+            company=company,
+            outcome="block",
+            message="Missing role {0} for transition {1} -> {2}".format(match.required_role, current, to_state),
+            reference_doctype=doctype,
+            reference_name=name,
+            policy=profile.name,
         )
-        frappe.throw(
-            _("You need the {0} role to move this document to {1}.").format(
-                match.required_role, to_state)
-        )
+        frappe.throw(_("You need the {0} role to move this document to {1}.").format(match.required_role, to_state))
 
     doc.set(STATE_FIELD, to_state)
     doc.save(ignore_permissions=False)
     log_decision(
-        "state", company=company, outcome="applied",
+        "state",
+        company=company,
+        outcome="applied",
         message="Transitioned {0} -> {1}".format(current, to_state),
-        reference_doctype=doctype, reference_name=name,
-        inputs={"from": current, "to": to_state}, output={"state": to_state},
+        reference_doctype=doctype,
+        reference_name=name,
+        inputs={"from": current, "to": to_state},
+        output={"state": to_state},
         policy=profile.name,
     )
     frappe.db.commit()
@@ -145,13 +157,23 @@ def get_state_model(company, doctype=None):
         "enforced": True,
         "profile": profile.name,
         "states": [
-            {"doctype": r.target_doctype, "state": r.state,
-             "is_initial": bool(r.is_initial), "is_final": bool(r.is_final)}
-            for r in profile.states if _match(r)
+            {
+                "doctype": r.target_doctype,
+                "state": r.state,
+                "is_initial": bool(r.is_initial),
+                "is_final": bool(r.is_final),
+            }
+            for r in profile.states
+            if _match(r)
         ],
         "transitions": [
-            {"doctype": r.target_doctype, "from": r.from_state, "to": r.to_state,
-             "required_role": r.required_role}
-            for r in profile.transitions if _match(r)
+            {"doctype": r.target_doctype, "from": r.from_state, "to": r.to_state, "required_role": r.required_role}
+            for r in profile.transitions
+            if _match(r)
         ],
     }
+
+
+from trader_app.api._tenant_guard import apply_module_guards
+
+apply_module_guards(globals(), "sales")

@@ -3,7 +3,7 @@
 # Uses Debian-based Node (not Alpine): npm on Alpine/musl has been observed to
 # abort with "Exit handler never called!" leaving node_modules incomplete.
 
-FROM node:20-bookworm-slim AS builder
+FROM node:24.21.0-bookworm-slim AS builder
 
 WORKDIR /app
 
@@ -29,7 +29,7 @@ COPY frontend/trader-ui/ .
 # No VITE_* env vars are needed: API routing is handled by the Nginx reverse proxy.
 RUN npm run build
 
-FROM nginx:1.25-alpine AS production
+FROM nginx:1.30.5-alpine3.24 AS production
 
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY infra/nginx/frontend.conf /etc/nginx/conf.d/default.conf

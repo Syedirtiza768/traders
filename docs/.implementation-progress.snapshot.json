@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-06-19T18:45:39.195Z",
-  "gitCommit": "e3ab48c",
+  "generatedAt": "2026-10-14T10:15:37.210Z",
+  "gitCommit": "4e0aabf",
   "manifestVersion": 1,
   "summary": {
     "verifiedTotal": 11,
@@ -9,9 +9,8 @@
     "manualTotal": 3
   },
   "todosTagCounts": {
-    "P0": 4,
-    "DONE": 1,
-    "P1": 8,
+    "DONE": 6,
+    "P1": 7,
     "P2": 7,
     "P3": 5,
     "P4": 2,
@@ -71,7 +70,7 @@
     },
     {
       "id": "qw-sales-credit-except",
-      "title": "Quick win: narrow _check_customer_credit_limit exception",
+      "title": "Quick win: credit-limit check uses ERPNext helpers directly (no broad exception swallow)",
       "priority": "P0",
       "status": "done",
       "manual": false,

@@ -11,7 +11,6 @@ import random
 
 import frappe
 from frappe.utils import add_days, flt, getdate, nowdate
-
 from trader_app.demo.seed_engine.base import BaseGenerator
 
 
@@ -29,9 +28,7 @@ class QuotationGenerator(BaseGenerator):
             end_date = getdate(self.config["demo_end_date"])
             total_days = max(1, (end_date - start_date).days)
 
-            customers = frappe.get_all(
-                "Customer", filters={"disabled": 0}, pluck="name"
-            )
+            customers = frappe.get_all("Customer", filters={"disabled": 0}, pluck="name")
             items = frappe.get_all(
                 "Item",
                 filters={"is_stock_item": 1, "disabled": 0},
@@ -53,9 +50,7 @@ class QuotationGenerator(BaseGenerator):
 
             low, high = self.config["num_quotations"]
             num_q = random.randint(low, high)
-            submit_fraction = float(
-                self.config.get("fraction_quotation_submit", 0.62)
-            )
+            submit_fraction = float(self.config.get("fraction_quotation_submit", 0.62))
 
             print(f"  📋 Creating {num_q} Quotations (~{submit_fraction:.0%} submit)")
 
@@ -65,9 +60,7 @@ class QuotationGenerator(BaseGenerator):
                 tr = add_days(start_date, day_off)
                 if getdate(tr) > getdate(nowdate()):
                     tr = nowdate()
-                selected = random.sample(
-                    items, min(random.randint(1, 6), len(items))
-                )
+                selected = random.sample(items, min(random.randint(1, 6), len(items)))
 
                 q = frappe.new_doc("Quotation")
                 q.company = company
@@ -79,12 +72,8 @@ class QuotationGenerator(BaseGenerator):
 
                 remaining = random.uniform(25000, 180000)
                 for row in selected:
-                    rate = item_prices.get(
-                        row["name"], random.uniform(100, 4000)
-                    )
-                    qty = random.randint(
-                        1, max(1, min(8, int(remaining / max(rate, 1))))
-                    )
+                    rate = item_prices.get(row["name"], random.uniform(100, 4000))
+                    qty = random.randint(1, max(1, min(8, int(remaining / max(rate, 1)))))
                     line = flt(rate) * qty
                     if line > remaining:
                         continue
@@ -114,9 +103,7 @@ class QuotationGenerator(BaseGenerator):
 
                     if random.random() < submit_fraction:
                         q.submit()
-                        self.created_records.append(
-                            ("Quotation Submitted", q.name)
-                        )
+                        self.created_records.append(("Quotation Submitted", q.name))
                 except Exception as e:
                     self.errors.append("Quotation: %s" % str(e))
 

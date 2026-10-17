@@ -15,6 +15,7 @@
   "require_opportunity_for_quotation",
   "dn_requires_oc_if_quotations_exist",
   "invoice_from_dn_only",
+  "require_po_for_oc",
   "column_break_gates",
   "allow_quick_quotation",
   "allow_quotation_revisions",
@@ -95,6 +96,13 @@
    "fieldname": "invoice_from_dn_only",
    "fieldtype": "Check",
    "label": "Invoice from Delivery Notes Only"
+  },
+  {
+   "default": "0",
+   "fieldname": "require_po_for_oc",
+   "fieldtype": "Check",
+   "label": "Require Customer PO for Order Confirmation",
+   "description": "Legacy rule: an Order Confirmation is created against one customer PO. When on, the PO number is mandatory."
   },
   {
    "fieldname": "column_break_gates",

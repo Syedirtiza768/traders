@@ -11,10 +11,8 @@ from __future__ import unicode_literals
 import frappe
 from frappe import _
 from frappe.utils import cint, flt
-
 from trader_app.api.company import resolve_active_company
 from trader_app.api.decision_log import log_decision
-
 
 PROFILE_TEMPLATES = {
     "minimal": {
@@ -30,6 +28,7 @@ PROFILE_TEMPLATES = {
         "exchange_gain_loss_account": None,
         "wht_account": None,
         "gst_withhold_account": None,
+        "write_off_account": None,
         "print_personas_enabled": 0,
         "secure_internal_prints": 1,
         "shop_sale_enabled": 0,
@@ -48,6 +47,7 @@ PROFILE_TEMPLATES = {
         "exchange_gain_loss_account": None,
         "wht_account": None,
         "gst_withhold_account": None,
+        "write_off_account": None,
         "print_personas_enabled": 1,
         "secure_internal_prints": 1,
         "shop_sale_enabled": 0,
@@ -58,14 +58,16 @@ DEFAULT_INACTIVE_PROFILE = dict(PROFILE_TEMPLATES["minimal"])
 
 PRINT_PERSONAS = ("internal", "external", "commercial", "tax")
 
-INTERNAL_PRINT_ROLES = frozenset({
-    "Administrator",
-    "System Manager",
-    "Trader Admin",
-    "Trader Super Admin",
-    "Trader Finance Manager",
-    "Trader Sales Manager",
-})
+INTERNAL_PRINT_ROLES = frozenset(
+    {
+        "Administrator",
+        "System Manager",
+        "Trader Admin",
+        "Trader Super Admin",
+        "Trader Finance Manager",
+        "Trader Sales Manager",
+    }
+)
 
 
 _TEMPLATE_ALIASES = {"electrance": "electrence"}
@@ -139,8 +141,7 @@ def is_within_settle_tolerance(remaining, tolerance):
     return abs(flt(remaining)) <= flt(tolerance)
 
 
-def reported_outstanding(posted_amount, allocated_amount, wht_amount=0, gst_withhold_amount=0,
-                         apply_withhold=False):
+def reported_outstanding(posted_amount, allocated_amount, wht_amount=0, gst_withhold_amount=0, apply_withhold=False):
     """Pure: outstanding for aging; withhold pots only affect reporting when flagged."""
     base = flt(posted_amount) - flt(allocated_amount)
     if apply_withhold:
@@ -178,9 +179,7 @@ def set_ar_enabled(enabled=0, company=None):
         )
         if rows:
             for row in rows:
-                frappe.db.set_value(
-                    "Trader Tenant Module", row.name, "enabled", enabled, update_modified=False
-                )
+                frappe.db.set_value("Trader Tenant Module", row.name, "enabled", enabled, update_modified=False)
         elif enabled:
             tdoc = frappe.get_doc("Trader Tenant", tenant)
             tdoc.append("enabled_modules", {"module_key": "ar", "enabled": 1})

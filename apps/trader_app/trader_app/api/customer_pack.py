@@ -10,10 +10,8 @@ from __future__ import unicode_literals
 import frappe
 from frappe import _
 from frappe.utils import cint
-
 from trader_app.api.company import resolve_active_company
 from trader_app.api.decision_log import log_decision
-
 
 PROFILE_TEMPLATES = {
     "minimal": {
@@ -58,9 +56,7 @@ def build_profile_defaults(template="minimal"):
 
 def is_customer_pack_enabled(company=None):
     company = resolve_active_company(company)
-    return bool(
-        cint(frappe.db.get_value("Company", company, "trader_customer_pack_enabled") or 0)
-    )
+    return bool(cint(frappe.db.get_value("Company", company, "trader_customer_pack_enabled") or 0))
 
 
 def get_active_customer_profile(company=None):

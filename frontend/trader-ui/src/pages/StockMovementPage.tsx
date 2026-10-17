@@ -150,7 +150,7 @@ export default function StockMovementPage() {
                 ) : (
                   rows.map((row) => (
                     <tr key={row.name} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-3 text-sm text-gray-700">{formatDate(row.posting_date)}<div className="text-xs text-gray-400">{formatDateTime(`${row.posting_date}T${row.posting_time || '00:00:00'}`)}</div></td>
+                      <td className="px-6 py-3 text-sm text-gray-700">{formatDate(row.posting_date)}<div className="text-xs text-gray-400">{formatDateTime(`${row.posting_date}T${String(row.posting_time || '00:00:00').split('.')[0]}`)}</div></td>
                       <td className="px-6 py-3 text-sm font-medium text-brand-700">{row.item_code}</td>
                       <td className="px-6 py-3 text-sm text-gray-600">{row.warehouse}</td>
                       <td className={`px-6 py-3 text-right text-sm font-medium ${Number(row.actual_qty || 0) >= 0 ? 'text-green-700' : 'text-red-700'}`}>{Number(row.actual_qty || 0).toLocaleString()}</td>

@@ -11,9 +11,8 @@ from __future__ import unicode_literals
 import json
 
 import frappe
-from frappe import _
+from frappe.utils import add_months, cint, flt, getdate, nowdate
 from trader_app.api.company import resolve_active_company
-from frappe.utils import nowdate, getdate, add_months, flt, cint, now_datetime, add_days
 
 # Redis-backed cache TTL for headline KPIs (scheduler refresh_dashboard_cache repopulates).
 DASHBOARD_KPI_CACHE_TTL = 300
@@ -26,40 +25,62 @@ def _dashboard_kpi_cache_key(company):
 def _compute_dashboard_kpis(company):
     """Run heavy SQL for one company — no read-through cache (used by get_kpis + scheduler)."""
     company = resolve_active_company(company)
+    from trader_app.api.permissions import company_master_sql_filter
+
+    customer_filter, customer_params = company_master_sql_filter("c", company)
+    customer_condition = "AND {0}".format(customer_filter) if customer_filter else ""
     currency = frappe.get_cached_value("Company", company, "default_currency") or "PKR"
     today = nowdate()
     first_of_month = getdate(today).replace(day=1).isoformat()
 
-    todays_sales = flt(frappe.db.sql("""
+    todays_sales = flt(
+        frappe.db.sql(
+            """
         SELECT COALESCE(SUM(grand_total), 0)
         FROM `tabSales Invoice`
         WHERE company = %s AND docstatus = 1 AND posting_date = %s
-    """, (company, today))[0][0])
+    """,
+            (company, today),
+        )[0][0]
+    )
 
-    monthly_revenue = flt(frappe.db.sql("""
+    monthly_revenue = flt(
+        frappe.db.sql(
+            """
         SELECT COALESCE(SUM(grand_total), 0)
         FROM `tabSales Invoice`
         WHERE company = %s AND docstatus = 1
               AND posting_date >= %s AND posting_date <= %s
-    """, (company, first_of_month, today))[0][0])
+    """,
+            (company, first_of_month, today),
+        )[0][0]
+    )
 
-    outstanding_receivables = flt(frappe.db.sql("""
+    outstanding_receivables = flt(
+        frappe.db.sql(
+            """
         SELECT COALESCE(SUM(outstanding_amount), 0)
         FROM `tabSales Invoice`
         WHERE company = %s AND docstatus = 1 AND outstanding_amount > 0
-    """, (company,))[0][0])
+    """,
+            (company,),
+        )[0][0]
+    )
 
-    outstanding_payables = flt(frappe.db.sql("""
+    outstanding_payables = flt(
+        frappe.db.sql(
+            """
         SELECT COALESCE(SUM(outstanding_amount), 0)
         FROM `tabPurchase Invoice`
         WHERE company = %s AND docstatus = 1 AND outstanding_amount > 0
-    """, (company,))[0][0])
+    """,
+            (company,),
+        )[0][0]
+    )
 
     # Components tenants: match day-close / workbook baseline (component stock only,
     # plus party opening balances folded into AR/AP).
-    components_enabled = cint(
-        frappe.db.get_value("Company", company, "trader_components_enabled") or 0
-    )
+    components_enabled = cint(frappe.db.get_value("Company", company, "trader_components_enabled") or 0)
     if components_enabled:
         from trader_app.api.daybook import (
             _get_component_stock_value,
@@ -67,43 +88,69 @@ def _compute_dashboard_kpis(company):
         )
 
         stock_value = flt(_get_component_stock_value(company, today))
-        outstanding_receivables = flt(outstanding_receivables) + flt(
-            _get_total_opening_balances("Customer")
-        )
-        outstanding_payables = flt(outstanding_payables) + flt(
-            _get_total_opening_balances("Supplier")
-        )
+        outstanding_receivables = flt(outstanding_receivables) + flt(_get_total_opening_balances("Customer", company))
+        outstanding_payables = flt(outstanding_payables) + flt(_get_total_opening_balances("Supplier", company))
     else:
-        stock_value = flt(frappe.db.sql("""
-            SELECT COALESCE(SUM(stock_value), 0)
+        item_filter, item_params = company_master_sql_filter("i", company)
+        item_condition = "AND {0}".format(item_filter) if item_filter else ""
+        stock_value = flt(
+            frappe.db.sql(
+                f"""
+            SELECT COALESCE(SUM(b.stock_value), 0)
             FROM `tabBin` b
             INNER JOIN `tabWarehouse` w ON w.name = b.warehouse
-            WHERE w.company = %s
-        """, (company,))[0][0])
+            INNER JOIN `tabItem` i ON i.name = b.item_code
+            WHERE w.company = %(company)s {item_condition}
+        """,
+                {"company": company, **item_params},
+            )[0][0]
+        )
 
     # Below item reorder level when set, else default threshold of 10 units (per-bin view).
     # ERPNext v15+: reorder targets live on `tabItem Reorder` per warehouse, not `tabItem.reorder_level`.
-    low_stock_items = cint(frappe.db.sql("""
+    item_filter, item_params = company_master_sql_filter("i", company)
+    item_condition = "AND {0}".format(item_filter) if item_filter else ""
+    low_stock_items = cint(
+        frappe.db.sql(
+            f"""
         SELECT COUNT(DISTINCT b.item_code)
         FROM `tabBin` b
         INNER JOIN `tabWarehouse` w ON w.name = b.warehouse
         INNER JOIN `tabItem` i ON i.name = b.item_code
         LEFT JOIN `tabItem Reorder` ir ON ir.parent = i.name AND ir.warehouse = b.warehouse
-        WHERE w.company = %s
+        WHERE w.company = %(company)s {item_condition}
           AND IFNULL(i.disabled, 0) = 0
           AND b.actual_qty > 0
           AND b.actual_qty < COALESCE(NULLIF(ir.warehouse_reorder_level, 0), 10)
-    """, (company,))[0][0])
+    """,
+            {"company": company, **item_params},
+        )[0][0]
+    )
 
-    total_customers = cint(frappe.db.count("Customer", {"disabled": 0}))
+    total_customers = cint(
+        frappe.db.sql(
+            f"""
+        SELECT COUNT(*) FROM `tabCustomer` c
+        WHERE c.disabled = 0 {customer_condition}
+    """,
+            customer_params,
+        )[0][0]
+    )
 
-    total_orders_today = cint(frappe.db.sql("""
+    total_orders_today = cint(
+        frappe.db.sql(
+            """
         SELECT COUNT(*)
         FROM `tabSales Invoice`
         WHERE company = %s AND docstatus = 1 AND posting_date = %s
-    """, (company, today))[0][0])
+    """,
+            (company, today),
+        )[0][0]
+    )
 
-    quotations_awaiting_conversion = cint(frappe.db.sql("""
+    quotations_awaiting_conversion = cint(
+        frappe.db.sql(
+            """
         SELECT COUNT(*)
         FROM `tabQuotation` q
         WHERE q.company = %s AND q.docstatus IN (0, 1)
@@ -113,9 +160,14 @@ def _compute_dashboard_kpis(company):
               INNER JOIN `tabSales Order` so ON so.name = soi.parent
               WHERE soi.prevdoc_docname = q.name AND so.docstatus < 2
           )
-    """, (company,))[0][0])
+    """,
+            (company,),
+        )[0][0]
+    )
 
-    sales_orders_with_unpaid_invoices = cint(frappe.db.sql("""
+    sales_orders_with_unpaid_invoices = cint(
+        frappe.db.sql(
+            """
         SELECT COUNT(DISTINCT so.name)
         FROM `tabSales Order` so
         INNER JOIN `tabSales Invoice Item` sii ON sii.sales_order = so.name
@@ -124,9 +176,14 @@ def _compute_dashboard_kpis(company):
           AND so.docstatus IN (0, 1)
           AND si.docstatus = 1
           AND si.outstanding_amount > 0
-    """, (company,))[0][0])
+    """,
+            (company,),
+        )[0][0]
+    )
 
-    purchase_orders_with_unpaid_invoices = cint(frappe.db.sql("""
+    purchase_orders_with_unpaid_invoices = cint(
+        frappe.db.sql(
+            """
         SELECT COUNT(DISTINCT po.name)
         FROM `tabPurchase Order` po
         INNER JOIN `tabPurchase Invoice Item` pii ON pii.purchase_order = po.name
@@ -135,7 +192,10 @@ def _compute_dashboard_kpis(company):
           AND po.docstatus IN (0, 1)
           AND pi.docstatus = 1
           AND pi.outstanding_amount > 0
-    """, (company,))[0][0])
+    """,
+            (company,),
+        )[0][0]
+    )
 
     return {
         "todays_sales": todays_sales,
@@ -174,6 +234,7 @@ def _empty_kpi_payload():
 # 1.  KPI CARDS
 # ────────────────────────────────────────────────────────────────
 
+
 @frappe.whitelist()
 def get_kpis(company=None):
     """Return headline KPIs for the dashboard.
@@ -190,8 +251,10 @@ def get_kpis(company=None):
         sales_orders_with_unpaid_invoices, purchase_orders_with_unpaid_invoices,
         currency
     """
+    # Resolve authorization context outside the fallback handler so a denied
+    # company request is not returned as a successful all-zero dashboard.
+    company = resolve_active_company(company)
     try:
-        company = resolve_active_company(company)
         cache_key = _dashboard_kpi_cache_key(company)
         cached = frappe.cache().get_value(cache_key)
         if cached:
@@ -214,22 +277,27 @@ def get_kpis(company=None):
 # 2.  SALES TREND (monthly bar chart)
 # ────────────────────────────────────────────────────────────────
 
+
 @frappe.whitelist()
 def get_sales_trend(company=None, months=12):
     """Monthly revenue for the last *months* months."""
+    company = resolve_active_company(company)
     try:
-        company = resolve_active_company(company)
         months = cint(months) or 12
         start = add_months(nowdate(), -months)
 
-        rows = frappe.db.sql("""
+        rows = frappe.db.sql(
+            """
             SELECT DATE_FORMAT(posting_date, '%%Y-%%m') AS month,
                    SUM(grand_total) AS total
             FROM `tabSales Invoice`
             WHERE company = %s AND docstatus = 1 AND posting_date >= %s
             GROUP BY month
             ORDER BY month
-        """, (company, start), as_dict=True)
+        """,
+            (company, start),
+            as_dict=True,
+        )
 
         return rows
     except Exception:
@@ -241,25 +309,42 @@ def get_sales_trend(company=None, months=12):
 # 3.  TOP CUSTOMERS (pie chart)
 # ────────────────────────────────────────────────────────────────
 
+
 @frappe.whitelist()
 def get_top_customers(company=None, limit=8):
     """Top N customers by total revenue this fiscal year."""
+    company = resolve_active_company(company)
     try:
-        company = resolve_active_company(company)
         limit = cint(limit) or 8
 
         fy = _current_fiscal_year(company)
+        from trader_app.api.permissions import company_master_sql_filter
 
-        rows = frappe.db.sql("""
+        customer_filter, customer_params = company_master_sql_filter("c", company)
+        customer_condition = "AND {0}".format(customer_filter) if customer_filter else ""
+
+        rows = frappe.db.sql(
+            f"""
             SELECT si.customer AS customer_name,
                    SUM(si.grand_total) AS total_revenue
             FROM `tabSales Invoice` si
-            WHERE si.company = %s AND si.docstatus = 1
-                  AND si.posting_date >= %s AND si.posting_date <= %s
+            INNER JOIN `tabCustomer` c ON c.name = si.customer
+            WHERE si.company = %(company)s AND si.docstatus = 1
+                  AND si.posting_date >= %(from_date)s AND si.posting_date <= %(to_date)s
+                  {customer_condition}
             GROUP BY si.customer
             ORDER BY total_revenue DESC
-            LIMIT %s
-        """, (company, fy["from"], fy["to"], limit), as_dict=True)
+            LIMIT %(limit)s
+        """,
+            {
+                "company": company,
+                "from_date": fy["from"],
+                "to_date": fy["to"],
+                "limit": limit,
+                **customer_params,
+            },
+            as_dict=True,
+        )
 
         return rows
     except Exception:
@@ -271,29 +356,40 @@ def get_top_customers(company=None, limit=8):
 # 4.  RECENT ORDERS (table)
 # ────────────────────────────────────────────────────────────────
 
+
 @frappe.whitelist()
 def get_recent_orders(company=None, limit=10):
     """Most recent Sales Invoices."""
+    company = resolve_active_company(company)
     try:
-        company = resolve_active_company(company)
         limit = cint(limit) or 10
+        from trader_app.api.permissions import company_master_sql_filter
 
-        rows = frappe.db.sql("""
-            SELECT name, customer AS customer_name,
-                   posting_date AS transaction_date,
-                   grand_total, outstanding_amount,
+        customer_filter, customer_params = company_master_sql_filter("c", company)
+        customer_condition = "AND {0}".format(customer_filter) if customer_filter else ""
+
+        rows = frappe.db.sql(
+            f"""
+            SELECT si.name, si.customer AS customer_name,
+                   si.posting_date AS transaction_date,
+                   si.grand_total, si.outstanding_amount,
                    CASE
-                       WHEN docstatus = 0 THEN 'Draft'
-                       WHEN docstatus = 2 THEN 'Cancelled'
-                       WHEN outstanding_amount <= 0 THEN 'Paid'
-                       WHEN outstanding_amount < grand_total THEN 'Partly Paid'
+                       WHEN si.docstatus = 0 THEN 'Draft'
+                       WHEN si.docstatus = 2 THEN 'Cancelled'
+                       WHEN si.outstanding_amount <= 0 THEN 'Paid'
+                       WHEN si.outstanding_amount < si.grand_total THEN 'Partly Paid'
                        ELSE 'Unpaid'
                    END AS status
-            FROM `tabSales Invoice`
-            WHERE company = %s AND docstatus IN (0, 1)
-            ORDER BY posting_date DESC, creation DESC
-            LIMIT %s
-        """, (company, limit), as_dict=True)
+            FROM `tabSales Invoice` si
+            INNER JOIN `tabCustomer` c ON c.name = si.customer
+            WHERE si.company = %(company)s AND si.docstatus IN (0, 1)
+                  {customer_condition}
+            ORDER BY si.posting_date DESC, si.creation DESC
+            LIMIT %(limit)s
+        """,
+            {"company": company, "limit": limit, **customer_params},
+            as_dict=True,
+        )
 
         return rows
     except Exception:
@@ -305,6 +401,7 @@ def get_recent_orders(company=None, limit=10):
 # 5.  CASH-FLOW SUMMARY (Finance page)
 # ────────────────────────────────────────────────────────────────
 
+
 @frappe.whitelist()
 def get_cash_flow_summary(company=None, months=12):
     """Monthly inflow / outflow for the Finance page."""
@@ -312,23 +409,31 @@ def get_cash_flow_summary(company=None, months=12):
     months = cint(months) or 12
     start = add_months(nowdate(), -months)
 
-    inflow = frappe.db.sql("""
+    inflow = frappe.db.sql(
+        """
         SELECT DATE_FORMAT(posting_date, '%%Y-%%m') AS month,
                SUM(paid_amount) AS amount
         FROM `tabPayment Entry`
         WHERE company = %s AND docstatus = 1
               AND payment_type = 'Receive' AND posting_date >= %s
         GROUP BY month
-    """, (company, start), as_dict=True)
+    """,
+        (company, start),
+        as_dict=True,
+    )
 
-    outflow = frappe.db.sql("""
+    outflow = frappe.db.sql(
+        """
         SELECT DATE_FORMAT(posting_date, '%%Y-%%m') AS month,
                SUM(paid_amount) AS amount
         FROM `tabPayment Entry`
         WHERE company = %s AND docstatus = 1
               AND payment_type = 'Pay' AND posting_date >= %s
         GROUP BY month
-    """, (company, start), as_dict=True)
+    """,
+        (company, start),
+        as_dict=True,
+    )
 
     inflow_map = {r.month: flt(r.amount) for r in inflow}
     outflow_map = {r.month: flt(r.amount) for r in outflow}
@@ -336,10 +441,7 @@ def get_cash_flow_summary(company=None, months=12):
     all_months = sorted(set(list(inflow_map.keys()) + list(outflow_map.keys())))
 
     return {
-        "monthly": [
-            {"month": m, "inflow": inflow_map.get(m, 0), "outflow": outflow_map.get(m, 0)}
-            for m in all_months
-        ]
+        "monthly": [{"month": m, "inflow": inflow_map.get(m, 0), "outflow": outflow_map.get(m, 0)} for m in all_months]
     }
 
 
@@ -347,22 +449,33 @@ def get_cash_flow_summary(company=None, months=12):
 # 6.  INVENTORY SUMMARY WIDGET
 # ────────────────────────────────────────────────────────────────
 
+
 @frappe.whitelist()
 def get_inventory_summary(company=None):
     """Summary widget for the dashboard — stock distribution by warehouse."""
     company = resolve_active_company(company)
 
-    rows = frappe.db.sql("""
+    from trader_app.api.permissions import company_master_sql_filter
+
+    item_filter, item_params = company_master_sql_filter("i", company)
+    item_join_condition = " AND {0}".format(item_filter) if item_filter else ""
+
+    rows = frappe.db.sql(
+        f"""
         SELECT w.name AS warehouse,
-               COUNT(DISTINCT b.item_code) AS item_count,
-               COALESCE(SUM(b.actual_qty), 0) AS total_qty,
-               COALESCE(SUM(b.stock_value), 0) AS stock_value
+               COUNT(DISTINCT i.name) AS item_count,
+               COALESCE(SUM(CASE WHEN i.name IS NOT NULL THEN b.actual_qty ELSE 0 END), 0) AS total_qty,
+               COALESCE(SUM(CASE WHEN i.name IS NOT NULL THEN b.stock_value ELSE 0 END), 0) AS stock_value
         FROM `tabWarehouse` w
         LEFT JOIN `tabBin` b ON b.warehouse = w.name
-        WHERE w.company = %s AND w.is_group = 0
+        LEFT JOIN `tabItem` i ON i.name = b.item_code{item_join_condition}
+        WHERE w.company = %(company)s AND w.is_group = 0
         GROUP BY w.name
         ORDER BY stock_value DESC
-    """, (company,), as_dict=True)
+    """,
+        {**item_params, "company": company},
+        as_dict=True,
+    )
 
     return rows
 
@@ -370,6 +483,7 @@ def get_inventory_summary(company=None):
 # ────────────────────────────────────────────────────────────────
 # 7.  REFRESH CACHE (scheduler)
 # ────────────────────────────────────────────────────────────────
+
 
 def refresh_dashboard_cache():
     """Called by scheduler to warm the dashboard KPI cache (writes Redis, same TTL as get_kpis)."""
@@ -389,9 +503,11 @@ def refresh_dashboard_cache():
 #    HELPERS
 # ────────────────────────────────────────────────────────────────
 
+
 def _current_fiscal_year(company):
     """Return dict with 'from' and 'to' for the current fiscal year."""
     from erpnext.accounts.utils import get_fiscal_year
+
     try:
         fy = get_fiscal_year(nowdate(), company=company)
         return {"from": fy[1].isoformat(), "to": fy[2].isoformat()}
@@ -401,6 +517,7 @@ def _current_fiscal_year(company):
             "from": today.replace(month=1, day=1).isoformat(),
             "to": today.replace(month=12, day=31).isoformat(),
         }
+
 
 from trader_app.api._tenant_guard import apply_module_guards
 

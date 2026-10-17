@@ -34,8 +34,7 @@ STANDARD_MODULE_KEYS = (
 _DEFAULT_OFF_MODULES = frozenset({"components", "opportunity", "ar", "trading_entity"})
 
 DEFAULT_MODULE_ROWS = [
-    {"module_key": key, "enabled": 0 if key in _DEFAULT_OFF_MODULES else 1}
-    for key in STANDARD_MODULE_KEYS
+    {"module_key": key, "enabled": 0 if key in _DEFAULT_OFF_MODULES else 1} for key in STANDARD_MODULE_KEYS
 ]
 
 MODULE_COMPANY_FIELD_MAP = {
@@ -423,9 +422,7 @@ def assert_user_limit(tenant):
     current = count_tenant_users(tenant)
     if current >= max_users:
         frappe.throw(
-            _("User limit reached ({0}/{1}). Upgrade your plan or contact support.").format(
-                current, max_users
-            )
+            _("User limit reached ({0}/{1}). Upgrade your plan or contact support.").format(current, max_users)
         )
 
 

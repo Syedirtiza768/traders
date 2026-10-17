@@ -21,21 +21,20 @@ from trader_app.setup import seed_super_admin as seed
 
 
 class SeedSuperAdminTests(unittest.TestCase):
-    def test_defaults_from_constants(self):
-        self.assertEqual(seed.DEFAULT_EMAIL, "superadmin@traders.local")
+    def test_no_static_default_identity_or_password(self):
+        self.assertFalse(hasattr(seed, "DEFAULT_EMAIL"))
+        self.assertFalse(hasattr(seed, "DEFAULT_PASSWORD"))
         self.assertEqual(seed.SUPER_ADMIN_ROLE, "Trader Super Admin")
 
     @patch.dict("os.environ", {}, clear=True)
-    def test_run_uses_default_email_when_unset(self):
-        with patch.object(seed, "create_roles"), patch.object(
+    def test_run_requires_explicit_email_and_password(self):
+        with patch.object(seed, "create_roles") as create_roles, patch.object(
             seed, "ensure_custom_fields"
-        ), patch.object(seed, "_enable_multitenant_flag", return_value=False), patch.object(
-            seed, "_ensure_super_admin_user", return_value={"created": True}
-        ) as ensure_user, patch.object(seed.frappe, "db") as db:
-            db.commit = MagicMock()
-            result = seed.run(dry_run=True, enable_multitenant=False)
-            ensure_user.assert_called_once()
-            self.assertEqual(result["email"], "superadmin@traders.local")
+        ) as ensure_custom_fields:
+            with self.assertRaises(Exception):
+                seed.run(dry_run=True, enable_multitenant=False)
+            create_roles.assert_not_called()
+            ensure_custom_fields.assert_not_called()
 
     @patch.dict(
         "os.environ",
@@ -43,11 +42,11 @@ class SeedSuperAdminTests(unittest.TestCase):
         clear=True,
     )
     def test_run_prefers_environment_variables(self):
-        with patch.object(seed, "create_roles"), patch.object(
-            seed, "ensure_custom_fields"
-        ), patch.object(seed, "_enable_multitenant_flag", return_value=True), patch.object(
-            seed, "_ensure_super_admin_user", return_value={"created": True}
-        ) as ensure_user, patch.object(seed.frappe, "db") as db:
+        with patch.object(seed, "create_roles"), patch.object(seed, "ensure_custom_fields"), patch.object(
+            seed, "_enable_multitenant_flag", return_value=True
+        ), patch.object(seed, "_ensure_super_admin_user", return_value={"created": True}) as ensure_user, patch.object(
+            seed.frappe, "db"
+        ) as db:
             db.commit = MagicMock()
             result = seed.run(dry_run=True)
             ensure_user.assert_called_with("ops@example.com", "x", dry_run=True, force_password=False)

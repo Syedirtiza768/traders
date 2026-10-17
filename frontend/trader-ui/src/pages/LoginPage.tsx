@@ -94,7 +94,7 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-800 p-8">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xs border border-gray-200 dark:border-slate-800 p-8">
             <div className="mb-6">
               <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">Welcome back</h2>
               <p className="text-gray-500 dark:text-slate-400 mt-1">Sign in to your account to continue</p>

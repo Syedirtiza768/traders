@@ -8,6 +8,7 @@ import { daybookApi } from '../lib/api';
 import { useCompanyStore } from '../stores/companyStore';
 import { debounce, formatAmount } from '../lib/utils';
 import PartySettleModal from '../components/PartySettleModal';
+import InvoicePaymentTracker from '../components/InvoicePaymentTracker';
 import { PageHeader, LoadingBlock, EmptyState, AlertBanner, SearchField } from '../components/ui';
 
 const PAGE_SIZE = 20;
@@ -47,6 +48,7 @@ export default function ReceivablesPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [settle, setSettle] = useState<SettleTarget | null>(null);
+  const [view, setView] = useState<'party' | 'invoice'>('party');
   const [settleSuccess, setSettleSuccess] = useState<string | null>(null);
 
   const debouncedSetSearch = useCallback(
@@ -106,6 +108,32 @@ export default function ReceivablesPage() {
         <span className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">{fmtAmt(grandTotal)}</span>
       </div>
 
+      <div className="flex gap-1 rounded-lg bg-gray-100 p-1 dark:bg-slate-800" role="tablist" aria-label="Receivables view">
+        {(
+          [
+            ['party', 'By party'],
+            ['invoice', 'By invoice'],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={view === key}
+            onClick={() => setView(key)}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              view === key ? 'bg-white text-brand-700 shadow dark:bg-slate-700' : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {view === 'invoice' ? <InvoicePaymentTracker /> : null}
+
+      {view === 'party' ? (
+      <>
       <SearchField
         placeholder="Search by party name or short code…"
         value={searchInput}
@@ -203,6 +231,8 @@ export default function ReceivablesPage() {
           </div>
         </div>
       </div>
+      </>
+      ) : null}
 
       {settle && (
         <PartySettleModal

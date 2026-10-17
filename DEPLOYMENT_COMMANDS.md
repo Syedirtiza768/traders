@@ -1,382 +1,82 @@
-# 🚀 Trader Business System — Deployment Commands
-**Repository:** https://github.com/Syedirtiza768/traders
+# Traders ERP — Deployment Commands
 
----
+This file documents the current Compose setup. Production requires unique secrets, HTTPS at the host edge, monitoring, and a successful restore rehearsal before go-live.
 
-## 📦 Local Development (Windows with Docker Desktop)
+## Local development (Docker Desktop or Linux)
 
-```powershell
-# 1. Clone repository
+```bash
 git clone https://github.com/Syedirtiza768/traders.git
-cd traders
-
-# 2. Setup environment
-cd compose
-Copy-Item .env.example .env
-# Edit .env if needed (default settings work for local testing)
-
-# 3. Start all services
-docker compose up -d
-
-# 4. Watch initialization (first run: 5-10 minutes)
-docker compose logs -f backend
-
-# 5. Wait for "Frappe site initialized successfully" message
-# Press Ctrl+C when ready
-
-# 6. Install demo data (RECOMMENDED)
-docker compose exec backend bench --site trader.localhost console
-```
-
-**In the Frappe console, run:**
-```python
-from trader_app.demo import install_demo
-install_demo()
-exit()
-```
-
-**Access Points:**
-- 🌐 **Frontend UI:** http://localhost:3000
-- 🔧 **Backend API:** http://localhost:8000  
-- 📊 **Main Proxy:** http://localhost:8080
-
-**Demo Login:**
-- Email: `demo.admin@traderapp.com`
-- Password: `Demo@12345`
-
----
-
-## 🌍 Production Server Deployment (Ubuntu/Debian Linux)
-
-### Prerequisites
-
-```bash
-# Update system
-sudo apt-get update && sudo apt-get upgrade -y
-
-# Install Docker
-curl -fsSL https://get.docker.com -o get-docker.sh
-sudo sh get-docker.sh
-sudo usermod -aG docker $USER
-newgrp docker
-
-# Install Docker Compose
-sudo apt-get install docker-compose-plugin -y
-
-# Install Git
-sudo apt-get install git -y
-```
-
-### Automated Deployment
-
-```bash
-# 1. Clone to /opt directory
-cd /opt
-sudo git clone https://github.com/Syedirtiza768/traders.git
-sudo chown -R $USER:$USER traders
-cd traders
-
-# 2. Run automated setup script
-chmod +x scripts/setup.sh
-INSTALL_DEMO=true ./scripts/setup.sh
-```
-
-The script automatically:
-- ✅ Creates `.env` with secure random passwords
-- ✅ Builds Docker images
-- ✅ Starts all services
-- ✅ Waits for health checks
-- ✅ Installs demo data
-
-### Manual Production Setup
-
-```bash
-# 1. Clone repository
-cd /opt
-git clone https://github.com/Syedirtiza768/traders.git
-cd traders
-
-# 2. Configure environment
-cp compose/.env.example compose/.env
-nano compose/.env
-
-# Update these critical values:
-# - SITE_NAME=trader.yourcompany.com
-# - DB_ROOT_PASSWORD=<strong-password>
-# - ADMIN_PASSWORD=<strong-password>
-# - ENCRYPTION_KEY=<random-64-chars>
-# - SECRET_KEY=<random-64-chars>
-
-# 3. Build and start
-cd compose
-docker compose up -d
-
-# 4. Monitor startup
-docker compose logs -f backend
-
-# 5. Install demo data (optional)
-docker compose exec backend bench --site trader.yourcompany.com console
-# Then: from trader_app.demo import install_demo; install_demo()
-```
-
----
-
-## 🔒 SSL/HTTPS Setup (Production)
-
-### Install Certbot
-
-```bash
-sudo apt-get install certbot python3-certbot-nginx -y
-```
-
-### Get SSL Certificate
-
-```bash
-# Replace with your domain
-sudo certbot certonly --standalone -d trader.yourcompany.com
-
-# Certificates will be in:
-# /etc/letsencrypt/live/trader.yourcompany.com/
-```
-
-### Configure Nginx Reverse Proxy
-
-```bash
-# Copy SSL config
-sudo cp /opt/traders/infra/nginx/ssl-reverse-proxy.conf /etc/nginx/sites-available/trader
-
-# Edit domain name
-sudo nano /etc/nginx/sites-available/trader
-# Change: server_name trader.yourcompany.com;
-
-# Enable site
-sudo ln -s /etc/nginx/sites-available/trader /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
-
-# Enable auto-renewal
-sudo systemctl enable certbot.timer
-sudo systemctl start certbot.timer
-```
-
----
-
-## 🔄 Updates & Maintenance
-
-### Deploy Updates
-
-```bash
-cd /opt/traders
-./scripts/deploy.sh
-
-# Or skip backup:
-./scripts/deploy.sh --no-backup
-```
-
-### Manual Backup
-
-```bash
-cd /opt/traders
-./scripts/backup.sh
-
-# Backups saved to: /opt/traders/backups/
-# Retention: 30 days (configurable in script)
-```
-
-### Schedule Automated Backups
-
-```bash
-sudo crontab -e
-
-# Add this line (daily at 2 AM):
-0 2 * * * /opt/traders/scripts/backup.sh
-```
-
----
-
-## 🔍 Monitoring & Troubleshooting
-
-### Check Service Status
-
-```bash
-cd /opt/traders/compose
+cd traders/compose
+cp .env.example .env
+docker compose up -d --build
+docker compose logs -f site-init
 docker compose ps
-
-# Should show all services as "Up (healthy)"
 ```
 
-### View Logs
+The sample `.env.example` values are public development credentials. Never copy them into production. On first start, `site-init` creates the configured Frappe site and installs ERPNext and `trader_app`. Wait for it to exit successfully. The database, backend, and frontend have health checks; inspect logs for services without a Compose health check. Open `http://localhost:8080`.
+
+Install demo records only into a disposable development site:
 
 ```bash
-# All services
-docker compose logs -f
+docker compose exec backend bench --site trader.localhost execute trader_app.demo.install_demo
+```
 
-# Specific service
-docker compose logs -f backend
-docker compose logs -f frontend
-docker compose logs -f db
+Do not enable demo-data installation in production.
 
-# Last 100 lines
+## Production (Ubuntu/Linux)
+
+1. Configure a domain and TLS certificates. The host Nginx template is `infra/nginx/ssl-reverse-proxy.conf`. Replace the domain and certificate paths before enabling it.
+2. Set production secrets in `compose/.env`:
+
+   ```bash
+   cd /opt/traders/compose
+   cp .env.production.example .env
+   chmod 600 .env
+   $EDITOR .env
+   ```
+
+   Set `SITE_NAME`, `DB_ROOT_PASSWORD`, and `ADMIN_PASSWORD` to unique random values held by your secret manager. Leave optional platform super-admin values blank unless explicitly needed.
+3. Validate and start the production configuration:
+
+   ```bash
+   docker compose -f docker-compose.yml -f docker-compose.prod.yml config --quiet
+   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+   docker compose logs -f site-init
+   docker compose ps
+   ```
+
+   Blank required database/admin secrets cause configuration or initialization to fail. The Compose proxy binds to `127.0.0.1:8080`; it is not intended for direct public exposure. Configure host Nginx to provide HTTPS and proxy to that loopback address.
+4. Check the real hostname over HTTPS: login page, API, session cookies, static assets, websocket connection, and all service logs. The local clean-install check does not verify external DNS, certificates, TLS redirects, or secure-cookie behavior.
+
+## Health and troubleshooting
+
+```bash
+docker compose ps
+docker compose logs --tail=100 site-init
 docker compose logs --tail=100 backend
+docker compose logs --tail=100 worker-default
+docker compose logs --tail=100 scheduler
+curl --fail http://localhost:8080/api/method/ping
 ```
 
-### Restart Services
+The API ping should return `{"message":"pong"}`. This is only a liveness check, not proof that business workflows are correct.
 
-```bash
-# Restart all
-docker compose restart
+## Backup
 
-# Restart specific service
-docker compose restart backend
-docker compose restart frontend
+From the repository root, run `./scripts/backup.sh`; from `compose`, run `../scripts/backup.sh`. The script uses Frappe's backup command and collects the site database backup, public/private uploads, and site configuration. Treat the archive as sensitive because the site configuration contains secrets. Store encrypted copies off-host and monitor backup failures, age, and disk capacity.
+
+Example schedule (adjust the Compose project name and destination for the host):
+
+```cron
+0 2 * * * cd /opt/traders/compose && COMPOSE_PROJECT_NAME=compose ../scripts/backup.sh
 ```
 
-### Access Database
+A fresh QA backup has been restored into a separate site and selected counts matched. This is limited evidence: login against that latest restore, encrypted credentials, actual uploaded-file contents, off-host recovery, full host recreation, RPO/RTO and migration rollback have not all been tested. Do not treat the QA drill as production recovery proof.
 
-```bash
-docker compose exec db mysql -u root -p
-# Enter DB_ROOT_PASSWORD from .env
+## Updates and rollback
 
-# Inside MySQL:
-SHOW DATABASES;
-USE trader_db;
-SHOW TABLES;
-```
+Before an update, take and verify a backup and preserve the previous immutable images and code revision. Deploy using the production Compose command above. A Git rollback does not reverse Frappe database migrations, and the repository does not provide a verified automated rollback. Rehearse migration compatibility and rollback in a disposable environment before production upgrades.
 
-### Access Frappe Console
+## Network exposure
 
-```bash
-docker compose exec backend bench --site trader.localhost console
-
-# Inside console:
-frappe.db.get_list('Sales Invoice', limit=5)
-frappe.get_doc('Company', 'Global Trading Company Ltd').as_dict()
-```
-
-### Resource Usage
-
-```bash
-# Docker stats
-docker stats
-
-# Disk usage
-df -h
-docker system df
-
-# Clean up old Docker data
-docker system prune -a
-```
-
----
-
-## 🧪 Testing API Endpoints
-
-```bash
-# Ping
-curl http://localhost:8080/api/method/ping
-
-# Login
-curl -X POST http://localhost:8080/api/method/login \
-  -H "Content-Type: application/json" \
-  -d '{"usr":"demo.admin@traderapp.com","pwd":"Demo@12345"}'
-
-# Dashboard KPIs (requires auth cookie)
-curl http://localhost:8080/api/method/trader_app.api.dashboard.get_kpis \
-  -H "Cookie: sid=<session-id-from-login>"
-```
-
----
-
-## 🎯 Quick Command Reference
-
-| Task | Command |
-|------|---------|
-| **Start** | `docker compose up -d` |
-| **Stop** | `docker compose down` |
-| **Restart** | `docker compose restart` |
-| **Logs** | `docker compose logs -f` |
-| **Backup** | `./scripts/backup.sh` |
-| **Deploy** | `./scripts/deploy.sh` |
-| **Console** | `docker compose exec backend bench --site <site> console` |
-| **Migrate** | `docker compose exec backend bench --site <site> migrate` |
-| **Update** | `git pull && ./scripts/deploy.sh` |
-
----
-
-## 📊 Default Ports
-
-| Service | Port | URL |
-|---------|------|-----|
-| Frontend | 3000 | http://localhost:3000 |
-| Backend | 8000 | http://localhost:8000 |
-| Proxy | 8080 | http://localhost:8080 |
-| Database | 3306 | localhost:3306 |
-| Redis Cache | 6379 | localhost:6379 |
-| Redis Queue | 6380 | localhost:6380 |
-
----
-
-## 🆘 Common Issues
-
-### "Port already in use"
-
-```bash
-# Change ports in compose/.env:
-HTTP_PORT=8081
-BACKEND_PORT=8001
-FRONTEND_PORT=3001
-
-# Then restart
-docker compose down
-docker compose up -d
-```
-
-### "Database connection failed"
-
-```bash
-# Check DB container
-docker compose ps db
-docker compose logs db
-
-# Restart DB
-docker compose restart db
-```
-
-### "Site not found"
-
-```bash
-# List sites
-docker compose exec backend bench --site all list-apps
-
-# If empty, site wasn't created — check logs
-docker compose logs backend | grep -i error
-```
-
-### "Frontend shows blank page"
-
-```bash
-# Check frontend build
-docker compose logs frontend
-
-# Rebuild
-docker compose build frontend
-docker compose restart frontend
-```
-
----
-
-## 🎓 Next Steps
-
-1. ✅ Deploy locally to test
-2. ✅ Review demo data (Sales, Purchases, Inventory)
-3. ✅ Customize company settings in Settings page
-4. ✅ Setup production server with SSL
-5. ✅ Configure automated backups
-6. ✅ Setup monitoring (optional)
-
-**Documentation:**
-- Architecture: `docs/ARCHITECTURE.md`
-- API Reference: `docs/API_REFERENCE.md`
-- Deployment Guide: `docs/DEPLOYMENT_GUIDE.md`
-
-**Support:** https://github.com/Syedirtiza768/traders/issues
+Only the loopback-bound proxy is host-published. MariaDB, Redis, backend, websocket, and frontend ports are internal to the Compose network. Keep host firewall rules restricted to HTTPS and the required administrative access.

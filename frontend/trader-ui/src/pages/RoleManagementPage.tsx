@@ -198,10 +198,10 @@ export default function RoleManagementPage() {
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
-                      <Shield size={14} className={`flex-shrink-0 ${role.name.startsWith('Trader ') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400 dark:text-slate-500'}`} />
+                      <Shield size={14} className={`shrink-0 ${role.name.startsWith('Trader ') ? 'text-brand-600 dark:text-brand-400' : 'text-gray-400 dark:text-slate-500'}`} />
                       <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{role.name}</span>
                     </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
+                    <div className="flex items-center gap-1 shrink-0">
                       {role.disabled ? (
                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-600 dark:bg-red-950/40 dark:text-red-400">Off</span>
                       ) : null}
@@ -249,7 +249,7 @@ export default function RoleManagementPage() {
                   {roleUsers.map((u) => (
                     <div key={u.name} className="flex items-center justify-between px-5 py-3 gap-3">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-8 h-8 rounded-full bg-brand-100 dark:bg-brand-900/40 flex items-center justify-center flex-shrink-0">
+                        <div className="w-8 h-8 rounded-full bg-brand-100 dark:bg-brand-900/40 flex items-center justify-center shrink-0">
                           <Users size={14} className="text-brand-600 dark:text-brand-400" />
                         </div>
                         <div className="min-w-0">
@@ -257,7 +257,7 @@ export default function RoleManagementPage() {
                           <p className="text-xs text-gray-500 dark:text-slate-400 truncate">{u.email}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="flex items-center gap-2 shrink-0">
                         <span className={`text-xs px-2 py-0.5 rounded ${u.enabled ? 'bg-green-100 text-green-700 dark:bg-emerald-950/40 dark:text-emerald-300' : 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300'}`}>
                           {u.enabled ? 'Active' : 'Off'}
                         </span>
@@ -306,14 +306,14 @@ export default function RoleManagementPage() {
                       disabled={assigning === u.name}
                       className="w-full flex items-center gap-3 px-5 py-3 hover:bg-gray-50 dark:hover:bg-slate-800/40 text-left disabled:opacity-50"
                     >
-                      <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-slate-700 flex items-center justify-center flex-shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-slate-700 flex items-center justify-center shrink-0">
                         <Users size={14} className="text-gray-500" />
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{u.full_name || u.name}</p>
                         <p className="text-xs text-gray-400 dark:text-slate-500 truncate">{u.email}</p>
                       </div>
-                      <UserPlus size={14} className="ml-auto flex-shrink-0 text-brand-600 dark:text-brand-400" />
+                      <UserPlus size={14} className="ml-auto shrink-0 text-brand-600 dark:text-brand-400" />
                     </button>
                   ))}
                 </div>

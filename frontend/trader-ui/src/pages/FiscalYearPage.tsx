@@ -180,7 +180,7 @@ export default function FiscalYearPage() {
                     <tr key={y.name} className={`hover:bg-gray-50 dark:hover:bg-slate-800/40 ${y.is_active ? 'bg-emerald-50/50 dark:bg-emerald-950/10' : ''}`}>
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-2">
-                          <Calendar size={14} className="text-gray-400 dark:text-slate-500 flex-shrink-0" />
+                          <Calendar size={14} className="text-gray-400 dark:text-slate-500 shrink-0" />
                           <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{y.name}</span>
                           {y.is_active && (
                             <CheckCircle2 size={14} className="text-emerald-500" />

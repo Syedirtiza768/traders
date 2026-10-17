@@ -15,7 +15,6 @@ import random
 
 import frappe
 from frappe.utils import add_days, flt, getdate, nowdate
-
 from trader_app.demo.seed_engine.base import BaseGenerator
 
 
@@ -33,9 +32,7 @@ class PurchaseGenerator(BaseGenerator):
             end_date = getdate(self.config["demo_end_date"])
             warehouse = "Main Warehouse - %s" % abbr
 
-            suppliers = frappe.get_all(
-                "Supplier", filters={"disabled": 0}, pluck="name"
-            )
+            suppliers = frappe.get_all("Supplier", filters={"disabled": 0}, pluck="name")
             items = frappe.get_all(
                 "Item",
                 filters={"is_stock_item": 1, "disabled": 0},
@@ -43,14 +40,10 @@ class PurchaseGenerator(BaseGenerator):
                 limit_page_length=0,
             )
 
-            self._ensure_item_procurement_flags(
-                [r["name"] for r in items]
-            )
+            self._ensure_item_procurement_flags([r["name"] for r in items])
 
             if not suppliers or not items:
-                print(
-                    "  ⚠️  No suppliers or items found. Skipping purchase generation."
-                )
+                print("  ⚠️  No suppliers or items found. Skipping purchase generation.")
                 return
 
             item_prices = {}
@@ -62,39 +55,26 @@ class PurchaseGenerator(BaseGenerator):
             ):
                 item_prices[ip.item_code] = float(ip.price_list_rate)
 
-            num_pi_total = random.randint(
-                *self.config["num_purchase_invoices"]
-            )
-            pct_po = float(
-                self.config.get(
-                    "pct_purchase_invoices_from_po", 0.52
-                )
-            )
+            num_pi_total = random.randint(*self.config["num_purchase_invoices"])
+            pct_po = float(self.config.get("pct_purchase_invoices_from_po", 0.52))
             n_from_po = min(
                 num_pi_total,
                 max(0, int(round(num_pi_total * pct_po))),
             )
             n_orphan = num_pi_total - n_from_po
 
-            print(
-                "  📊 Purchases: %s invoices (%s from PO, %s standalone)"
-                % (num_pi_total, n_from_po, n_orphan)
-            )
+            print("  📊 Purchases: %s invoices (%s from PO, %s standalone)" % (num_pi_total, n_from_po, n_orphan))
 
             total_days = max(1, (end_date - start_date).days)
 
             for i in range(n_orphan):
-                posting_date = add_days(
-                    start_date, random.randint(0, total_days)
-                )
+                posting_date = add_days(start_date, random.randint(0, total_days))
                 if getdate(posting_date) > getdate(nowdate()):
                     posting_date = nowdate()
 
                 supplier = random.choice(suppliers)
                 num_pick = random.randint(1, 10)
-                selected = random.sample(
-                    items, min(num_pick, len(items))
-                )
+                selected = random.sample(items, min(num_pick, len(items)))
 
                 self._create_standalone_pi(
                     company=company,
@@ -107,27 +87,20 @@ class PurchaseGenerator(BaseGenerator):
 
                 if i % 50 == 0:
                     frappe.db.commit()
-                    print(
-                        "    ... %s/%s standalone PIs"
-                        % (i + 1, n_orphan)
-                    )
+                    print("    ... %s/%s standalone PIs" % (i + 1, n_orphan))
 
                 if self.debug_single_doc:
                     frappe.db.commit()
                     return
 
             for j in range(n_from_po):
-                posting_date = add_days(
-                    start_date, random.randint(0, total_days)
-                )
+                posting_date = add_days(start_date, random.randint(0, total_days))
                 if getdate(posting_date) > getdate(nowdate()):
                     posting_date = nowdate()
 
                 supplier = random.choice(suppliers)
                 num_pick = random.randint(2, 8)
-                selected = random.sample(
-                    items, min(num_pick, len(items))
-                )
+                selected = random.sample(items, min(num_pick, len(items)))
 
                 self._create_pi_from_po(
                     company=company,
@@ -141,28 +114,27 @@ class PurchaseGenerator(BaseGenerator):
 
                 if j % 50 == 0:
                     frappe.db.commit()
-                    print(
-                        "    ... %s/%s PO-linked PIs"
-                        % (j + 1, n_from_po)
-                    )
+                    print("    ... %s/%s PO-linked PIs" % (j + 1, n_from_po))
 
                 if self.debug_single_doc:
                     frappe.db.commit()
                     return
 
             frappe.db.commit()
-            print(
-                "  ✅ Created %s purchase records"
-                % len(self.created_records)
-            )
+            print("  ✅ Created %s purchase records" % len(self.created_records))
             for err in self.errors[:5]:
                 print("  ⚠️  %s" % err)
         finally:
             self._restore_notifications()
 
     def _create_standalone_pi(
-        self, company, supplier, items, item_prices,
-        posting_date, warehouse,
+        self,
+        company,
+        supplier,
+        items,
+        item_prices,
+        posting_date,
+        warehouse,
     ):
         pi = frappe.new_doc("Purchase Invoice")
         pi.company = company
@@ -176,22 +148,23 @@ class PurchaseGenerator(BaseGenerator):
         pi.bill_date = posting_date
 
         for item in items:
-            rate = item_prices.get(
-                item["name"], random.uniform(50, 3000)
-            )
+            rate = item_prices.get(item["name"], random.uniform(50, 3000))
             rate = rate * random.uniform(0.92, 1.08)
             qty = random.randint(5, 100)
 
-            pi.append("items", {
-                "item_code": item["name"],
-                "item_name": item.get("item_name", item["name"]),
-                "qty": qty,
-                "rate": round(rate, 2),
-                "uom": item.get("stock_uom", "Nos"),
-                "stock_uom": item.get("stock_uom", "Nos"),
-                "conversion_factor": 1,
-                "warehouse": warehouse,
-            })
+            pi.append(
+                "items",
+                {
+                    "item_code": item["name"],
+                    "item_name": item.get("item_name", item["name"]),
+                    "qty": qty,
+                    "rate": round(rate, 2),
+                    "uom": item.get("stock_uom", "Nos"),
+                    "stock_uom": item.get("stock_uom", "Nos"),
+                    "conversion_factor": 1,
+                    "warehouse": warehouse,
+                },
+            )
 
         try:
             pi.insert(ignore_permissions=True)
@@ -199,9 +172,7 @@ class PurchaseGenerator(BaseGenerator):
             self.created_records.append(("Purchase Invoice", pi.name))
         except Exception as e:
             if len(self.errors) < 12:
-                print(
-                    "  ⚠️  PI failed for %s: %s" % (supplier, str(e))
-                )
+                print("  ⚠️  PI failed for %s: %s" % (supplier, str(e)))
             self.errors.append("Purchase Invoice: %s" % str(e))
 
     def _create_pi_from_po(
@@ -230,9 +201,7 @@ class PurchaseGenerator(BaseGenerator):
         po.set_warehouse = warehouse
 
         for item in items:
-            base = item_prices.get(
-                item["name"], random.uniform(50, 3000)
-            )
+            base = item_prices.get(item["name"], random.uniform(50, 3000))
             rate = base * random.uniform(0.93, 1.07)
             qty = random.randint(20, 220)
             po.append(
@@ -262,7 +231,10 @@ class PurchaseGenerator(BaseGenerator):
         pi.company = company
         pi.supplier = supplier
         pi.posting_date = posting_date
-        pi.due_date = add_days(posting_date, random.randint(7, 45))
+        # Respect the supplier's configured payment terms. An arbitrary
+        # extension can exceed ERPNext's allowed credit days and reject the
+        # invoice during validation.
+        pi.due_date = posting_date
         pi.currency = self.config["currency"]
         pi.buying_price_list = "Standard Buying"
         pi.update_stock = 0
@@ -291,9 +263,7 @@ class PurchaseGenerator(BaseGenerator):
                     "rate": flt(po_row.rate),
                     "uom": po_row.uom or po_row.stock_uom,
                     "stock_uom": po_row.stock_uom or po_row.uom,
-                    "conversion_factor": (
-                        flt(po_row.conversion_factor) or 1
-                    ),
+                    "conversion_factor": (flt(po_row.conversion_factor) or 1),
                     "warehouse": po_row.warehouse or warehouse,
                     "purchase_order": po.name,
                     "po_detail": po_row.name,
@@ -303,9 +273,7 @@ class PurchaseGenerator(BaseGenerator):
         try:
             pi.insert(ignore_permissions=True)
             pi.submit()
-            self.created_records.append(
-                ("Purchase Invoice (from PO)", pi.name)
-            )
+            self.created_records.append(("Purchase Invoice (from PO)", pi.name))
         except Exception as e:
             self.errors.append("PI-from-PO %s: %s" % (po.name, str(e)))
 
@@ -326,9 +294,7 @@ class PurchaseGenerator(BaseGenerator):
         frappe.db.commit()
 
     def validate(self):
-        count = frappe.db.count(
-            "Purchase Invoice", filters={"docstatus": 1}
-        )
+        count = frappe.db.count("Purchase Invoice", filters={"docstatus": 1})
         lo = self.config["num_purchase_invoices"][0] // 2
         assert count >= lo, "Too few purchase invoices"
 
@@ -343,9 +309,7 @@ class PurchaseGenerator(BaseGenerator):
             (self.config["company_name"],),
         )[0][0]
 
-        pct_po = float(
-            self.config.get("pct_purchase_invoices_from_po", 0)
-        )
+        pct_po = float(self.config.get("pct_purchase_invoices_from_po", 0))
         if pct_po > 1e-6:
             assert int(linked or 0) >= 3, "Too few PO-linked PIs"
         return True

@@ -84,20 +84,12 @@ set_env() {
 
 set_env SITE_NAME "$DOMAIN"
 set_env VITE_SITE_NAME "$DOMAIN"
-set_env VITE_API_URL "https://${DOMAIN}/api"
 set_env HTTP_PORT "8080"
 
-if grep -qE '^(DB_ROOT_PASSWORD|ADMIN_PASSWORD)=.*(changeme|trader_db_root|TraderAdmin)' "$ENV_FILE" 2>/dev/null; then
+if grep -qE '^(DB_ROOT_PASSWORD|ADMIN_PASSWORD)=$|^(DB_ROOT_PASSWORD|ADMIN_PASSWORD)=.*(changeme|trader_db_root|TraderAdmin)' "$ENV_FILE" 2>/dev/null; then
     set_env DB_ROOT_PASSWORD "$(gen_secret)"
     set_env ADMIN_PASSWORD "$(gen_secret)"
     warn "Generated new DB_ROOT_PASSWORD and ADMIN_PASSWORD in $ENV_FILE"
-fi
-
-if ! grep -q '^ENCRYPTION_KEY=' "$ENV_FILE" || grep -q '^ENCRYPTION_KEY=a1b2' "$ENV_FILE"; then
-    set_env ENCRYPTION_KEY "$(openssl rand -hex 32)"
-fi
-if ! grep -q '^SECRET_KEY=' "$ENV_FILE" || grep -q '^SECRET_KEY=trader_secret' "$ENV_FILE"; then
-    set_env SECRET_KEY "$(openssl rand -base64 48)"
 fi
 
 chown "$DEPLOY_USER:$DEPLOY_USER" "$ENV_FILE"
@@ -157,14 +149,13 @@ else
 fi
 
 # ── Summary ──────────────────────────────────────────────────────────────────
-ADMIN_PW="$(grep '^ADMIN_PASSWORD=' "$ENV_FILE" | cut -d= -f2- || echo '(see compose/.env)')"
 echo ""
 echo "╔══════════════════════════════════════════════════════════════╗"
 echo "║  EC2 setup complete                                          ║"
 echo "╠══════════════════════════════════════════════════════════════╣"
 echo "║  Site:     https://${DOMAIN}"
 echo "║  Repo:     ${REPO_DIR}"
-echo "║  Admin pw: ${ADMIN_PW}"
+echo "║  Admin password: configured in compose/.env (value withheld)"
 echo "║"
 echo "║  Redeploy: cd ${REPO_DIR} && bash scripts/redeploy-ec2.sh"
 echo "║  Logs:     cd ${REPO_DIR}/compose && docker compose logs -f"

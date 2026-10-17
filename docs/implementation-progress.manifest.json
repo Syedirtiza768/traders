@@ -57,10 +57,12 @@
     },
     {
       "id": "qw-sales-credit-except",
-      "title": "Quick win: narrow _check_customer_credit_limit exception",
+      "title": "Quick win: credit-limit check uses ERPNext helpers directly (no broad exception swallow)",
       "priority": "P0",
+      "note": "The check moved from sales.py to api/credit_control.py (quotation-level, Warn/Block) when the sahamid credit rules were added; ERPNext enforces orders and invoices itself.",
       "verify": [
-        { "type": "file_contains", "path": "apps/trader_app/trader_app/api/sales.py", "substring": "except (AttributeError, ImportError):" }
+        { "type": "file_contains", "path": "apps/trader_app/trader_app/api/credit_control.py", "substring": "from erpnext.selling.doctype.customer.customer import get_credit_limit" },
+        { "type": "file_not_contains", "path": "apps/trader_app/trader_app/api/sales.py", "substring": "_check_customer_credit_limit" }
       ]
     },
     {

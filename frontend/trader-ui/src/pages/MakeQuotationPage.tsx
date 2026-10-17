@@ -427,7 +427,7 @@ export default function MakeQuotationPage() {
               {revisionLabel ? ` (${revisionLabel})` : ''}
             </>
           }
-          description={`Sahamid-style editor — Project ${project || '—'} · ${customerName || customer || 'Customer'}`}
+          description={`Full-page editor — Project ${project || '—'} · ${customerName || customer || 'Customer'}`}
           actions={
             <div className="text-right">
               <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-slate-400">Value (billed)</p>
@@ -675,7 +675,7 @@ export default function MakeQuotationPage() {
           {tab === 'save' ? (
             <div className="space-y-4 max-w-2xl">
               <p className="text-sm text-gray-600">
-                Review warnings, save the draft, then submit to finalize (Sahamid Save tab).
+                Review warnings, save the draft, then submit to finalize (Save tab).
               </p>
               {warnings.length ? (
                 <ul className="list-disc space-y-1 rounded-lg border border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-900">

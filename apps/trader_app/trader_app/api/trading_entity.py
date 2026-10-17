@@ -11,7 +11,6 @@ import json
 import frappe
 from frappe import _
 from frappe.utils import cint
-
 from trader_app.api.company import resolve_active_company
 from trader_app.api.tenant import (
     get_enabled_module_keys,
@@ -77,11 +76,7 @@ def assignment_required(company=None):
 
 
 def _serialize(doc):
-    usage = 0
-    if frappe.db.has_column("Customer", "trader_trading_entity"):
-        usage = cint(
-            frappe.db.count("Customer", {"trader_trading_entity": doc.name})
-        )
+    usage = _count_customers_for_trading_entity(doc.name, doc.company)
     return {
         "name": doc.name,
         "trading_name": doc.trading_name,
@@ -95,6 +90,21 @@ def _serialize(doc):
         "letterhead_footer": doc.letterhead_footer or "",
         "customer_count": usage,
     }
+
+
+def _count_customers_for_trading_entity(entity_name, company):
+    if not frappe.db.has_column("Customer", "trader_trading_entity"):
+        return 0
+
+    from trader_app.api.permissions import company_master_sql_filter
+
+    scope, params = company_master_sql_filter("c", company)
+    scope = " AND " + scope if scope else ""
+    result = frappe.db.sql(
+        "SELECT COUNT(*) FROM `tabCustomer` c " "WHERE c.trader_trading_entity = %(entity)s{0}".format(scope),
+        {"entity": entity_name, **params},
+    )
+    return cint(result[0][0])
 
 
 def _public_file_url(path):
@@ -111,6 +121,11 @@ def resolve_letterhead_for_customer(customer, company=None):
         return {}
     if not frappe.db.has_column("Customer", "trader_trading_entity"):
         return {}
+
+    company = resolve_active_company(company)
+    from trader_app.api.permissions import check_master_document_company
+
+    check_master_document_company("Customer", customer, company, ptype="read")
 
     entity_name = frappe.db.get_value("Customer", customer, "trader_trading_entity")
     if not entity_name or not frappe.db.exists("Trader Trading Entity", entity_name):
@@ -217,12 +232,7 @@ def get_trading_entities(company=None, include_inactive=0):
     )
     out = []
     for row in rows:
-        usage = 0
-        if frappe.db.has_column("Customer", "trader_trading_entity"):
-            usage = cint(
-                frappe.db.count("Customer", {"trader_trading_entity": row.name})
-            )
-        row["customer_count"] = usage
+        row["customer_count"] = _count_customers_for_trading_entity(row.name, company)
         out.append(row)
     return out
 
@@ -300,9 +310,7 @@ def seed_default_trading_entity(company=None):
     """Seed one default entity from Company + tenant branding if none exist."""
     _require_admin()
     company = resolve_active_company(company)
-    existing = frappe.db.exists(
-        "Trader Trading Entity", {"company": company}
-    )
+    existing = frappe.db.exists("Trader Trading Entity", {"company": company})
     if existing:
         return {"ok": True, "name": existing, "seeded": False}
 

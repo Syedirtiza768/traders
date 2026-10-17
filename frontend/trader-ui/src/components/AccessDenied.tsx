@@ -10,7 +10,7 @@ export default function AccessDenied({
 }) {
   return (
     <div className="flex min-h-[320px] items-center justify-center px-4" role="alert">
-      <div className="max-w-lg w-full rounded-xl border border-amber-200 bg-amber-50 p-8 text-center shadow-sm dark:border-amber-900/50 dark:bg-amber-950/30">
+      <div className="max-w-lg w-full rounded-xl border border-amber-200 bg-amber-50 p-8 text-center shadow-xs dark:border-amber-900/50 dark:bg-amber-950/30">
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
           <ShieldAlert className="h-6 w-6" aria-hidden="true" />
         </div>

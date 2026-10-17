@@ -16,11 +16,6 @@ on:
         options:
           - staging
           - production
-      skip_backup:
-        description: 'Skip pre-deploy backup'
-        required: false
-        default: false
-        type: boolean
 
 env:
   REGISTRY: ghcr.io
@@ -33,7 +28,7 @@ jobs:
   deploy:
     name: Deploy to ${{ github.event.inputs.environment || 'staging' }}
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main') }}
 
     environment:
       name: ${{ github.event.inputs.environment || 'staging' }}
@@ -47,49 +42,44 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
 
-      - name: Add host to known_hosts
+      - name: Configure pinned deploy host key
+        env:
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -H ${{ vars.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+          test -n "$DEPLOY_KNOWN_HOSTS" || (echo "DEPLOY_KNOWN_HOSTS is required" >&2; exit 1)
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
 
       - name: Deploy to server
         env:
           DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
           DEPLOY_USER: ${{ vars.DEPLOY_USER }}
-          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
-          SKIP_BACKUP: ${{ github.event.inputs.skip_backup || 'false' }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/opt/traders' }}
+          TARGET_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
         run: |
-          ssh ${DEPLOY_USER}@${DEPLOY_HOST} << 'DEPLOY_SCRIPT'
+          remote_env=$(printf 'DEPLOY_PATH=%q TARGET_SHA=%q' "$DEPLOY_PATH" "$TARGET_SHA")
+          ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "$remote_env bash -se" << 'DEPLOY_SCRIPT'
             set -euo pipefail
 
-            cd ${DEPLOY_PATH:-/opt/trader}
-
-            echo "📥 Pulling latest changes..."
-            git pull origin main
-
-            echo "🔨 Rebuilding Docker images..."
+            cd "$DEPLOY_PATH"
+            git fetch --no-tags origin "$TARGET_SHA"
+            git checkout --detach "$TARGET_SHA"
             cd compose
-            docker compose pull 2>/dev/null || true
-            docker compose build
+            set -a
+            source .env
+            set +a
+            : "${SITE_NAME:?SITE_NAME must be set in compose/.env}"
 
-            if [ "${SKIP_BACKUP}" != "true" ]; then
-              echo "💾 Creating pre-deploy backup..."
-              bash ../scripts/backup.sh || echo "⚠️ Backup warning (continuing)"
-            fi
+            echo "Creating mandatory pre-deploy backup..."
+            bash ../scripts/backup.sh
 
-            echo "🚀 Rolling out new containers..."
-            docker compose down --remove-orphans
-            docker compose up -d
-
-            echo "⏳ Waiting for services..."
-            sleep 30
-
-            echo "🔄 Running migrations..."
-            docker compose exec -T backend bench --site ${SITE_NAME:-trader.localhost} migrate || true
-            docker compose exec -T backend bench --site ${SITE_NAME:-trader.localhost} clear-cache || true
-
-            echo "✅ Deployment complete!"
-            docker compose ps
+            compose_files=(-f docker-compose.yml -f docker-compose.prod.yml)
+            docker compose "${compose_files[@]}" build
+            docker compose "${compose_files[@]}" up -d --remove-orphans
+            docker compose "${compose_files[@]}" exec -T backend bench --site "$SITE_NAME" migrate
+            docker compose "${compose_files[@]}" exec -T backend bench --site "$SITE_NAME" clear-cache
+            docker compose "${compose_files[@]}" ps
           DEPLOY_SCRIPT
 
       - name: Health Check

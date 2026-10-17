@@ -5,20 +5,21 @@ from __future__ import unicode_literals
 
 import frappe
 
-
 CUSTOM_FIELDS = [
     {
         "dt": "Sales Invoice",
         "fieldname": "trader_invoice_type",
         "label": "Trader Invoice Type",
         "fieldtype": "Select",
-        "options": "\n".join([
-            "Tax Invoice",
-            "Commercial Invoice",
-            "Non-GST Invoice",
-            "Bill of Supply",
-            "Credit Note",
-        ]),
+        "options": "\n".join(
+            [
+                "Tax Invoice",
+                "Commercial Invoice",
+                "Non-GST Invoice",
+                "Bill of Supply",
+                "Credit Note",
+            ]
+        ),
         "insert_after": "customer",
         "in_standard_filter": 1,
         "in_list_view": 1,
@@ -28,13 +29,15 @@ CUSTOM_FIELDS = [
         "fieldname": "trader_invoice_type",
         "label": "Trader Invoice Type",
         "fieldtype": "Select",
-        "options": "\n".join([
-            "Tax Invoice",
-            "Commercial Invoice",
-            "Non-GST Invoice",
-            "Bill of Supply",
-            "Debit Note",
-        ]),
+        "options": "\n".join(
+            [
+                "Tax Invoice",
+                "Commercial Invoice",
+                "Non-GST Invoice",
+                "Bill of Supply",
+                "Debit Note",
+            ]
+        ),
         "insert_after": "supplier",
         "in_standard_filter": 1,
         "in_list_view": 1,
@@ -85,7 +88,6 @@ CUSTOM_FIELDS = [
         "insert_after": "due_date",
         "description": "Bank account shown on the invoice for customer payments.",
     },
-
     # ── Components Trading feature flag ────────────────────────────
     {
         "dt": "Company",
@@ -186,7 +188,6 @@ CUSTOM_FIELDS = [
             "Currently only resolver id 'components' creates stock items automatically."
         ),
     },
-
     # ── Component metadata on Item (all optional, default 0/blank) ──
     {
         "dt": "Item",
@@ -229,7 +230,6 @@ CUSTOM_FIELDS = [
         "insert_after": "trader_component_capacity",
         "depends_on": "eval:doc.trader_component_item",
     },
-
     # ── Short code + opening balance on Customer / Supplier ─────────
     {
         "dt": "Customer",
@@ -288,7 +288,6 @@ CUSTOM_FIELDS = [
         "insert_after": "trader_short_code",
         "description": "Opening payable balance imported when Components feature is first enabled.",
     },
-
     # ── Sales lifecycle state (opt-in; enforced only via Trader Process Profile) ──
     {
         "dt": "Quotation",
@@ -326,7 +325,6 @@ CUSTOM_FIELDS = [
         "in_standard_filter": 1,
         "description": "Lifecycle state; managed by the Trader Process Profile when enforced.",
     },
-
     # ── Nested quotation options (PRD FR-3) ──────────────────────────
     {
         "dt": "Quotation",
@@ -337,7 +335,6 @@ CUSTOM_FIELDS = [
         "insert_after": "trader_workflow_state",
         "description": "Alternative option/line groupings offered to the customer (line → option → item).",
     },
-
     # ── Commercial Opportunity links (OPP PRD) ───────────────────────
     {
         "dt": "Quotation",
@@ -348,6 +345,14 @@ CUSTOM_FIELDS = [
         "insert_after": "trader_options",
         "in_standard_filter": 1,
         "description": "Parent Project (Trader Opportunity) when the Projects module is enabled.",
+    },
+    {
+        "dt": "Quotation",
+        "fieldname": "trader_quick_quotation",
+        "label": "Quick Quotation",
+        "fieldtype": "Check",
+        "insert_after": "trader_opportunity",
+        "description": "Skips the finalisation rules (options, items, quantities). Allowed only when the Project profile enables quick quotations.",
     },
     {
         "dt": "Sales Order",
@@ -409,7 +414,6 @@ CUSTOM_FIELDS = [
         "no_copy": 1,
         "description": "Revision label such as R1, R2.",
     },
-
     # ── Quotation Order Details (Sahamid-aligned commercial header) ──
     {
         "dt": "Quotation",
@@ -611,7 +615,6 @@ CUSTOM_FIELDS = [
         "fieldtype": "Small Text",
         "insert_after": "trader_confirmed_date",
     },
-
     # ── Commercial Line→Option→Item hierarchy (OPP PRD) ────────────
     {
         "dt": "Quotation",
@@ -656,7 +659,6 @@ CUSTOM_FIELDS = [
         "insert_after": "trader_opportunity",
         "allow_on_submit": 1,
     },
-
     # ── Grouped-invoice consumption counter (PRD FR-7) ───────────────
     {
         "dt": "Delivery Note Item",
@@ -669,7 +671,6 @@ CUSTOM_FIELDS = [
         "no_copy": 1,
         "description": "Quantity from this challan line already pulled into a grouped invoice.",
     },
-
     # ── FX rate-clause snapshot (PRD FR-6) ───────────────────────────
     {
         "dt": "Sales Invoice",
@@ -709,7 +710,24 @@ CUSTOM_FIELDS = [
         "read_only": 1,
         "no_copy": 1,
     },
-
+    # ── Expected-payment tracking (walkthrough step 7) ───────────────
+    {
+        "dt": "Customer",
+        "fieldname": "trader_payment_expected_days",
+        "label": "Payment Expected In (days)",
+        "fieldtype": "Int",
+        "insert_after": "trader_opening_balance",
+        "description": "Days after invoice date the customer is expected to pay. Drives the invoice's expected payment date.",
+    },
+    {
+        "dt": "Sales Invoice",
+        "fieldname": "trader_expected_payment_date",
+        "label": "Expected Payment Date",
+        "fieldtype": "Date",
+        "insert_after": "due_date",
+        "no_copy": 1,
+        "description": "Commercial promise date, separate from the contractual due date.",
+    },
     # ── Tenant scoping on shared master data (Customer/Supplier/Item are
     #    global in ERPNext; without this a tenant would see other tenants' masters) ──
     {
@@ -748,7 +766,6 @@ CUSTOM_FIELDS = [
         "in_standard_filter": 1,
         "description": "Business account that owns this item. Enforces tenant isolation.",
     },
-
     # ── Multi-tenant platform fields ─────────────────────────────────
     {
         "dt": "User",
@@ -793,20 +810,33 @@ def ensure_custom_fields():
     frappe.db.commit()
 
     from trader_app.setup.master_permissions import ensure_master_doc_permissions
+
     ensure_master_doc_permissions()
 
 
 def backfill_master_tenants(tenant):
-    """One-time: assign existing untenanted Customer/Supplier/Item to ``tenant``.
+    """One-time backfill for a confirmed single-tenant legacy site only.
 
     Master data (Customer/Supplier/Item) is global in ERPNext; when tenant
-    isolation is introduced, existing records must be attributed to the tenant
-    that already owns them (a single pre-existing business)."""
+    isolation is introduced, existing records must be attributed to their
+    actual owner. This bulk helper refuses multi-tenant sites because records
+    shared across companies cannot be safely assigned without explicit mapping."""
     if not frappe.db.exists("Trader Tenant", tenant):
         frappe.throw("Trader Tenant {0} does not exist.".format(tenant))
+    tenant_count = frappe.db.count("Trader Tenant")
+    if tenant_count != 1:
+        frappe.throw(
+            "Bulk master backfill is allowed only when the site has exactly one tenant. "
+            "Use a per-record ownership mapping for multi-tenant migrations."
+        )
+
     result = {}
-    for dt in ("Customer", "Supplier", "Item"):
-        updated = frappe.db.sql(
+    doctypes = ["Customer", "Supplier", "Item"]
+    if frappe.db.has_column("Item Bundle", "trader_tenant"):
+        doctypes.append("Item Bundle")
+
+    for dt in doctypes:
+        frappe.db.sql(
             "UPDATE `tab{0}` SET trader_tenant=%s WHERE COALESCE(trader_tenant, '')=''".format(dt),
             tenant,
         )

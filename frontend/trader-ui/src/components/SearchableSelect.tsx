@@ -171,7 +171,7 @@ export default function SearchableSelect({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
-  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [dropdownPos, setDropdownPos] = useState<{ top?: number; bottom?: number; left: number; width: number } | null>(null);
 
   const isAsync = typeof onSearch === 'function';
   const isLoading = externalLoading || asyncLoading;
@@ -273,6 +273,20 @@ export default function SearchableSelect({
     const updatePos = () => {
       if (!wrapperRef.current) return;
       const rect = wrapperRef.current.getBoundingClientRect();
+      // The list is about 270px tall. On small screens the fixed bottom navigation sits over the
+      // space below the field, so open upwards when there is not room below.
+      const listHeight = 270;
+      const bottomReserve = window.innerWidth < 1024 ? 80 : 0;
+      const roomBelow = window.innerHeight - rect.bottom - bottomReserve;
+      const roomAbove = rect.top;
+      if (roomBelow < listHeight && roomAbove > roomBelow) {
+        setDropdownPos({
+          bottom: window.innerHeight - rect.top + 4,
+          left: rect.left,
+          width: rect.width,
+        });
+        return;
+      }
       setDropdownPos({
         top: rect.bottom + 4,
         left: rect.left,
@@ -382,7 +396,7 @@ export default function SearchableSelect({
         dropdownPos
           ? {
               position: 'fixed',
-              top: dropdownPos.top,
+              ...(dropdownPos.top !== undefined ? { top: dropdownPos.top } : { bottom: dropdownPos.bottom }),
               left: dropdownPos.left,
               width: dropdownPos.width,
               zIndex: 9999,
@@ -403,7 +417,7 @@ export default function SearchableSelect({
           value={query}
           onChange={handleQueryChange}
           placeholder="Search…"
-          className="flex-1 text-sm outline-none placeholder-gray-400 bg-transparent"
+          className="flex-1 text-sm placeholder-gray-400 bg-transparent focus-visible:outline-2 focus-visible:outline-brand-500 focus-visible:outline-offset-1"
           onKeyDown={(e) => {
             if (e.key === 'Escape') setOpen(false);
             if (e.key === 'ArrowDown') {
@@ -439,7 +453,7 @@ export default function SearchableSelect({
                 onClick={() => pick(opt.value)}
                 onKeyDown={(e) => handleOptionKey(e, opt.value)}
                 className={[
-                  'px-4 py-2 text-sm cursor-pointer outline-none truncate',
+                  'px-4 py-2 text-sm cursor-pointer outline-hidden truncate',
                   String(opt.value) === normalizedValue
                     ? 'bg-brand-50 text-brand-700 font-medium'
                     : 'text-gray-800 hover:bg-gray-50 focus:bg-gray-100',
@@ -460,7 +474,7 @@ export default function SearchableSelect({
                     handleCreate();
                   }
                 }}
-                className="flex items-center gap-2 px-4 py-2 text-sm cursor-pointer outline-none text-brand-600 hover:bg-brand-50 focus:bg-brand-50 border-t border-gray-100"
+                className="flex items-center gap-2 px-4 py-2 text-sm cursor-pointer outline-hidden text-brand-600 hover:bg-brand-50 focus:bg-brand-50 border-t border-gray-100"
               >
                 <Plus size={13} />{' '}
                 {query.trim() && !filtered.some((o) => o.label.toLowerCase() === query.trim().toLowerCase())
@@ -526,7 +540,7 @@ export default function SearchableSelect({
               aria-label="Clear"
               onMouseDown={(e) => e.stopPropagation()}
               onClick={clear}
-              className="rounded p-0.5 text-gray-400 hover:text-gray-600 focus:outline-none"
+              className="rounded p-0.5 text-gray-400 hover:text-gray-600 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-500"
             >
               <X size={12} />
             </button>

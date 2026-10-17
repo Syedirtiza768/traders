@@ -221,6 +221,9 @@ export default function CreatePurchaseInvoicePage() {
         supplier,
         posting_date: postingDate,
         due_date: dueDate,
+        // A bill raised from a purchase order is linked to its lines and receipt; the goods came in on the receipt.
+        source_order: sourceType === 'purchase-order' ? sourceName || undefined : undefined,
+        update_stock: sourceType === 'purchase-order' ? 0 : 1,
         items: validLines,
         taxes_and_charges: taxTemplate || undefined,
         tax_inclusive: taxInclusive ? 1 : 0,

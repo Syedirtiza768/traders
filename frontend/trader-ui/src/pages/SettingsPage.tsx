@@ -541,12 +541,12 @@ export default function SettingsPage() {
                 </span>
               </p>
             </div>
-            <div className="flex-shrink-0">
+            <div className="shrink-0">
               {isAdmin ? (
                 <button
                   onClick={() => handleToggleComponents(!componentsEnabled)}
                   disabled={togglingComponents}
-                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 disabled:opacity-60 ${
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 disabled:opacity-60 ${
                     componentsEnabled ? 'bg-violet-600' : 'bg-gray-200 dark:bg-slate-700'
                   }`}
                   role="switch"
@@ -599,12 +599,12 @@ export default function SettingsPage() {
                 </span>
               </p>
             </div>
-            <div className="flex-shrink-0">
+            <div className="shrink-0">
               {isAdmin ? (
                 <button
                   onClick={() => handleToggleProject(!opportunityEnabled)}
                   disabled={togglingProject}
-                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 disabled:opacity-60 ${
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 disabled:opacity-60 ${
                     opportunityEnabled ? 'bg-brand-600' : 'bg-gray-200 dark:bg-slate-700'
                   }`}
                   role="switch"
@@ -646,12 +646,12 @@ export default function SettingsPage() {
                 </span>
               </p>
             </div>
-            <div className="flex-shrink-0">
+            <div className="shrink-0">
               {isAdmin ? (
                 <button
                   onClick={() => handleToggleAr(!arEnabled)}
                   disabled={togglingAr}
-                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 disabled:opacity-60 ${
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 disabled:opacity-60 ${
                     arEnabled ? 'bg-brand-600' : 'bg-gray-200 dark:bg-slate-700'
                   }`}
                   role="switch"
@@ -688,12 +688,12 @@ export default function SettingsPage() {
                 Provision the electrence template for project-led defaults.
               </p>
             </div>
-            <div className="flex-shrink-0">
+            <div className="shrink-0">
               {isAdmin ? (
                 <button
                   onClick={() => handleToggleCustomerPack(!customerPackEnabled)}
                   disabled={togglingCustomerPack}
-                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 disabled:opacity-60 ${
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 disabled:opacity-60 ${
                     customerPackEnabled ? 'bg-brand-600' : 'bg-gray-200 dark:bg-slate-700'
                   }`}
                   role="switch"
@@ -785,7 +785,7 @@ function ToggleRow({
 }) {
   return (
     <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 dark:border-slate-600 bg-gray-50/80 dark:bg-slate-800/50 px-4 py-3 sm:min-w-[240px] sm:flex-1">
-      <input type="checkbox" className="mt-1 h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      <input type="checkbox" className="mt-1 h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-3 focus:ring-brand-500" checked={checked} onChange={(e) => onChange(e.target.checked)} />
       <span>
         <span className="block text-sm font-medium text-gray-900 dark:text-gray-100">{label}</span>
         <span className="block text-xs text-gray-500 dark:text-slate-400 mt-0.5">{description}</span>
@@ -819,10 +819,10 @@ function AdminLink({
   return (
     <Link
       to={to}
-      className="flex items-start gap-3 p-4 rounded-lg border border-gray-200 dark:border-slate-600 hover:border-brand-300 dark:hover:border-brand-600 hover:shadow-sm transition-all dark:bg-slate-900/30 group"
+      className="flex items-start gap-3 p-4 rounded-lg border border-gray-200 dark:border-slate-600 hover:border-brand-300 dark:hover:border-brand-600 hover:shadow-xs transition-all dark:bg-slate-900/30 group"
     >
       {icon && (
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${color || 'bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-slate-300'}`}>
+        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${color || 'bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-slate-300'}`}>
           {icon}
         </div>
       )}

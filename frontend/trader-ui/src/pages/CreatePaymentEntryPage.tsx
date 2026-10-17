@@ -547,6 +547,7 @@ export default function CreatePaymentEntryPage() {
                   allocations={allocations}
                   onChange={setAllocations}
                   loading={loadingReferences}
+                  targetInvoice={referenceName || undefined}
                 />
               </div>
             ) : (

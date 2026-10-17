@@ -13,10 +13,20 @@ import json
 import frappe
 from frappe import _
 from frappe.utils import cint, flt, now_datetime, nowdate
-
-from trader_app.api.company import assert_document_company_access, resolve_active_company
+from trader_app.api.company import (
+    assert_document_company_access,
+    resolve_active_company,
+)
 from trader_app.api.decision_log import log_decision
-
+from trader_app.api.quotation_rules import finalization_errors, next_revision_number
+from trader_app.api.sales_case_rules import (
+    SalesCaseRuleError,
+    challan_option_rows,
+    close_reason_error,
+    delivered_by_item,
+    delivery_plan,
+    pick_source_order,
+)
 
 # ── Seed templates (config packs — not company literals) ───────────
 
@@ -25,6 +35,7 @@ PROFILE_TEMPLATES = {
         "require_opportunity_for_quotation": 0,
         "dn_requires_oc_if_quotations_exist": 0,
         "invoice_from_dn_only": 1,
+        "require_po_for_oc": 0,
         "allow_quick_quotation": 0,
         "allow_quotation_revisions": 1,
         "allow_duplicate_quotation": 0,
@@ -46,6 +57,7 @@ PROFILE_TEMPLATES = {
         "require_opportunity_for_quotation": 1,
         "dn_requires_oc_if_quotations_exist": 1,
         "invoice_from_dn_only": 1,
+        "require_po_for_oc": 1,
         "allow_quick_quotation": 1,
         "allow_quotation_revisions": 1,
         "allow_duplicate_quotation": 1,
@@ -68,6 +80,7 @@ DEFAULT_INACTIVE_PROFILE = {
     "require_opportunity_for_quotation": 0,
     "dn_requires_oc_if_quotations_exist": 0,
     "invoice_from_dn_only": 0,
+    "require_po_for_oc": 0,
     "allow_quick_quotation": 0,
     "allow_quotation_revisions": 0,
     "allow_duplicate_quotation": 0,
@@ -132,8 +145,10 @@ def assert_opportunity_enabled(company=None):
     company = resolve_active_company(company)
     if not is_opportunity_enabled(company):
         frappe.throw(
-            _("Commercial Opportunity is not enabled for company {0}. "
-              "Enable it in Settings or provision an opportunity pack.").format(company),
+            _(
+                "Commercial Opportunity is not enabled for company {0}. "
+                "Enable it in Settings or provision an opportunity pack."
+            ).format(company),
             frappe.PermissionError,
         )
     return company
@@ -208,9 +223,7 @@ def set_opportunity_enabled(enabled=0, company=None):
         )
         if rows:
             for row in rows:
-                frappe.db.set_value(
-                    "Trader Tenant Module", row.name, "enabled", enabled, update_modified=False
-                )
+                frappe.db.set_value("Trader Tenant Module", row.name, "enabled", enabled, update_modified=False)
         elif enabled:
             tdoc = frappe.get_doc("Trader Tenant", tenant)
             tdoc.append("enabled_modules", {"module_key": "opportunity", "enabled": 1})
@@ -232,6 +245,7 @@ def set_opportunity_enabled(enabled=0, company=None):
 # Hub helpers
 # ────────────────────────────────────────────────────────────────
 
+
 def _parse_payload(data):
     if data is None:
         return {}
@@ -251,9 +265,7 @@ def _has_opportunity_link(doctype):
 def _count_linked_docs(opportunity_name, doctype):
     if not _has_opportunity_link(doctype):
         return 0
-    return cint(
-        frappe.db.count(doctype, {"trader_opportunity": opportunity_name, "docstatus": ["<", 2]})
-    )
+    return cint(frappe.db.count(doctype, {"trader_opportunity": opportunity_name, "docstatus": ["<", 2]}))
 
 
 def _list_linked_docs(opportunity_name, doctype, fields=None, limit=50):
@@ -344,6 +356,7 @@ def _opportunity_summary(doc):
         "priority": doc.priority,
         "status": doc.status,
         "close_stage": doc.close_stage,
+        "close_reason": doc.get("close_reason"),
         "closed_at": doc.closed_at,
         "closed_by": doc.closed_by,
         "watchlist": cint(doc.watchlist),
@@ -365,6 +378,7 @@ def _load_opportunity(name, company=None):
 # ────────────────────────────────────────────────────────────────
 # Hub CRUD
 # ────────────────────────────────────────────────────────────────
+
 
 @frappe.whitelist()
 def list_opportunities(
@@ -445,9 +459,7 @@ def list_opportunities(
 
     items = []
     for row in rows:
-        po_count = frappe.db.count(
-            "Trader Opportunity Customer PO", {"parent": row.name}
-        )
+        po_count = frappe.db.count("Trader Opportunity Customer PO", {"parent": row.name})
         stage = infer_display_stage(
             {
                 "quotations": _count_linked_docs(row.name, "Quotation"),
@@ -468,6 +480,16 @@ def list_opportunities(
         "total": total,
         "items": items,
     }
+
+
+def _fulfilment_or_none(opportunity):
+    """Ordered/delivered/invoiced progress; never blocks the hub payload."""
+    try:
+        from trader_app.api.fulfilment import get_fulfilment_progress
+
+        return get_fulfilment_progress(opportunity)
+    except Exception:
+        return None
 
 
 @frappe.whitelist()
@@ -500,6 +522,7 @@ def get_opportunity(name, company=None):
             "grand_total",
             "currency",
             "po_no",
+            "per_delivered",
             "modified",
         ],
     )
@@ -555,6 +578,7 @@ def get_opportunity(name, company=None):
         "invoices": invoices,
         "attachments": _attachments("Trader Opportunity", doc.name),
         "settings": resolve_opportunity_settings(doc.company),
+        "fulfilment": _fulfilment_or_none(doc.name),
     }
 
 
@@ -636,20 +660,31 @@ def update_opportunity(name, data=None, company=None):
 
 
 @frappe.whitelist()
-def close_opportunity(name, close_stage, company=None):
-    """Close Opportunity with a required stage reason (PRD)."""
+def close_opportunity(name, close_stage, company=None, close_reason=None):
+    """Close Opportunity with a stage and an optional reason (legacy ``closingreason`` / ``closingremarks``)."""
     doc = _load_opportunity(name, company)
     if doc.status == "Closed":
         return get_opportunity(doc.name, company=doc.company)
 
     close_stage = (close_stage or "").strip()
     if close_stage not in CLOSE_STAGES:
-        frappe.throw(
-            _("Invalid close stage. Choose one of: {0}").format(", ".join(CLOSE_STAGES))
+        frappe.throw(_("Invalid close stage. Choose one of: {0}").format(", ".join(CLOSE_STAGES)))
+    reason = (close_reason or "").strip()
+    open_orders = 0
+    if close_stage == "Delivery" and _has_opportunity_link("Sales Order"):
+        submitted = frappe.get_all(
+            "Sales Order",
+            filters={"trader_opportunity": doc.name, "docstatus": 1},
+            fields=["per_delivered"],
         )
+        open_orders = sum(1 for o in submitted if flt(o.per_delivered) < 100)
+    error = close_reason_error(close_stage, reason, open_order_count=open_orders)
+    if error:
+        frappe.throw(_(error))
 
     doc.status = "Closed"
     doc.close_stage = close_stage
+    doc.close_reason = reason or None
     doc.closed_at = now_datetime()
     doc.closed_by = frappe.session.user
     doc.save()
@@ -658,10 +693,10 @@ def close_opportunity(name, close_stage, company=None):
         "state",
         company=doc.company,
         outcome="applied",
-        message="Closed Opportunity at stage {0}".format(close_stage),
+        message="Closed Opportunity at stage {0}{1}".format(close_stage, ": " + reason if reason else ""),
         reference_doctype="Trader Opportunity",
         reference_name=doc.name,
-        output={"status": "Closed", "close_stage": close_stage},
+        output={"status": "Closed", "close_stage": close_stage, "close_reason": reason or None},
         policy="opportunity_hub",
     )
     return get_opportunity(doc.name, company=doc.company)
@@ -675,6 +710,7 @@ def reopen_opportunity(name, company=None):
 
     doc.status = "Open"
     doc.close_stage = None
+    doc.close_reason = None
     doc.closed_at = None
     doc.closed_by = None
     doc.save()
@@ -751,11 +787,7 @@ def link_document(opportunity, doctype, document_name, company=None):
     if doctype not in allowed:
         frappe.throw(_("Cannot link doctype {0} to an Opportunity.").format(doctype))
     if not _has_opportunity_link(doctype):
-        frappe.throw(
-            _("Opportunity link field is not installed on {0}. Run ensure_custom_fields.").format(
-                doctype
-            )
-        )
+        frappe.throw(_("Opportunity link field is not installed on {0}. Run ensure_custom_fields.").format(doctype))
 
     child = frappe.get_doc(doctype, document_name)
     assert_document_company_access(getattr(child, "company", None) or doc.company)
@@ -766,9 +798,7 @@ def link_document(opportunity, doctype, document_name, company=None):
     child_customer = getattr(child, "customer", None) or getattr(child, "party_name", None)
     if child_customer and child_customer != doc.customer:
         frappe.throw(
-            _("Document customer {0} does not match Opportunity customer {1}.").format(
-                child_customer, doc.customer
-            )
+            _("Document customer {0} does not match Opportunity customer {1}.").format(child_customer, doc.customer)
         )
 
     child.db_set("trader_opportunity", doc.name, update_modified=False)
@@ -780,26 +810,28 @@ def link_document(opportunity, doctype, document_name, company=None):
 # Create-from-hub (Opportunity → child documents)
 # ────────────────────────────────────────────────────────────────
 
+
 def _profile_or_defaults(company):
     settings = resolve_opportunity_settings(company)
     return settings.get("profile") or dict(DEFAULT_INACTIVE_PROFILE)
 
 
 def _default_warehouse(company):
-    """Prefer an existing company warehouse; fall back to naming convention only if present."""
-    existing = frappe.db.get_value(
+    """The company's main warehouse; otherwise its first non-group warehouse.
+
+    The main warehouse is preferred because the first warehouse by name is not
+    necessarily the one stock is kept in (legacy finding F-23).
+    """
+    abbr = frappe.get_cached_value("Company", company, "abbr") or "CO"
+    main = "Main Warehouse - {0}".format(abbr)
+    if frappe.db.exists("Warehouse", {"name": main, "company": company, "is_group": 0}):
+        return main
+    return frappe.db.get_value(
         "Warehouse",
         {"company": company, "is_group": 0},
         "name",
         order_by="is_group asc, name asc",
     )
-    if existing:
-        return existing
-    abbr = frappe.get_cached_value("Company", company, "abbr") or "CO"
-    candidate = "Main Warehouse - {0}".format(abbr)
-    if frappe.db.exists("Warehouse", candidate):
-        return candidate
-    return None
 
 
 def _list_final_quotations(opportunity_name):
@@ -821,12 +853,31 @@ def _has_commercial_field(doctype):
         return False
 
 
-def _first_stock_item():
-    name = frappe.db.get_value("Item", {"is_stock_item": 1, "disabled": 0}, "name")
-    if not name:
-        name = frappe.db.get_value("Item", {"disabled": 0}, "name")
+def _first_stock_item(company):
+    from trader_app.api.permissions import (
+        check_master_document_company,
+        company_master_sql_filter,
+    )
+
+    tenant_condition, tenant_params = company_master_sql_filter("i", company)
+
+    def _find_item(stock_only):
+        conditions = ["IFNULL(i.disabled, 0) = 0"]
+        if stock_only:
+            conditions.append("i.is_stock_item = 1")
+        if tenant_condition:
+            conditions.append(tenant_condition)
+        rows = frappe.db.sql(
+            "SELECT i.name FROM `tabItem` i WHERE {0} ORDER BY i.name LIMIT 1".format(" AND ".join(conditions)),
+            tenant_params,
+            as_dict=True,
+        )
+        return rows[0].name if rows else None
+
+    name = _find_item(stock_only=True) or _find_item(stock_only=False)
     if not name:
         frappe.throw(_("No Item found to seed the quotation. Create an item first."))
+    check_master_document_company("Item", name, company, ptype="read")
     return name
 
 
@@ -847,7 +898,10 @@ def create_quotation_for_opportunity(opportunity, data=None, company=None):
     Does not seed an empty placeholder quotation — commercial options required
     when hierarchy is enabled (or a single item_code for flat fallback).
     """
-    from trader_app.api.hierarchy import apply_commercial_options, sync_flat_items_from_hierarchy
+    from trader_app.api.hierarchy import (
+        apply_commercial_options,
+        sync_flat_items_from_hierarchy,
+    )
     from trader_app.api.quotation_defaults import (
         apply_order_details_to_quotation,
         get_default_quotation_terms,
@@ -876,18 +930,15 @@ def create_quotation_for_opportunity(opportunity, data=None, company=None):
         }
 
     order_details = payload.get("order_details") or {}
-    warehouse = (
-        payload.get("warehouse")
-        or order_details.get("warehouse")
-        or _default_warehouse(doc.company)
-    )
+    warehouse = payload.get("warehouse") or order_details.get("warehouse") or _default_warehouse(doc.company)
 
     commercial = payload.get("commercial_options") or []
     has_commercial = bool(commercial) and _has_commercial_field("Quotation")
-    if not has_commercial and not payload.get("item_code") and not payload.get("items"):
-        frappe.throw(
-            _("Add commercial Line → Option → Item hierarchy before creating the quotation.")
-        )
+    quick = cint(payload.get("quick_quotation"))
+    if quick and not cint(profile.get("allow_quick_quotation", 0)):
+        frappe.throw(_("Quick quotations are disabled in the Opportunity profile."))
+    if not quick and not has_commercial and not payload.get("item_code") and not payload.get("items"):
+        frappe.throw(_("Add commercial Line → Option → Item hierarchy before creating the quotation."))
 
     quotation = frappe.new_doc("Quotation")
     quotation.quotation_to = "Customer"
@@ -919,6 +970,7 @@ def create_quotation_for_opportunity(opportunity, data=None, company=None):
     )
 
     from trader_app.api.currency import apply_document_currency
+
     apply_document_currency(
         quotation,
         posting_date=quotation.transaction_date,
@@ -931,15 +983,16 @@ def create_quotation_for_opportunity(opportunity, data=None, company=None):
     elif payload.get("items"):
         for row in payload.get("items") or []:
             quotation.append("items", row)
-    else:
-        quotation.append(
-            "items",
-            {
-                "item_code": payload.get("item_code") or _first_stock_item(),
-                "qty": 1,
-                "rate": 0,
-            },
-        )
+    elif payload.get("item_code"):
+        quotation.append("items", {"item_code": payload.get("item_code"), "qty": 1, "rate": 0})
+    # A quick quotation may have no priced lines at all; only the finalisation rules are skipped.
+
+    if quick and frappe.db.has_column("Quotation", "trader_quick_quotation"):
+        quotation.trader_quick_quotation = 1
+
+    # ERPNext requires at least one item on every quotation, drafts included.
+    if not quotation.get("items"):
+        frappe.throw(_("Add at least one priced item to the quotation before saving it."))
 
     taxes_and_charges = payload.get("taxes_and_charges")
     if taxes_and_charges:
@@ -948,6 +1001,7 @@ def create_quotation_for_opportunity(opportunity, data=None, company=None):
 
     quotation.insert(ignore_permissions=False)
     from trader_app.api.hierarchy import persist_nested_commercial_items
+
     persist_nested_commercial_items(quotation)
     frappe.db.commit()
     log_decision(
@@ -1093,7 +1147,10 @@ def get_quotation_defaults(company=None):
 @frappe.whitelist()
 def create_quotation_revision(name, company=None):
     """Create a draft revision (R1, R2, …) from a submitted quotation (FR-Q-07)."""
-    from trader_app.api.hierarchy import apply_commercial_options, serialize_commercial_options
+    from trader_app.api.hierarchy import (
+        apply_commercial_options,
+        serialize_commercial_options,
+    )
     from trader_app.setup.custom_fields import ensure_custom_fields
 
     ensure_custom_fields()
@@ -1117,7 +1174,7 @@ def create_quotation_revision(name, company=None):
         fields=["name", "trader_revision_label"],
         order_by="creation asc",
     )
-    next_n = len(existing) + 1
+    next_n = next_revision_number([row.get("trader_revision_label") for row in existing])
     label = "R{0}".format(next_n)
 
     revision = frappe.copy_doc(source)
@@ -1149,6 +1206,7 @@ def create_quotation_revision(name, company=None):
 
     revision.insert(ignore_permissions=False)
     from trader_app.api.hierarchy import persist_nested_commercial_items
+
     persist_nested_commercial_items(revision)
     frappe.db.commit()
     return {
@@ -1160,15 +1218,177 @@ def create_quotation_revision(name, company=None):
 
 
 @frappe.whitelist()
+def duplicate_quotation_for_opportunity(name, company=None, force_new=0):
+    """New open draft copied from an existing quotation (profile: allow_duplicate_quotation).
+
+    The copy keeps the whole Line → Option → Item hierarchy, the commercial terms
+    and the customer. It is not a revision: revision lineage and label are cleared.
+    One open draft per Project still applies unless ``force_new`` is set.
+    """
+    source = frappe.get_doc("Quotation", name)
+    source.check_permission("read")
+    assert_document_company_access(source.company)
+    if company and source.company != company:
+        frappe.throw(_("Company mismatch for quotation duplicate."))
+
+    profile = _profile_or_defaults(source.company)
+    if not cint(profile.get("allow_duplicate_quotation", 0)):
+        frappe.throw(_("Duplicating quotations is disabled in the Opportunity profile."))
+
+    opportunity = getattr(source, "trader_opportunity", None)
+    if opportunity and not cint(force_new):
+        existing = _find_open_quotation_draft(opportunity, company=source.company)
+        if existing:
+            return {
+                "name": existing.name,
+                "doctype": "Quotation",
+                "existing_draft": 1,
+                "opportunity": get_opportunity(opportunity, company=source.company),
+                "message": _("An open draft quotation already exists. Continue or discard it first."),
+            }
+
+    dup = frappe.copy_doc(source)
+    dup.name = None
+    dup.docstatus = 0
+    dup.status = "Draft"
+    dup.amended_from = None
+    dup.transaction_date = nowdate()
+    if dup.valid_till and str(dup.valid_till) < nowdate():
+        dup.valid_till = None
+    if frappe.db.has_column("Quotation", "trader_revision_of"):
+        dup.trader_revision_of = None
+    if frappe.db.has_column("Quotation", "trader_revision_label"):
+        dup.trader_revision_label = None
+    dup.insert(ignore_permissions=False)
+    from trader_app.api.hierarchy import persist_nested_commercial_items
+
+    persist_nested_commercial_items(dup)
+    frappe.db.commit()
+    log_decision(
+        "other",
+        company=source.company,
+        outcome="applied",
+        message="Duplicated Quotation {0} as {1}".format(source.name, dup.name),
+        reference_doctype="Quotation",
+        reference_name=dup.name,
+        policy="opportunity_hub",
+    )
+    return {
+        "name": dup.name,
+        "doctype": "Quotation",
+        "existing_draft": 0,
+        "source": source.name,
+        "opportunity": get_opportunity(opportunity, company=source.company) if opportunity else None,
+    }
+
+
+def validate_quotation_for_submit(doc, method=None):
+    """Quotation ``before_validate``: the legacy finalisation rules, applied when submitting.
+
+    Runs before ERPNext's own validation, so an unfinished quotation is refused with a
+    clear message rather than failing in the totals calculation. Quick quotations skip
+    the per-option rules but still need at least one priced item.
+    """
+    # Only the draft-to-submitted transition is gated. Later saves of a submitted quotation
+    # (for example an update-after-submit field) must not start failing on old data.
+    if getattr(doc, "_action", None) != "submit":
+        return
+    from trader_app.api.hierarchy import serialize_commercial_options
+
+    quick = cint(getattr(doc, "trader_quick_quotation", 0))
+    if quick and not cint(_profile_or_defaults(doc.company).get("allow_quick_quotation", 0)):
+        frappe.throw(_("Quick quotations are disabled in the Opportunity profile."))
+    rows = serialize_commercial_options(doc) if _has_commercial_field("Quotation") else []
+    has_items = bool(doc.get("items")) or any(row.get("items") for row in rows)
+    if not has_items:
+        frappe.throw(_("A quotation needs at least one item before it can be finalised."))
+    errors = finalization_errors(rows, quick=bool(quick))
+    if errors:
+        frappe.throw("<br>".join(errors), title=_("Quotation cannot be finalised"))
+
+
+def _parse_line_numbers(lines):
+    """Quote line numbers from a list or a JSON string; empty when none were given."""
+    if isinstance(lines, str):
+        lines = json.loads(lines) if lines.strip() else []
+    return {cint(value) for value in (lines or []) if cint(value)}
+
+
+def _lines_on_open_ocs(opportunity):
+    """Quote line -> name of the open Order Confirmation that already orders it, for one case."""
+    from trader_app.api.hierarchy import serialize_commercial_options
+
+    taken = {}
+    if not _has_commercial_field("Sales Order"):
+        return taken
+    for oc in frappe.get_all(
+        "Sales Order",
+        filters={"trader_opportunity": opportunity, "docstatus": ["<", 2]},
+        fields=["name"],
+    ):
+        for row in serialize_commercial_options(frappe.get_doc("Sales Order", oc.name)):
+            if cint(row.get("is_selected")):
+                taken.setdefault(cint(row.get("line_no") or 1), oc.name)
+    return taken
+
+
+def _output_gst_template(qdoc, company):
+    """The company's sales tax template at the GST rate a quotation charges through its Order Details.
+
+    Only exclusive GST adds tax on top of the net; inclusive and no-GST quotations name no template here.
+    """
+    from trader_app.api.commercial_totals import resolve_gst_rate
+
+    if (getattr(qdoc, "trader_gst_mode", None) or "exclusive").lower() != "exclusive":
+        return None
+    rate = resolve_gst_rate("exclusive", cint(getattr(qdoc, "trader_services", 0)))
+    if not rate:
+        return None
+    rows = frappe.db.sql(
+        """
+        SELECT t.name
+        FROM `tabSales Taxes and Charges Template` t
+        INNER JOIN `tabSales Taxes and Charges` c
+            ON c.parent = t.name AND c.parenttype = 'Sales Taxes and Charges Template'
+        WHERE t.company = %s AND c.rate = %s
+        ORDER BY t.name
+        LIMIT 1
+        """,
+        (company, rate),
+    )
+    return rows[0][0] if rows else None
+
+
+@frappe.whitelist()
 def create_order_confirmation(
     opportunity,
     source_quotation=None,
     customer_po_no=None,
     company=None,
+    selected_options=None,
+    lines=None,
 ):
-    """Create Sales Order (OC) from Opportunity, copying hierarchy from selected quotation."""
+    """Create Sales Order (OC) from Opportunity, copying hierarchy from selected quotation.
+
+    The whole hierarchy is kept on the OC for reference, but only **one option
+    per line** becomes ordered stock lines: ``selected_options`` maps
+    ``line_no -> option_no`` (the option the customer accepted); lines not
+    mentioned default to their lowest option, matching how the quotation was
+    valued. Without this, every alternative on the quotation would be ordered.
+
+    ``lines`` -- the quote line numbers this customer PO covers. A case often splits one quotation
+    across several POs, so each OC takes only its own lines. A line already ordered on another open
+    OC of the same case is refused, so the same quantity is never ordered twice.
+    """
+    if isinstance(selected_options, str):
+        selected_options = json.loads(selected_options) if selected_options.strip() else {}
+    if selected_options is None:
+        selected_options = {}
+    po_lines = _parse_line_numbers(lines)
     from trader_app.api.hierarchy import (
         apply_commercial_options,
+        apply_selection,
+        invalid_selections,
         serialize_commercial_options,
         sync_flat_items_from_hierarchy,
     )
@@ -1184,15 +1404,12 @@ def create_order_confirmation(
         frappe.throw(_("Order Confirmations are disabled in the Opportunity profile."))
 
     customer_po_no = (customer_po_no or "").strip() or None
+    if not customer_po_no and cint(profile.get("require_po_for_oc")):
+        frappe.throw(_("A customer PO number is required for an Order Confirmation."))
     if customer_po_no:
-        registered = {
-            (row.customer_po_no or "").strip()
-            for row in (doc.customer_pos or [])
-        }
+        registered = {(row.customer_po_no or "").strip() for row in (doc.customer_pos or [])}
         if customer_po_no not in registered:
-            frappe.throw(
-                _("Customer PO {0} is not registered on this Opportunity.").format(customer_po_no)
-            )
+            frappe.throw(_("Customer PO {0} is not registered on this Opportunity.").format(customer_po_no))
         if _has_opportunity_link("Sales Order"):
             existing = frappe.db.exists(
                 "Sales Order",
@@ -1203,11 +1420,7 @@ def create_order_confirmation(
                 },
             )
             if existing:
-                frappe.throw(
-                    _("Order Confirmation {0} already exists for PO {1}.").format(
-                        existing, customer_po_no
-                    )
-                )
+                frappe.throw(_("Order Confirmation {0} already exists for PO {1}.").format(existing, customer_po_no))
 
     finals = _list_final_quotations(doc.name)
     qdoc = None
@@ -1236,13 +1449,50 @@ def create_order_confirmation(
     if source_quotation and frappe.db.has_column("Sales Order", "trader_source_quotation"):
         so.trader_source_quotation = source_quotation
 
+    if not qdoc:
+        frappe.throw(_("Create and submit a quotation before an Order Confirmation."))
+
+    # The OC is priced in the quotation's currency; without it the company base currency was used.
+    from trader_app.api.currency import apply_document_currency
+
+    apply_document_currency(so, currency=qdoc.currency, posting_date=so.transaction_date, for_selling=True)
+
     commercial = []
-    if qdoc and _has_commercial_field("Quotation"):
+    if _has_commercial_field("Quotation"):
         commercial = serialize_commercial_options(qdoc)
+    if po_lines:
+        on_quote = {cint(row.get("line_no") or 1) for row in commercial}
+        missing = sorted(po_lines - on_quote)
+        if missing:
+            frappe.throw(_("Quote line(s) {0} are not on the quotation.").format(", ".join(str(n) for n in missing)))
+        commercial = [row for row in commercial if cint(row.get("line_no") or 1) in po_lines]
+    if commercial and _has_commercial_field("Sales Order") and _has_opportunity_link("Sales Order"):
+        taken = _lines_on_open_ocs(doc.name)
+        requested = po_lines or {cint(row.get("line_no") or 1) for row in commercial}
+        clash = sorted(line for line in requested if line in taken)
+        if clash:
+            frappe.throw(
+                _("Quote line(s) {0} are already on an open Order Confirmation ({1}). Choose the lines this PO covers.").format(
+                    ", ".join(str(line) for line in clash), ", ".join(sorted({taken[line] for line in clash}))
+                )
+            )
     if commercial and _has_commercial_field("Sales Order"):
-        apply_commercial_options(so, commercial)
-        sync_flat_items_from_hierarchy(so, warehouse=warehouse)
-    elif qdoc:
+        # Choices for lines that are not on this PO belong to another OC; they are not validated here.
+        if po_lines:
+            selected_options = {k: v for k, v in selected_options.items() if cint(k) in po_lines}
+        invalid = invalid_selections(commercial, selected_options)
+        if invalid:
+            frappe.throw(
+                _("Option not on the quotation: {0}.").format(
+                    ", ".join(_("line {0} option {1}").format(line, option) for line, option in invalid)
+                )
+            )
+        # The accepted option is stored on the OC so the delivery and the invoice bill
+        # the same option the customer picked, not the lowest-numbered one.
+        marked, chosen = apply_selection(commercial, selected_options)
+        apply_commercial_options(so, marked)
+        sync_flat_items_from_hierarchy(so, warehouse=warehouse, selected_options=chosen)
+    else:
         for item in qdoc.items or []:
             so.append(
                 "items",
@@ -1255,38 +1505,31 @@ def create_order_confirmation(
                     "description": item.description,
                 },
             )
-    else:
-        so.append(
-            "items",
-            {"item_code": _first_stock_item(), "qty": 1, "rate": 0, "warehouse": warehouse},
-        )
-        if _has_commercial_field("Sales Order"):
-            apply_commercial_options(
-                so,
-                [{
-                    "line_no": 1,
-                    "client_requirements": "",
-                    "option_no": 1,
-                    "option_text": "",
-                    "package_qty": 1,
-                    "items": [],
-                }],
-            )
+
+    # Carry the quotation's tax template so what was quoted is what is billed. A quotation that charges GST through
+    # its Order Details and names no template is billed with the company's sales template at the same rate.
+    tax_template = getattr(qdoc, "taxes_and_charges", None) or _output_gst_template(qdoc, doc.company)
+    if tax_template:
+        so.taxes_and_charges = tax_template
+        so.run_method("set_taxes")
 
     so.insert(ignore_permissions=False)
     from trader_app.api.hierarchy import persist_nested_commercial_items
+
     persist_nested_commercial_items(so)
     frappe.db.commit()
     log_decision(
         "other",
         company=doc.company,
         outcome="applied",
-        message="Created OC {0} from Opportunity (source={1})".format(
-            so.name, source_quotation or "blank"
-        ),
+        message="Created OC {0} from Opportunity (source={1})".format(so.name, source_quotation or "blank"),
         reference_doctype="Sales Order",
         reference_name=so.name,
-        output={"source_quotation": source_quotation, "customer_po_no": customer_po_no},
+        output={
+            "source_quotation": source_quotation,
+            "customer_po_no": customer_po_no,
+            "selected_options": selected_options,
+        },
         policy="opportunity_hub",
     )
     return {
@@ -1297,11 +1540,72 @@ def create_order_confirmation(
     }
 
 
+def _source_order_for(doc, source_oc=None):
+    """The Order Confirmation a challan delivers against, or ``None`` when there is none."""
+    if not _has_opportunity_link("Sales Order"):
+        return frappe.get_doc("Sales Order", source_oc) if source_oc else None
+    # One OC per customer PO. With several still open the challan must name its OC;
+    # guessing the most recently modified one could deliver against the wrong PO.
+    ocs = frappe.get_all(
+        "Sales Order",
+        filters={"trader_opportunity": doc.name, "docstatus": ["<", 2]},
+        fields=["name", "po_no", "docstatus", "per_delivered"],
+        order_by="modified desc",
+    )
+    try:
+        chosen_oc = pick_source_order(ocs, requested=source_oc)
+    except SalesCaseRuleError as exc:
+        frappe.throw(str(exc))
+    return frappe.get_doc("Sales Order", chosen_oc) if chosen_oc else None
+
+
+def _delivered_by_item(order_name):
+    """``item_code -> qty`` already delivered on an Order Confirmation (its submitted challans)."""
+    rows = frappe.get_all(
+        "Sales Order Item",
+        filters={"parent": order_name},
+        fields=["item_code", "delivered_qty"],
+    )
+    return delivered_by_item(rows)
+
+
+def _line_numbers_arg(lines):
+    """``lines`` arrives as a JSON list, or as a JSON string from some callers."""
+    if lines is None:
+        return None
+    if isinstance(lines, str):
+        lines = json.loads(lines) if lines.strip() else []
+    return [cint(line) for line in lines]
+
+
 @frappe.whitelist()
-def create_delivery_note_for_opportunity(opportunity, source_oc=None, company=None):
-    """Create Delivery Note for Opportunity; optional hierarchy copy from OC."""
+def get_delivery_plan_for_opportunity(opportunity, source_oc=None, company=None):
+    """Lines of an Order Confirmation with what is still to deliver on each (challan line picker)."""
+    from trader_app.api.hierarchy import resolve_selection, serialize_commercial_options
+
+    doc = _load_opportunity(opportunity, company)
+    oc_doc = _source_order_for(doc, source_oc)
+    if not oc_doc:
+        frappe.throw(_("Create and submit an Order Confirmation before planning a Delivery Note for this Project."))
+    lines = []
+    if _has_commercial_field("Sales Order"):
+        commercial = serialize_commercial_options(oc_doc)
+        if commercial:
+            lines = delivery_plan(commercial, resolve_selection(commercial), _delivered_by_item(oc_doc.name))
+    return {"source_oc": oc_doc.name, "po_no": oc_doc.po_no, "lines": lines}
+
+
+@frappe.whitelist()
+def create_delivery_note_for_opportunity(opportunity, source_oc=None, company=None, lines=None):
+    """Create Delivery Note for Opportunity; hierarchy copy from OC, cut to what is left to deliver.
+
+    ``lines`` -- the OC line numbers this challan covers (partial delivery by line). ``None``
+    covers every line. Each billed item is pre-filled with ordered minus already delivered, in
+    the hierarchy and in the flat items alike, so a later save keeps the remaining quantity.
+    """
     from trader_app.api.hierarchy import (
         apply_commercial_options,
+        resolve_selection,
         serialize_commercial_options,
         sync_flat_items_from_hierarchy,
     )
@@ -1326,25 +1630,20 @@ def create_delivery_note_for_opportunity(opportunity, source_oc=None, company=No
             )
         if finalized_oc <= 0:
             frappe.throw(
-                _("Create and submit an Order Confirmation before Delivery Note "
-                  "(quotations exist on this Opportunity).")
+                _(
+                    "Create and submit an Order Confirmation before Delivery Note "
+                    "(quotations exist on this Opportunity)."
+                )
             )
 
-    oc_doc = None
-    if source_oc:
-        oc_doc = frappe.get_doc("Sales Order", source_oc)
-        if _has_opportunity_link("Sales Order") and getattr(oc_doc, "trader_opportunity", None) != doc.name:
-            frappe.throw(_("Sales Order does not belong to this Opportunity."))
-    elif _has_opportunity_link("Sales Order"):
-        rows = frappe.get_all(
-            "Sales Order",
-            filters={"trader_opportunity": doc.name, "docstatus": ["<", 2]},
-            fields=["name"],
-            order_by="modified desc",
-            limit=1,
+    oc_doc = _source_order_for(doc, source_oc)
+    if not oc_doc:
+        frappe.throw(
+            _(
+                "Create and submit an Order Confirmation before a Delivery Note for this Project. "
+                "A blank challan is created from the Delivery Notes page."
+            )
         )
-        if rows:
-            oc_doc = frappe.get_doc("Sales Order", rows[0].name)
 
     warehouse = _default_warehouse(doc.company)
     dn = frappe.new_doc("Delivery Note")
@@ -1352,39 +1651,56 @@ def create_delivery_note_for_opportunity(opportunity, source_oc=None, company=No
     dn.customer = doc.customer
     dn.posting_date = nowdate()
     dn.set_warehouse = warehouse
+    # A challan is priced in the currency of the OC it delivers against (ERPNext checks the match).
+    if oc_doc and getattr(oc_doc, "currency", None):
+        dn.currency = oc_doc.currency
+        dn.conversion_rate = flt(oc_doc.conversion_rate) or 1
     if _has_opportunity_link("Delivery Note"):
         dn.trader_opportunity = doc.name
+    # Keep the customer PO on the challan so each partial delivery traces to its PO.
+    if oc_doc and getattr(oc_doc, "po_no", None) and dn.meta.has_field("po_no"):
+        dn.po_no = oc_doc.po_no
 
     commercial = []
     if oc_doc and _has_commercial_field("Sales Order"):
         commercial = serialize_commercial_options(oc_doc)
     if commercial and _has_commercial_field("Delivery Note"):
-        apply_commercial_options(dn, commercial)
+        # The OC's billed option per line is what gets delivered (see hierarchy.resolve_selection),
+        # cut to the quantity still undelivered and to the lines this challan covers.
+        try:
+            challan_rows = challan_option_rows(
+                commercial,
+                resolve_selection(commercial),
+                _delivered_by_item(oc_doc.name),
+                covered_lines=_line_numbers_arg(lines),
+            )
+        except SalesCaseRuleError as exc:
+            frappe.throw(str(exc))
+        apply_commercial_options(dn, challan_rows)
         sync_flat_items_from_hierarchy(dn, warehouse=warehouse)
-        if oc_doc:
-            for row in dn.items:
-                row.against_sales_order = oc_doc.name
+        # Order-line linking (against_sales_order + so_detail) is resolved by the
+        # Delivery Note validate hook: trader_app.api.order_linking.
     elif oc_doc:
+        # Flat order without a hierarchy: each order line carries its own delivered_qty.
         for item in oc_doc.items or []:
+            left = flt(item.qty) - flt(item.delivered_qty)
+            if left <= 0:
+                continue
             dn.append(
                 "items",
                 {
                     "item_code": item.item_code,
-                    "qty": item.qty,
+                    "qty": left,
                     "rate": item.rate,
                     "warehouse": warehouse,
-                    "against_sales_order": oc_doc.name,
                     "description": item.description,
                 },
             )
-    else:
-        dn.append(
-            "items",
-            {"item_code": _first_stock_item(), "qty": 1, "warehouse": warehouse},
-        )
-
+    if not dn.items:
+        frappe.throw(_("Nothing is left to deliver on {0}.").format(oc_doc.name))
     dn.insert(ignore_permissions=False)
     from trader_app.api.hierarchy import persist_nested_commercial_items
+
     persist_nested_commercial_items(dn)
     frappe.db.commit()
     log_decision(
@@ -1403,6 +1719,41 @@ def create_delivery_note_for_opportunity(opportunity, source_oc=None, company=No
         "source_oc": oc_doc.name if oc_doc else None,
         "opportunity": get_opportunity(doc.name, company=doc.company),
     }
+
+
+@frappe.whitelist()
+def create_return_delivery_note(delivery_note, company=None):
+    """Goods return against a submitted challan (legacy GRB).
+
+    Returns a draft return note with negative quantities, linked to the challan. Its
+    submission puts the goods back into stock through the stock ledger; no invoice is
+    touched, so credit for returned goods is raised as a Sales Invoice return.
+    """
+    from erpnext.stock.doctype.delivery_note.delivery_note import make_sales_return
+
+    dn = frappe.get_doc("Delivery Note", delivery_note)
+    dn.check_permission("read")
+    assert_document_company_access(dn.company)
+    if company and dn.company != company:
+        frappe.throw(_("Company mismatch for goods return."))
+    if dn.docstatus != 1:
+        frappe.throw(_("Only a submitted delivery challan can be returned."))
+
+    ret = make_sales_return(dn.name)
+    if _has_opportunity_link("Delivery Note") and dn.get("trader_opportunity"):
+        ret.trader_opportunity = dn.trader_opportunity
+    ret.insert(ignore_permissions=False)
+    log_decision(
+        "other",
+        company=dn.company,
+        outcome="applied",
+        message="Goods return {0} against challan {1}".format(ret.name, dn.name),
+        reference_doctype="Delivery Note",
+        reference_name=ret.name,
+        output={"return_against": dn.name},
+        policy="goods_return",
+    )
+    return {"name": ret.name, "doctype": "Delivery Note", "return_against": dn.name, "docstatus": ret.docstatus}
 
 
 @frappe.whitelist()
@@ -1459,8 +1810,10 @@ def create_invoice_for_opportunity(
     if cint(profile.get("invoice_from_dn_only", 1)):
         if not delivery_notes:
             frappe.throw(
-                _("No submitted delivery challans are available to invoice. "
-                  "Submit a Delivery Challan first (Invoice-from-DN-only is on).")
+                _(
+                    "No submitted delivery challans are available to invoice. "
+                    "Submit a Delivery Challan first (Invoice-from-DN-only is on)."
+                )
             )
         for dn_name in delivery_notes:
             if not frappe.db.exists("Delivery Note", dn_name):
@@ -1473,6 +1826,7 @@ def create_invoice_for_opportunity(
                 frappe.throw(_("Delivery challan {0} must be submitted before invoicing.").format(dn_name))
 
     from trader_app.api.grouped_invoicing import create_grouped_invoice
+
     result = create_grouped_invoice(
         delivery_notes=delivery_notes,
         company=doc.company,
@@ -1503,8 +1857,13 @@ def create_invoice_for_opportunity(
 
 
 @frappe.whitelist()
-def save_commercial_options(doctype, name, commercial_options, company=None):
-    """Persist hierarchy on a draft Quote/SO/DN/SI and sync flat items."""
+def save_commercial_options(doctype, name, commercial_options, company=None, expected_modified=None):
+    """Persist hierarchy on a draft Quote/SO/DN/SI and sync flat items.
+
+    ``expected_modified`` is the ``modified`` stamp the editor loaded. When it no
+    longer matches, another user saved the document in between and this save is
+    refused instead of silently overwriting their hierarchy.
+    """
     from trader_app.api.hierarchy import (
         apply_commercial_options,
         persist_nested_commercial_items,
@@ -1524,6 +1883,15 @@ def save_commercial_options(doctype, name, commercial_options, company=None):
     assert_document_company_access(child.company)
     if child.docstatus != 0:
         frappe.throw(_("Only draft documents can edit commercial hierarchy."))
+    if expected_modified and str(child.modified) != str(expected_modified):
+        from frappe.exceptions import TimestampMismatchError
+
+        frappe.throw(
+            _("{0} {1} was changed by someone else after you opened it. Reload it and apply your changes again.").format(
+                doctype, name
+            ),
+            exc=TimestampMismatchError,
+        )
 
     rows = _parse_payload(commercial_options)
     if isinstance(rows, dict):
@@ -1541,3 +1909,17 @@ def save_commercial_options(doctype, name, commercial_options, company=None):
         "commercial_options": serialize_commercial_options(child),
         "items_count": len(child.items or []),
     }
+
+
+from trader_app.api._tenant_guard import INVOICING_ROLES, apply_module_guards
+
+apply_module_guards(
+    globals(),
+    "sales",
+    # The invoicing roles also read the project they invoice from: create_invoice_for_opportunity returns it, after
+    # the invoice is committed, so the read must pass for the same user (G-PERM-03).
+    extra_roles={
+        "create_invoice_for_opportunity": INVOICING_ROLES,
+        "get_opportunity": INVOICING_ROLES,
+    },
+)

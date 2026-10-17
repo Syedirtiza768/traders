@@ -9,7 +9,7 @@
 #   4. Wait for backend health
 #   5. Run bench migrate
 #   6. Install trader_app on the site (if not already installed)
-#   7. Seed demo data (company, users, customers, suppliers, items, transactions)
+#   7. Keep demo users and transactions out of production
 #
 # Usage:
 #   chmod +x scripts/redeploy-ec2.sh
@@ -32,11 +32,9 @@ if [[ -f "$ENV_FILE" ]]; then
 fi
 
 SITE_NAME="${SITE_NAME:-enxi.realtrackapp.com}"
-ADMIN_PASSWORD="${ADMIN_PASSWORD:-Admin@2026}"
+: "${DB_ROOT_PASSWORD:?Set DB_ROOT_PASSWORD in compose/.env before deploying}"
+: "${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in compose/.env before deploying}"
 
-if [[ "$SITE_NAME" == "trader.localhost" ]]; then
-    warn "SITE_NAME is trader.localhost — set SITE_NAME=enxi.realtrackapp.com in compose/.env for production"
-fi
 BUILD_ATTEMPTS="${BUILD_ATTEMPTS:-3}"
 BUILD_RETRY_DELAY="${BUILD_RETRY_DELAY:-20}"
 BACKEND_TIMEOUT="${BACKEND_TIMEOUT:-420}"
@@ -50,6 +48,10 @@ log()  { echo -e "\n\033[1;34m▶  $*\033[0m"; }
 ok()   { echo -e "\033[1;32m✅ $*\033[0m"; }
 warn() { echo -e "\033[1;33m⚠️  $*\033[0m"; }
 fail() { echo -e "\033[1;31m❌ $*\033[0m"; exit 1; }
+
+if [[ "$SITE_NAME" == "trader.localhost" ]]; then
+    warn "SITE_NAME is trader.localhost — set the production domain in compose/.env"
+fi
 
 retry() {
     local attempts="$1"
@@ -230,8 +232,9 @@ bench_exec "bench --site '$SITE_NAME' execute \
 ok "Roles created"
 
 # =============================================================================
-log "STEP 13 — Seed demo data"
+log "STEP 13 — Keep demo data out of production"
 # =============================================================================
+if [[ "${INSTALL_DEMO:-false}" == "true" && "${FRAPPE_ENV:-production}" != "production" ]]; then
 # Check if demo user already exists to decide whether to skip seeding
 DEMO_USER_EXISTS=$(bench_exec \
     "bench --site '$SITE_NAME' execute frappe.db.exists \
@@ -244,16 +247,15 @@ else
     bench_exec "bench --site '$SITE_NAME' execute trader_app.demo.install_demo"
     ok "Demo data seeded"
 fi
+else
+    ok "Demo data skipped; production deployment never creates demo accounts or transactions"
+fi
 
 # =============================================================================
-log "STEP 14 — Reset demo user password (ensure Demo@12345)"
+log "STEP 14 — Synchronize configured Administrator password"
 # =============================================================================
-bench_exec "bench --site '$SITE_NAME' execute \
-    frappe.core.doctype.user.user.update_password \
-    --args '[\"demo@globaltrading.pk\", \"Demo@12345\"]' 2>/dev/null || true"
-# Also ensure Administrator password is set
-bench_exec "bench --site '$SITE_NAME' set-admin-password '$ADMIN_PASSWORD' 2>/dev/null || true"
-ok "Passwords set"
+bench_exec "bench --site '$SITE_NAME' set-admin-password '$ADMIN_PASSWORD'"
+ok "Administrator password synchronized (value withheld)"
 
 # =============================================================================
 log "STEP 15 — Start workers, scheduler, websocket, and proxy"
@@ -304,14 +306,9 @@ echo "╔═══════════════════════�
 echo "║              🚀 DEPLOYMENT COMPLETE                          ║"
 echo "╠══════════════════════════════════════════════════════════════╣"
 echo "║  Site:     https://$SITE_NAME"
-echo "║"
-echo "║  Demo Login:"
-echo "║    Email:    demo@globaltrading.pk"
-echo "║    Password: Demo@12345"
-echo "║"
 echo "║  Admin Login:"
 echo "║    Email:    Administrator"
-echo "║    Password: $ADMIN_PASSWORD"
+echo "║    Password: configured in compose/.env (value withheld)"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 

@@ -12,7 +12,10 @@ from __future__ import unicode_literals
 
 def apply(tenant=None, company=None):
     import frappe
-    from trader_app.api.tenant import apply_components_daybook_profile, log_tenant_action
+    from trader_app.api.tenant import (
+        apply_components_daybook_profile,
+        log_tenant_action,
+    )
 
     if not tenant and company:
         tenant = frappe.db.get_value("Company", company, "trader_tenant")
@@ -22,7 +25,9 @@ def apply(tenant=None, company=None):
         frappe.throw("Pass tenant=TNT-xxxx or company=CDC")
 
     result = apply_components_daybook_profile(tenant)
-    log_tenant_action(tenant, "config_changed", {"nav_profile": "components_daybook", "source": "apply_daybook_profile"})
+    log_tenant_action(
+        tenant, "config_changed", {"nav_profile": "components_daybook", "source": "apply_daybook_profile"}
+    )
     frappe.db.commit()
     frappe.clear_cache(doctype="Trader Tenant")
     return result

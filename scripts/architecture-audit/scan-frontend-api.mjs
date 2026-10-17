@@ -24,16 +24,29 @@ export function scanFrontendApi(root) {
     const nsBody = nsMatch[2];
 
     const methods = [];
-    // Pattern: methodName: (params) => api.get/post/put/delete('url')
-    const methodRegex = /(\w+):\s*(?:\(([^)]*)\)\s*=>|async\s*\(([^)]*)\)\s*=>)\s*[\s\S]*?api\.(get|post|put|delete)\s*\(\s*[`'"]([^`'"]+)/g;
-    let mMatch;
+    // The API client routes most methods through local `get()` / `call()`
+    // helpers, while auth methods use `http.get()` / `http.post()` directly.
+    // Bound each scan to one top-level object property so a method without an
+    // HTTP call cannot accidentally inherit the next method's endpoint.
+    const methodRegex = /^  (\w+):\s*(?:async\s*)?\(([^)]*)\)\s*=>/gm;
+    const declarations = [...nsBody.matchAll(methodRegex)];
 
-    while ((mMatch = methodRegex.exec(nsBody)) !== null) {
+    for (let i = 0; i < declarations.length; i++) {
+      const declaration = declarations[i];
+      const bodyStart = declaration.index + declaration[0].length;
+      const bodyEnd = declarations[i + 1]?.index ?? nsBody.length;
+      const body = nsBody.slice(bodyStart, bodyEnd);
+      const request = body.match(/(?:(?:api|http)\.)?(get|post|put|delete)\s*\(\s*[`'"]([^`'"]+)|\b(call)\s*\(\s*[`'"]([^`'"]+)/);
+
+      if (!request) continue;
+
+      const httpMethod = request[1] || 'post';
+      const endpoint = request[2] || request[4];
       methods.push({
-        name: mMatch[1],
-        params: (mMatch[2] || mMatch[3] || '').trim(),
-        httpMethod: mMatch[4].toUpperCase(),
-        endpoint: mMatch[5].replace(/\$\{[^}]+\}/g, '{param}'),
+        name: declaration[1],
+        params: declaration[2].trim(),
+        httpMethod: httpMethod.toUpperCase(),
+        endpoint: endpoint.replace(/\$\{[^}]+\}/g, '{param}'),
       });
     }
 

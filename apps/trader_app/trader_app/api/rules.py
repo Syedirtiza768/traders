@@ -33,7 +33,6 @@ import json
 import frappe
 from frappe import _
 from frappe.utils import flt
-
 from trader_app.api.decision_log import log_decision
 
 _MISSING = object()
@@ -47,6 +46,7 @@ _UNARY_OPS = {"is_empty", "is_set"}
 # ────────────────────────────────────────────────────────────────
 # Condition evaluation
 # ────────────────────────────────────────────────────────────────
+
 
 def evaluate_condition(node, context):
     """Return True if ``node`` matches ``context``. Raises ValueError on a
@@ -164,6 +164,7 @@ def _coerce(a, b):
 # Runtime
 # ────────────────────────────────────────────────────────────────
 
+
 def _load_rules(target_doctype, company, event):
     or_filters = [{"company": company}, {"company": ["is", "not set"]}] if company else None
     filters = {"is_active": 1, "target_doctype": target_doctype, "event": event}
@@ -196,9 +197,12 @@ def run_rules(doc, event="validate"):
         # Bypass by role
         if rule.get("bypass_role") and rule["bypass_role"] in user_roles:
             log_decision(
-                "validation", company=company, outcome="skipped",
+                "validation",
+                company=company,
+                outcome="skipped",
                 message="Bypassed by role {0}".format(rule["bypass_role"]),
-                reference_doctype=doc.doctype, reference_name=doc.name or "(unsaved)",
+                reference_doctype=doc.doctype,
+                reference_name=doc.name or "(unsaved)",
                 policy=rule["name"],
             )
             continue
@@ -215,18 +219,24 @@ def run_rules(doc, event="validate"):
         except ValueError:
             # A malformed rule must not break document flow — log and skip.
             log_decision(
-                "validation", company=company, outcome="error",
+                "validation",
+                company=company,
+                outcome="error",
                 message="Rule {0} has an invalid condition".format(rule["name"]),
-                reference_doctype=doc.doctype, reference_name=doc.name or "(unsaved)",
+                reference_doctype=doc.doctype,
+                reference_name=doc.name or "(unsaved)",
                 policy=rule["name"],
             )
             continue
 
         if not fired:
             log_decision(
-                "validation", company=company, outcome="allow",
+                "validation",
+                company=company,
+                outcome="allow",
                 message=rule["rule_name"],
-                reference_doctype=doc.doctype, reference_name=doc.name or "(unsaved)",
+                reference_doctype=doc.doctype,
+                reference_name=doc.name or "(unsaved)",
                 policy=rule["name"],
             )
             continue
@@ -234,10 +244,12 @@ def run_rules(doc, event="validate"):
         severity = rule.get("severity") or "block"
         msg = rule.get("message") or rule["rule_name"]
         log_decision(
-            "validation", company=company,
+            "validation",
+            company=company,
             outcome="block" if severity == "block" else "warn",
             message=msg,
-            reference_doctype=doc.doctype, reference_name=doc.name or "(unsaved)",
+            reference_doctype=doc.doctype,
+            reference_name=doc.name or "(unsaved)",
             policy=rule["name"],
         )
         if severity == "block":

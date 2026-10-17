@@ -2,6 +2,8 @@
 # ============================================================================
 # Trader Business System — Initial Setup Script
 # ============================================================================
+# Local development helper only. For a production host use
+# scripts/setup-ec2-ubuntu.sh with the production environment template.
 # Usage:  chmod +x scripts/setup.sh && ./scripts/setup.sh
 # ============================================================================
 
@@ -26,7 +28,7 @@ check_prerequisites() {
     info "Checking prerequisites..."
 
     command -v docker >/dev/null 2>&1 || error "Docker is not installed. Please install Docker first."
-    command -v docker compose >/dev/null 2>&1 || command -v docker-compose >/dev/null 2>&1 || error "Docker Compose is not installed."
+    docker compose version >/dev/null 2>&1 || error "Docker Compose plugin is not installed."
     command -v git >/dev/null 2>&1 || error "Git is not installed."
 
     # Check Docker daemon
@@ -56,21 +58,7 @@ setup_environment() {
         info ".env file already exists."
     fi
 
-    # Generate random passwords if they're still set to defaults
-    if grep -q "changeme" "$ENV_FILE" 2>/dev/null; then
-        warn "Default passwords detected in .env — generating secure random passwords..."
-        DB_PASS=$(openssl rand -base64 24 | tr -dc 'a-zA-Z0-9' | head -c 20)
-        DB_ROOT_PASS=$(openssl rand -base64 24 | tr -dc 'a-zA-Z0-9' | head -c 20)
-        ADMIN_PASS=$(openssl rand -base64 24 | tr -dc 'a-zA-Z0-9' | head -c 20)
-
-        sed -i "s/DB_PASSWORD=changeme/DB_PASSWORD=${DB_PASS}/" "$ENV_FILE"
-        sed -i "s/DB_ROOT_PASSWORD=changeme/DB_ROOT_PASSWORD=${DB_ROOT_PASS}/" "$ENV_FILE"
-        sed -i "s/ADMIN_PASSWORD=changeme/ADMIN_PASSWORD=${ADMIN_PASS}/" "$ENV_FILE"
-
-        success "Passwords generated. Admin password: ${ADMIN_PASS}"
-        warn "Save this password — it will not be shown again."
-    fi
-
+    chmod 600 "$ENV_FILE"
     success "Environment configured."
 }
 
@@ -82,10 +70,10 @@ build_and_start() {
 
     cd "$(dirname "${BASH_SOURCE[0]}")/../compose"
 
-    docker compose build --no-cache
+    docker compose build
 
     info "Starting services..."
-    docker compose up -d
+    docker compose up -d --build
 
     success "All services started."
 }
@@ -100,7 +88,7 @@ wait_for_services() {
     local waited=0
 
     while [ $waited -lt $max_wait ]; do
-        if docker compose exec -T backend bench --site all list-apps >/dev/null 2>&1; then
+        if docker compose exec -T backend bench --site "$SITE_NAME" list-apps >/dev/null 2>&1; then
             success "Backend is ready."
             return 0
         fi
@@ -113,19 +101,11 @@ wait_for_services() {
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Install Demo Data (optional)
+# Demo data is deliberately never installed by this setup helper. Run the
+# documented demo command manually against an isolated development site.
 # ──────────────────────────────────────────────────────────────────────────────
 install_demo_data() {
-    if [ "${INSTALL_DEMO:-false}" = "true" ]; then
-        info "Installing demo data..."
-        docker compose exec -T backend bench --site "$SITE_NAME" console <<'PYTHON'
-from trader_app.demo import install_demo
-install_demo()
-PYTHON
-        success "Demo data installed."
-    else
-        info "Skipping demo data installation. Set INSTALL_DEMO=true to install."
-    fi
+    info "Skipping demo data. Install it manually only on an isolated development site."
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -137,13 +117,9 @@ print_summary() {
     echo "  Trader Business System — Setup Complete"
     echo "=========================================="
     echo ""
-    echo "  🌐 Frontend:  http://localhost:3000"
-    echo "  🔧 Backend:   http://localhost:8000"
-    echo "  📊 Proxy:     http://localhost:8080"
+    echo "  🌐 Application: http://localhost:${HTTP_PORT:-8080}"
     echo ""
-    echo "  📝 Default Admin Credentials:"
-    echo "     Email:    Administrator"
-    echo "     Password: (see .env ADMIN_PASSWORD)"
+    echo "  📝 Administrator password is stored in the local compose/.env file."
     echo ""
     echo "  📁 Useful commands:"
     echo "     docker compose logs -f        # View logs"

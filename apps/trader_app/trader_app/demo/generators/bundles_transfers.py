@@ -7,9 +7,7 @@ import random
 
 import frappe
 from frappe.utils import add_days, flt, getdate, nowdate
-
 from trader_app.demo.seed_engine.base import BaseGenerator
-
 
 BUNDLE_BLUEPRINTS = [
     (
@@ -83,9 +81,7 @@ class BundlesTransfersGenerator(BaseGenerator):
             doc.total_rate = 0
             for ic in picked:
                 base = buying.get(ic, random.uniform(80, 1200))
-                rate = round(
-                    base * random.uniform(rate_jitter[0], rate_jitter[1]), 2
-                )
+                rate = round(base * random.uniform(rate_jitter[0], rate_jitter[1]), 2)
                 qty = random.choice([1, 1, 2])
                 amt = flt(qty * rate)
                 doc.append(
@@ -109,12 +105,14 @@ class BundlesTransfersGenerator(BaseGenerator):
     def _ensure_transfer_stock_entry_type(self):
         if frappe.db.exists("Stock Entry Type", "Material Transfer"):
             return
-        doc = frappe.get_doc({
-            "doctype": "Stock Entry Type",
-            "name": "Material Transfer",
-            "stock_entry_type": "Material Transfer",
-            "purpose": "Material Transfer",
-        })
+        doc = frappe.get_doc(
+            {
+                "doctype": "Stock Entry Type",
+                "name": "Material Transfer",
+                "stock_entry_type": "Material Transfer",
+                "purpose": "Material Transfer",
+            }
+        )
         doc.insert(ignore_permissions=True)
 
     def _seed_transfers(self):
@@ -221,6 +219,8 @@ class BundlesTransfersGenerator(BaseGenerator):
         n = frappe.db.sql(
             "SELECT COUNT(*) FROM `tabItem Bundle` WHERE bundle_name LIKE %s",
             ("Demo Pack%",),
-        )[0][0]
+        )[
+            0
+        ][0]
         assert int(n or 0) >= 1, "Demo bundles missing"
         return True

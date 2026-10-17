@@ -90,15 +90,10 @@ build_and_deploy() {
 
     cd "$COMPOSE_DIR"
 
-    # Build images
-    docker compose build
-
-    # Graceful restart — rolling update approach
-    info "Stopping old containers..."
-    docker compose down --remove-orphans
-
+    # Recreate only services whose images/config changed. Persistent database,
+    # Redis, and sites volumes remain mounted throughout the deployment.
     info "Starting updated containers..."
-    docker compose up -d
+    docker compose up -d --build --remove-orphans
 
     success "Containers deployed."
 }
@@ -123,14 +118,19 @@ run_migrations() {
         info "  Waiting for backend... (${waited}s)"
     done
 
-    # Run migrate
-    docker compose exec -T backend bench --site "$SITE_NAME" migrate 2>&1 || warn "Migration warnings (check logs)."
+    if [ "$waited" -ge "$max_wait" ]; then
+        error "Backend did not become ready within ${max_wait}s; stopping deployment before migrations."
+    fi
+
+    # A migration failure must stop the deployment; continuing would leave
+    # application code and schema at incompatible versions.
+    docker compose exec -T backend bench --site "$SITE_NAME" migrate
 
     # Build assets
-    docker compose exec -T backend bench build --app trader_app 2>&1 || warn "Asset build warnings."
+    docker compose exec -T backend bench build --app trader_app
 
     # Clear cache
-    docker compose exec -T backend bench --site "$SITE_NAME" clear-cache 2>&1 || true
+    docker compose exec -T backend bench --site "$SITE_NAME" clear-cache
 
     success "Migrations complete."
 }
@@ -143,34 +143,31 @@ health_check() {
 
     cd "$COMPOSE_DIR"
 
-    local all_healthy=true
-
-    # Check each service
-    for service in backend db redis-cache frontend; do
-        if docker compose ps "$service" | grep -q "Up"; then
-            success "  $service: running"
-        else
-            warn "  $service: NOT running"
-            all_healthy=false
+    # Compose health checks exist for these three services. Other services do
+    # not yet expose reliable health checks and are reported as a known gap.
+    for service in db backend frontend; do
+        local container_id health
+        container_id=$(docker compose ps -q "$service")
+        if [ -z "$container_id" ]; then
+            error "$service container is missing."
         fi
+        health=$(docker inspect --format '{{.State.Health.Status}}' "$container_id")
+        if [ "$health" != "healthy" ]; then
+            error "$service health check is $health."
+        fi
+        success "  $service: healthy"
     done
 
     # HTTP health check
-    local http_status
-    http_status=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:${HTTP_PORT:-8080}/api/method/ping" 2>/dev/null || echo "000")
-
-    if [ "$http_status" = "200" ]; then
-        success "  API endpoint: healthy (HTTP $http_status)"
+    if curl --fail --silent --show-error --max-time 30 \
+        -H "Host: $SITE_NAME" \
+        "http://127.0.0.1:${HTTP_PORT:-8080}/api/method/ping" >/dev/null; then
+        success "  API endpoint: healthy"
     else
-        warn "  API endpoint: returned HTTP $http_status"
-        all_healthy=false
+        error "API ping failed."
     fi
 
-    if [ "$all_healthy" = true ]; then
-        success "All health checks passed."
-    else
-        warn "Some health checks failed. Review with: docker compose logs -f"
-    fi
+    success "Configured health checks passed. Inspect worker, scheduler, Redis, websocket, and proxy logs separately."
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -198,9 +195,7 @@ main() {
     echo "  Deployment complete in ${elapsed}s"
     echo "=========================================="
     echo ""
-    echo "  🌐 Trader UI: http://localhost:${HTTP_PORT:-8080}"
-    echo "  🔧 Backend:   http://localhost:${BACKEND_PORT:-8000}"
-    echo "  📊 Desk:      http://localhost:${HTTP_PORT:-8080}/app"
+    echo "  🌐 Application: http://localhost:${HTTP_PORT:-8080}"
     echo ""
 }
 

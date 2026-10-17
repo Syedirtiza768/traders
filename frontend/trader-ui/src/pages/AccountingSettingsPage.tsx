@@ -289,21 +289,25 @@ function ToggleSetting({
 }) {
   return (
     <label className="flex cursor-pointer items-start gap-4 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-800/40 px-4 py-3 hover:border-brand-300 dark:hover:border-brand-700 transition-colors">
-      <div className="mt-0.5 flex-shrink-0">
-        <div
-          onClick={() => onChange(!checked)}
-          className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+      <div className="mt-0.5 shrink-0">
+        <input
+          type="checkbox"
+          className="peer sr-only"
+          checked={checked}
+          onChange={(event) => onChange(event.target.checked)}
+        />
+        <span
+          aria-hidden="true"
+          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out peer-focus-visible:ring-2 peer-focus-visible:ring-brand-500 peer-focus-visible:ring-offset-2 ${
             checked ? 'bg-brand-600' : 'bg-gray-200 dark:bg-slate-600'
           }`}
-          role="switch"
-          aria-checked={checked}
         >
           <span
             className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
               checked ? 'translate-x-4' : 'translate-x-0'
             }`}
           />
-        </div>
+        </span>
       </div>
       <div className="flex-1">
         <span className="block text-sm font-medium text-gray-900 dark:text-gray-100">{label}</span>

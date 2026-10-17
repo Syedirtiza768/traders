@@ -1,20 +1,22 @@
 # System Master Context and Audit Document
 
-> **Authoritative reference** for the Traders Business Management System.  
-> **Audit date:** 2026-06-20 · **Method:** complete static analysis of all source files.  
+> **Historical architecture snapshot; not an authoritative current-state reference.** The audit below was written on 2026-06-20 and contains stale routes, ports, versions, tests, and configuration examples. For verified current behavior and release status, use [`PRODUCTION_READINESS_REPORT.md`](PRODUCTION_READINESS_REPORT.md) and [`PRODUCTION_READINESS_TEST_MATRIX.md`](PRODUCTION_READINESS_TEST_MATRIX.md).
+>
+> **Snapshot date:** 2026-06-20 · **Method at the time:** static analysis.
 > For the interactive, navigable version open the canvas at  
 > `C:\Users\Irtaza Hassan\.cursor\projects\f-apps-traders\canvases\traders-system-audit.canvas.tsx`
 
 ---
 
-## Source-of-truth statement
+## Historical source-of-truth statement (superseded)
 
-This system is operational as a **single-company trader/distribution management SPA** with
-38 working features across 16 modules. The following are **declared but not yet implemented**:
+The following was the conclusion of the 2026-06-20 snapshot only; it is not a current verification. The current audit found frontend capability/feature route gates in `App.tsx`, but did not complete an adversarial runtime authorization pass. Tally/CSV migration remains unavailable as a complete user feature. Approval workflows remain unsupported. See the current readiness report for evidence and remaining limits.
+
+The historical snapshot described the application as a **single-company trader/distribution management SPA** and stated that these items were **declared but not yet implemented**:
 
 - Tally/CSV migration wizard (DocType schema exists; no parser, no engine, no API endpoints)
 - Document approval workflows (declared in `hooks.py` fixtures; no JSON files exist)
-- Per-route role-based authorization (only sidebar visibility is filtered; routes are unguarded)
+- Per-route role-based authorization (this route assessment is stale; current routes use `GatedRoute`, while backend coverage still needs adversarial verification)
 
 There are **6 HIGH-severity findings** that must be resolved before production deployment should
 be considered secure. See the [Audit Findings](#audit-findings) section.
@@ -114,7 +116,7 @@ reconciliation UI, no multi-company consolidated financials, no Tally migration 
 |-------|-----------|
 | Frontend | React 18, TypeScript, Vite 5, TailwindCSS 3.4, Recharts 2, Zustand |
 | Backend | Frappe Framework 15, ERPNext 15, Python 3.11 |
-| Database | MariaDB 10.11 |
+| Database | MariaDB 10.11.19 |
 | Cache | Redis 7 (two instances: cache + queue) |
 | Proxy | Nginx 1.25 |
 | Containers | Docker, Docker Compose |
@@ -124,7 +126,7 @@ reconciliation UI, no multi-company consolidated financials, no Tally migration 
 
 | Service | Image | Host port | Purpose |
 |---------|-------|-----------|---------|
-| `db` | `mariadb:10.11` | internal | Primary database |
+| `db` | `mariadb:10.11.19@sha256:7f22313fc130a377a44999965bcb0a08dd5b21e8502824c1b864f792f9bc66ab` | internal | Exact MariaDB patch and official multi-platform image manifest pinned |
 | `redis-cache` | `redis:7-alpine` | internal | Application cache |
 | `redis-queue` | `redis:7-alpine` | internal | RQ job queue |
 | `backend` | `traders-backend` (built) | **8000** | Frappe/Gunicorn API |
@@ -134,7 +136,7 @@ reconciliation UI, no multi-company consolidated financials, no Tally migration 
 | `worker-default` | same | — | RQ default queue worker |
 | `scheduler` | same | — | `bench schedule` |
 | `frontend` | `traders-frontend` (built) | internal (3000) | React SPA/Nginx |
-| `proxy` | `nginx:1.25-alpine` | **8080** | Reverse proxy |
+| `proxy` | `nginx:1.30.5-alpine3.24` | **8080** | Reverse proxy |
 
 > **Note:** Frontend `:3000`, DB `:3306`, and Redis `:6379` are internal only. The three
 > host-exposed ports are **8000**, **9000**, and **8080**. ARCHITECTURE.md incorrectly documents
@@ -368,7 +370,7 @@ has_permission = { ... 7 DocTypes ... }
 
 ### Schema management
 
-MariaDB 10.11. Schema is **fully managed by Frappe/ERPNext** — no custom SQL migrations.
+MariaDB 10.11.19. Schema is **fully managed by Frappe/ERPNext** — no custom SQL migrations.
 Schema evolves via DocType JSON sync on `bench migrate`. There is **no `patches.txt`** file.
 Schema history is not explicitly tracked; all changes must be reconstructed from DocType JSON diffs.
 
@@ -530,54 +532,23 @@ Frappe's built-in background job queue. No custom jobs are submitted via RQ in t
 
 ## 11. Environment Variables and Configuration Reference
 
-All variables set in `compose/.env` (copy from `compose/.env.example`).
-
-| Variable | Required | Default/Example | Purpose |
-|----------|----------|-----------------|---------|
-| `SITE_NAME` | Yes | `trader.localhost` | Frappe site name |
-| `BENCH_NAME` | No | `frappe-bench` | Bench directory name |
-| `DB_HOST` | Yes | `db` | MariaDB service hostname (Docker internal) |
-| `DB_PORT` | No | `3306` | MariaDB port |
-| `DB_ROOT_PASSWORD` | Yes | — | MariaDB root password — **CHANGE IN PRODUCTION** |
-| `MYSQL_DATABASE` | No | `trader_db` | Database name |
-| `REDIS_CACHE` | Yes | `redis-cache:6379` | Redis cache DSN |
-| `REDIS_QUEUE` | Yes | `redis-queue:6379` | Redis queue DSN |
-| `ADMIN_PASSWORD` | Yes | — | ERPNext admin password — **CHANGE IN PRODUCTION** |
-| `ENCRYPTION_KEY` | Yes | — | Frappe field encryption key (32 chars) — **CHANGE IN PRODUCTION** |
-| `SECRET_KEY` | Yes | — | Frappe secret key — **CHANGE IN PRODUCTION** |
-| `FRAPPE_VERSION` | Yes | `v15.47.4` | Frappe version pinned in Dockerfile |
-| `ERPNEXT_VERSION` | Yes | `v15.37.2` | ERPNext version pinned in Dockerfile |
-| `HTTP_PORT` | No | `8080` | Nginx proxy host port |
-| `GUNICORN_WORKERS` | No | `4` (prod: `8`) | Gunicorn worker count |
-| `GUNICORN_THREADS` | No | `4` | Threads per Gunicorn worker |
-| `BACKUP_DIR` | No | `/home/frappe/backups` | Backup destination path |
-| `BACKUP_RETENTION_DAYS` | No | `30` (prod: `90`) | Backup retention period |
-| `VITE_API_URL` | No | `/api` | ⚠️ Injected as Docker build arg but **NOT consumed** by frontend — see **F-05** |
-| `VITE_SITE_NAME` | No | `trader.localhost` | ⚠️ Injected as Docker build arg but **NOT consumed** by frontend — see **F-05** |
-| `INSTALL_DEMO` | No | `true` | Set in `setup.sh` to trigger demo seed |
-| `DEPLOY_SSH_KEY` | No | — | CI/CD secret: SSH key for server deployment |
-| `DEPLOY_HOST` | No | `enxi.realtrackapp.com` | CI/CD: deployment server host |
-| `DEPLOY_USER` | No | `ubuntu` | CI/CD: deployment SSH user |
-| `DEPLOY_PATH` | No | `/opt/traders` | CI/CD: project path on server |
-| `DEPLOY_URL` | No | `https://enxi.realtrackapp.com` | CI/CD: health-check base URL |
+The environment table in this 2026-06-20 snapshot is obsolete and intentionally removed. The current production variables, CI deployment secrets, requirements, purposes, and handling requirements are maintained in [`PRODUCTION_READINESS_REPORT.md`](PRODUCTION_READINESS_REPORT.md#required-environment-variables) and [`../compose/.env.production.example`](../compose/.env.production.example). The local development template is [`../compose/.env.example`](../compose/.env.example). Do not restore old entries such as `MYSQL_DATABASE`, `ENCRYPTION_KEY`, `SECRET_KEY`, `VITE_API_URL`, `VITE_SITE_NAME`, or `INSTALL_DEMO` from the historical table without verifying that the current code consumes them.
 
 ---
 
 ## 12. Local Setup, Development, Testing, Build, and Deployment
 
-### Quick start (Docker)
+### Historical quick start (superseded)
 
 ```bash
 git clone https://github.com/Syedirtiza768/traders.git
 cd traders/compose
 cp .env.example .env
-# Edit .env: set DB_ROOT_PASSWORD, ADMIN_PASSWORD, ENCRYPTION_KEY, SECRET_KEY
-docker compose up -d
-# Wait ~3–5 min for backend health check to pass
-docker compose exec backend bench --site trader.localhost execute trader_app.demo.install_demo
-# Access: http://localhost:8080
-# Demo login: demo.admin@traderapp.com / Demo@12345
+docker compose up -d --build
+docker compose logs -f site-init
 ```
+
+For current quick-start and production setup instructions, see [`../README.md`](../README.md) and [`DEPLOYMENT_GUIDE.md`](DEPLOYMENT_GUIDE.md). Demo data is opt-in and is not installed by the current setup path.
 
 ### Frontend development (Vite)
 
@@ -610,7 +581,7 @@ scripts/cold-rebuild-windows.ps1 -RemoveVolumes  # Full cold rebuild, reset DB
 
 ### Testing
 
-> ⚠️ **F-13:** There are currently zero automated tests in either the frontend or backend.
+The following testing notes are historical and superseded. The 2026-10-04 audit ran frontend tests and Python tests, with both passing focused cases and unresolved broader-suite failures/errors. Exact commands and results are in [`PRODUCTION_READINESS_REPORT.md`](PRODUCTION_READINESS_REPORT.md#test-results) and [`PRODUCTION_READINESS_TEST_MATRIX.md`](PRODUCTION_READINESS_TEST_MATRIX.md).
 
 Run code quality checks (CI runs these on every PR):
 

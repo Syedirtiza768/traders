@@ -76,8 +76,8 @@ Handled across generators where applicable:
 Run:
 
 ```bash
-bench --site <site> execute trader_app.demo.install_demo
-bench --site <site> execute trader_app.demo.uninstall_demo
+bench --site <fresh-disposable-site> set-config allow_demo_seed true
+bench --site <fresh-disposable-site> execute trader_app.demo.install_demo
 ```
 
-`uninstall_demo` removes company‑scoped transactional doctypes listed in `DemoInstaller.uninstall()`, deletes **Demo Pack\*** bundles, then clears global Item/Customer/Supplier masters (destructive wipe pattern).
+Demo seeding requires the explicit `allow_demo_seed=true` opt-in and a fresh site with no Company or business records. It refuses repeated runs. `uninstall_demo` is disabled because the former implementation could delete site-wide Customer, Supplier, and Item records. Remove a demo dataset by resetting its disposable site.

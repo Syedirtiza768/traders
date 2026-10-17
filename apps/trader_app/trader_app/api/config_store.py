@@ -59,9 +59,7 @@ def read_config(company, pack_key, default=None):
         if decoded is not None:
             return decoded
 
-    name = frappe.db.get_value(
-        _DOCTYPE, {"company": company, "pack_key": pack_key}, "name"
-    )
+    name = frappe.db.get_value(_DOCTYPE, {"company": company, "pack_key": pack_key}, "name")
     if name:
         raw = frappe.db.get_value(_DOCTYPE, name, "payload")
         data = _decode(raw)
@@ -84,9 +82,7 @@ def write_config(company, pack_key, payload, label=None):
         frappe.throw("company and pack_key are required to write a config pack.")
 
     payload = payload or {}
-    name = frappe.db.get_value(
-        _DOCTYPE, {"company": company, "pack_key": pack_key}, "name"
-    )
+    name = frappe.db.get_value(_DOCTYPE, {"company": company, "pack_key": pack_key}, "name")
 
     if name:
         doc = frappe.get_doc(_DOCTYPE, name)

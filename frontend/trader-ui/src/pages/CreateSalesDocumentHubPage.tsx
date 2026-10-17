@@ -52,7 +52,7 @@ export default function CreateSalesDocumentHubPage() {
               key={doc.key}
               type="button"
               onClick={() => navigate(doc.route)}
-              className="card p-5 text-left transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="card p-5 text-left transition-shadow hover:shadow-md focus:outline-hidden focus:ring-2 focus:ring-brand-500"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="rounded-lg bg-brand-50 p-2 text-brand-700 dark:bg-slate-800 dark:text-brand-300">

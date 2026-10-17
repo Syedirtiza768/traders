@@ -10,10 +10,12 @@ from __future__ import unicode_literals
 
 import frappe
 from frappe.utils import now_datetime
-
-from trader_app.api.tenant import DEFAULT_MODULE_ROWS, log_tenant_action, sync_tenant_modules_to_company
+from trader_app.api.tenant import (
+    DEFAULT_MODULE_ROWS,
+    log_tenant_action,
+    sync_tenant_modules_to_company,
+)
 from trader_app.setup import create_roles
-
 
 TRADER_ROLE_PREFIXES = ("Trader ",)
 
@@ -81,15 +83,9 @@ def _ensure_tenant_for_company(company_row, dry_run=False):
         }
     )
 
-    components_enabled = cint_safe(
-        frappe.db.get_value("Company", company_name, "trader_components_enabled")
-    )
-    opportunity_enabled = cint_safe(
-        frappe.db.get_value("Company", company_name, "trader_opportunity_enabled")
-    )
-    ar_enabled = cint_safe(
-        frappe.db.get_value("Company", company_name, "trader_ar_enabled")
-    )
+    components_enabled = cint_safe(frappe.db.get_value("Company", company_name, "trader_components_enabled"))
+    opportunity_enabled = cint_safe(frappe.db.get_value("Company", company_name, "trader_opportunity_enabled"))
+    ar_enabled = cint_safe(frappe.db.get_value("Company", company_name, "trader_ar_enabled"))
     for row in doc.enabled_modules:
         if row.module_key == "components":
             row.enabled = components_enabled

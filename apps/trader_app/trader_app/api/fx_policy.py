@@ -15,7 +15,6 @@ from __future__ import unicode_literals
 
 import frappe
 from frappe.utils import add_days, cint, flt, nowdate
-
 from trader_app.api.decision_log import log_decision
 
 SNAP_RATE = "trader_fx_rate_snapshot"
@@ -74,12 +73,14 @@ def snapshot_fx(doc, event):
     doc.set(SNAP_MODE, policy["print_mode"])
 
     log_decision(
-        "fx", company=company, outcome="applied",
-        message="FX rate {0} snapshotted ({1}); clause valid {2} days".format(
-            rate, event, policy["validity_days"]),
+        "fx",
+        company=company,
+        outcome="applied",
+        message="FX rate {0} snapshotted ({1}); clause valid {2} days".format(rate, event, policy["validity_days"]),
         inputs={"currency": doc.currency, "event": event},
         output={"rate": rate, "valid_until": getattr(doc, SNAP_VALID), "print_mode": policy["print_mode"]},
-        reference_doctype=doc.doctype, reference_name=doc.name or "(unsaved)",
+        reference_doctype=doc.doctype,
+        reference_name=doc.name or "(unsaved)",
         policy=policy["policy"],
     )
     return True

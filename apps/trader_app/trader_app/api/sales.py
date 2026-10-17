@@ -13,22 +13,23 @@ from __future__ import unicode_literals
 
 import frappe
 from frappe import _
-from frappe.utils import nowdate, getdate, flt, cint
-
-from trader_app.api.company import assert_document_company_access, resolve_active_company
-
+from frappe.utils import cint, flt, getdate, nowdate
+from trader_app.api.company import (
+    assert_document_company_access,
+    resolve_active_company,
+)
 from trader_app.api.invoice_types import (
     get_document_catalog,
     normalize_type_key,
+    print_format_for_doc,
     resolve_sales_taxes,
     set_trader_invoice_type,
-    print_format_for_doc,
 )
-
 
 # ────────────────────────────────────────────────────────────────
 # 1.  LIST ENDPOINTS
 # ────────────────────────────────────────────────────────────────
+
 
 @frappe.whitelist()
 def get_sales_document_catalog():
@@ -40,10 +41,17 @@ def get_sales_document_catalog():
 
 
 @frappe.whitelist()
-def get_sales_invoices(company=None, customer=None, status=None,
-                       from_date=None, to_date=None,
-                       invoice_type=None,
-                       page=1, page_size=20, search=None):
+def get_sales_invoices(
+    company=None,
+    customer=None,
+    status=None,
+    from_date=None,
+    to_date=None,
+    invoice_type=None,
+    page=1,
+    page_size=20,
+    search=None,
+):
     """Paginated list of Sales Invoices with optional filters."""
     try:
         company = resolve_active_company(company)
@@ -97,9 +105,12 @@ def get_sales_invoices(company=None, customer=None, status=None,
         total = frappe.db.sql(
             f"SELECT COUNT(*) FROM `tabSales Invoice` si WHERE {where}",
             params,
-        )[0][0]
+        )[
+            0
+        ][0]
 
-        rows = frappe.db.sql(f"""
+        rows = frappe.db.sql(
+            f"""
             SELECT si.name, si.customer, si.customer_name, si.posting_date,
                    si.due_date, si.grand_total, si.outstanding_amount,
                    si.currency, si.docstatus,
@@ -117,7 +128,10 @@ def get_sales_invoices(company=None, customer=None, status=None,
             WHERE {where}
             ORDER BY si.posting_date DESC, si.creation DESC
             LIMIT %(page_size)s OFFSET %(offset)s
-        """, {**params, "page_size": page_size, "offset": offset}, as_dict=True)
+        """,
+            {**params, "page_size": page_size, "offset": offset},
+            as_dict=True,
+        )
 
         return {
             "data": rows,
@@ -140,9 +154,9 @@ def get_sales_invoice_detail(name):
 
 
 @frappe.whitelist()
-def get_sales_orders(company=None, customer=None, status=None,
-                     from_date=None, to_date=None,
-                     page=1, page_size=20, search=None):
+def get_sales_orders(
+    company=None, customer=None, status=None, from_date=None, to_date=None, page=1, page_size=20, search=None
+):
     """Paginated list of Sales Orders."""
     try:
         company = resolve_active_company(company)
@@ -171,11 +185,10 @@ def get_sales_orders(company=None, customer=None, status=None,
 
         where = " AND ".join(conditions)
 
-        total = frappe.db.sql(
-            f"SELECT COUNT(*) FROM `tabSales Order` so WHERE {where}", params
-        )[0][0]
+        total = frappe.db.sql(f"SELECT COUNT(*) FROM `tabSales Order` so WHERE {where}", params)[0][0]
 
-        rows = frappe.db.sql(f"""
+        rows = frappe.db.sql(
+            f"""
             SELECT so.name, so.customer, so.customer_name,
                    so.transaction_date, so.delivery_date,
                    so.grand_total, so.status, so.currency, so.docstatus
@@ -183,7 +196,10 @@ def get_sales_orders(company=None, customer=None, status=None,
             WHERE {where}
             ORDER BY so.transaction_date DESC, so.creation DESC
             LIMIT %(page_size)s OFFSET %(offset)s
-        """, {**params, "page_size": page_size, "offset": offset}, as_dict=True)
+        """,
+            {**params, "page_size": page_size, "offset": offset},
+            as_dict=True,
+        )
 
         order_names = [row.name for row in rows]
         invoice_counts = {}
@@ -191,12 +207,16 @@ def get_sales_orders(company=None, customer=None, status=None,
         if order_names:
             # ERPNext v15: tabSales Invoice has no 'sales_order' header field.
             # Link is through tabSales Invoice Item.sales_order.
-            linked_invoices = frappe.db.sql("""
+            linked_invoices = frappe.db.sql(
+                """
                 SELECT DISTINCT sii.sales_order, si.outstanding_amount
                 FROM `tabSales Invoice Item` sii
                 INNER JOIN `tabSales Invoice` si ON si.name = sii.parent
                 WHERE sii.sales_order IN %(order_names)s AND si.docstatus < 2
-            """, {"order_names": order_names}, as_dict=True)
+            """,
+                {"order_names": order_names},
+                as_dict=True,
+            )
             for invoice in linked_invoices:
                 sales_order = invoice.get("sales_order")
                 invoice_counts[sales_order] = invoice_counts.get(sales_order, 0) + 1
@@ -220,23 +240,31 @@ def get_sales_order_detail(name):
     doc.check_permission("read")
     assert_document_company_access(doc.company)
     data = doc.as_dict()
+    from trader_app.api.hierarchy import serialize_commercial_options
+
+    # Nested option items often omit from as_dict(); serialise from the durable items_json.
+    data["trader_commercial_options"] = serialize_commercial_options(doc)
     # ERPNext v15: tabSales Invoice has no 'sales_order' header field.
     # Link is through tabSales Invoice Item.sales_order.
-    data["linked_sales_invoices"] = frappe.db.sql("""
+    data["linked_sales_invoices"] = frappe.db.sql(
+        """
         SELECT DISTINCT si.name, si.posting_date, si.grand_total,
                         si.currency, si.status, si.outstanding_amount
         FROM `tabSales Invoice Item` sii
         INNER JOIN `tabSales Invoice` si ON si.name = sii.parent
         WHERE sii.sales_order = %(so_name)s AND si.docstatus < 2
         ORDER BY si.posting_date DESC, si.creation DESC
-    """, {"so_name": doc.name}, as_dict=True)
+    """,
+        {"so_name": doc.name},
+        as_dict=True,
+    )
     return data
 
 
 @frappe.whitelist()
-def get_quotations(company=None, customer=None, status=None,
-                   from_date=None, to_date=None,
-                   page=1, page_size=20, search=None):
+def get_quotations(
+    company=None, customer=None, status=None, from_date=None, to_date=None, page=1, page_size=20, search=None
+):
     """Paginated list of Quotations."""
     try:
         company = resolve_active_company(company)
@@ -265,11 +293,10 @@ def get_quotations(company=None, customer=None, status=None,
 
         where = " AND ".join(conditions)
 
-        total = frappe.db.sql(
-            f"SELECT COUNT(*) FROM `tabQuotation` q WHERE {where}", params
-        )[0][0]
+        total = frappe.db.sql(f"SELECT COUNT(*) FROM `tabQuotation` q WHERE {where}", params)[0][0]
 
-        rows = frappe.db.sql(f"""
+        rows = frappe.db.sql(
+            f"""
             SELECT q.name, q.party_name AS customer, q.customer_name,
                    q.transaction_date, q.valid_till,
                    q.grand_total, q.currency, q.status, q.docstatus,
@@ -278,19 +305,26 @@ def get_quotations(company=None, customer=None, status=None,
             WHERE {where}
             ORDER BY q.transaction_date DESC, q.creation DESC
             LIMIT %(page_size)s OFFSET %(offset)s
-        """, {**params, "page_size": page_size, "offset": offset}, as_dict=True)
+        """,
+            {**params, "page_size": page_size, "offset": offset},
+            as_dict=True,
+        )
 
         quotation_names = [row.name for row in rows]
         order_counts = {}
         if quotation_names:
             # ERPNext v15: tabSales Order has no 'quotation' header field.
             # Link is through tabSales Order Item.prevdoc_docname.
-            linked = frappe.db.sql("""
+            linked = frappe.db.sql(
+                """
                 SELECT DISTINCT soi.prevdoc_docname AS qname
                 FROM `tabSales Order Item` soi
                 INNER JOIN `tabSales Order` so ON so.name = soi.parent
                 WHERE soi.prevdoc_docname IN %(names)s AND so.docstatus < 2
-            """, {"names": quotation_names}, as_dict=True)
+            """,
+                {"names": quotation_names},
+                as_dict=True,
+            )
             for row_l in linked:
                 qname = row_l.qname
                 order_counts[qname] = order_counts.get(qname, 0) + 1
@@ -319,20 +353,25 @@ def get_quotation_detail(name):
     data["hierarchy_is_source"] = 1
     # ERPNext v15: tabSales Order has no 'quotation' header field.
     # Link is through tabSales Order Item.prevdoc_docname.
-    data["linked_sales_orders"] = frappe.db.sql("""
+    data["linked_sales_orders"] = frappe.db.sql(
+        """
         SELECT DISTINCT so.name, so.transaction_date, so.delivery_date,
                         so.grand_total, so.currency, so.status
         FROM `tabSales Order Item` soi
         INNER JOIN `tabSales Order` so ON so.name = soi.parent
         WHERE soi.prevdoc_docname = %(quotation)s AND so.docstatus < 2
         ORDER BY so.transaction_date DESC, so.creation DESC
-    """, {"quotation": doc.name}, as_dict=True)
+    """,
+        {"quotation": doc.name},
+        as_dict=True,
+    )
     return data
 
 
 # ────────────────────────────────────────────────────────────────
 # 2.  CREATE / SUBMIT
 # ────────────────────────────────────────────────────────────────
+
 
 @frappe.whitelist()
 def get_customer_item_sales_history(customer, item_code, company=None, limit=5):
@@ -343,7 +382,8 @@ def get_customer_item_sales_history(customer, item_code, company=None, limit=5):
     company = resolve_active_company(company)
     limit = min(cint(limit) or 5, 20)
 
-    rows = frappe.db.sql("""
+    rows = frappe.db.sql(
+        """
         SELECT si.name AS invoice,
                si.posting_date,
                sii.item_code,
@@ -362,24 +402,36 @@ def get_customer_item_sales_history(customer, item_code, company=None, limit=5):
           AND IFNULL(si.is_return, 0) = 0
         ORDER BY si.posting_date DESC, si.creation DESC, sii.idx DESC
         LIMIT %(limit)s
-    """, {
-        "customer": customer,
-        "item_code": item_code,
-        "company": company,
-        "limit": limit,
-    }, as_dict=True)
+    """,
+        {
+            "customer": customer,
+            "item_code": item_code,
+            "company": company,
+            "limit": limit,
+        },
+        as_dict=True,
+    )
 
     return {"data": rows}
 
 
 @frappe.whitelist()
-def create_sales_invoice(customer, items, company=None, posting_date=None,
-                         due_date=None, taxes_and_charges=None,
-                         tax_inclusive=0,
-                         is_return=0, return_against=None,
-                         update_stock=0, invoice_type=None,
-                         preferred_bank_account=None,
-                         currency=None, exchange_rate=None):
+def create_sales_invoice(
+    customer,
+    items,
+    company=None,
+    posting_date=None,
+    due_date=None,
+    taxes_and_charges=None,
+    tax_inclusive=0,
+    is_return=0,
+    return_against=None,
+    update_stock=0,
+    invoice_type=None,
+    preferred_bank_account=None,
+    currency=None,
+    exchange_rate=None,
+):
     """Create a Sales Invoice from the UI.
 
     Parameters
@@ -391,6 +443,7 @@ def create_sales_invoice(customer, items, company=None, posting_date=None,
                    stock deduction is explicitly required.
     """
     import json
+
     if isinstance(items, str):
         items = json.loads(items)
 
@@ -399,6 +452,7 @@ def create_sales_invoice(customer, items, company=None, posting_date=None,
     default_warehouse = f"Main Warehouse - {abbr}"
 
     from trader_app.setup.custom_fields import ensure_custom_fields
+
     ensure_custom_fields()
 
     si = frappe.new_doc("Sales Invoice")
@@ -410,6 +464,7 @@ def create_sales_invoice(customer, items, company=None, posting_date=None,
     si.update_stock = cint(update_stock)
 
     from trader_app.api.currency import apply_document_currency
+
     apply_document_currency(
         si,
         currency=currency,
@@ -433,14 +488,21 @@ def create_sales_invoice(customer, items, company=None, posting_date=None,
 
         # Skip stock validation if zero_stock_enabled is set for the tenant
         from trader_app.api.tenant import is_zero_stock_enabled
+
         zero_stock = is_zero_stock_enabled()
 
-        if cint(update_stock) and not cint(is_return) and not zero_stock and frappe.get_cached_value("Item", item_code, "is_stock_item"):
+        if (
+            cint(update_stock)
+            and not cint(is_return)
+            and not zero_stock
+            and frappe.get_cached_value("Item", item_code, "is_stock_item")
+        ):
             _ensure_stock_available(item_code, warehouse, qty, company)
 
         serial_no = (item.get("serial_no") or "").strip()
         if serial_no:
             from trader_app.api.inventory import check_serial_for_item
+
             result = check_serial_for_item(item_code, serial_no, warehouse=warehouse, company=company)
             if not result.get("valid"):
                 frappe.throw(result.get("message") or _("Invalid serial number."))
@@ -474,11 +536,12 @@ def create_sales_invoice(customer, items, company=None, posting_date=None,
 
 
 @frappe.whitelist()
-def create_sales_order(customer, items, company=None, transaction_date=None,
-                       delivery_date=None, taxes_and_charges=None,
-                       tax_inclusive=0):
+def create_sales_order(
+    customer, items, company=None, transaction_date=None, delivery_date=None, taxes_and_charges=None, tax_inclusive=0
+):
     """Create a Sales Order from the UI."""
     import json
+
     if isinstance(items, str):
         items = json.loads(items)
 
@@ -492,6 +555,7 @@ def create_sales_order(customer, items, company=None, transaction_date=None,
     so.delivery_date = delivery_date or so.transaction_date
 
     from trader_app.api.currency import apply_document_currency
+
     apply_document_currency(
         so,
         posting_date=so.transaction_date,
@@ -553,9 +617,29 @@ def cancel_sales_invoice(name):
 
 @frappe.whitelist()
 def cancel_sales_order(name):
-    """Cancel a submitted Sales Order."""
+    """Cancel a submitted Sales Order.
+
+    Refused while a submitted purchase order still buys for it. Cancelling the order would clear the link on that
+    purchase, leaving it open with no customer order behind it (G-EXC-01). Cancel or close the purchase first.
+    """
     doc = frappe.get_doc("Sales Order", name)
     doc.check_permission("cancel")
+    open_purchases = [
+        row[0]
+        for row in frappe.db.sql(
+            """select distinct po.name from `tabPurchase Order` po
+            join `tabPurchase Order Item` poi on poi.parent = po.name
+            where poi.sales_order = %s and po.docstatus = 1
+            and po.status not in ('Completed', 'Closed', 'Cancelled')""",
+            (name,),
+        )
+    ]
+    if open_purchases:
+        frappe.throw(
+            _("Purchase orders {0} still buy for this order. Cancel or close them first, then cancel the order.").format(
+                ", ".join(open_purchases)
+            )
+        )
     doc.cancel()
     frappe.db.commit()
     return {"name": doc.name, "status": "Cancelled"}
@@ -572,11 +656,19 @@ def cancel_quotation(name):
 
 
 @frappe.whitelist()
-def create_quotation(customer, items, company=None, transaction_date=None,
-                     valid_till=None, taxes_and_charges=None,
-                     tax_inclusive=0, invoice_type=None):
+def create_quotation(
+    customer,
+    items,
+    company=None,
+    transaction_date=None,
+    valid_till=None,
+    taxes_and_charges=None,
+    tax_inclusive=0,
+    invoice_type=None,
+):
     """Create a Quotation from the UI."""
     import json
+
     if isinstance(items, str):
         items = json.loads(items)
 
@@ -591,6 +683,7 @@ def create_quotation(customer, items, company=None, transaction_date=None,
     q.valid_till = valid_till or q.transaction_date
 
     from trader_app.api.currency import apply_document_currency
+
     apply_document_currency(
         q,
         posting_date=q.transaction_date,
@@ -632,9 +725,9 @@ def create_quotation(customer, items, company=None, transaction_date=None,
 # 2b. DELIVERY NOTE / DELIVERY CHALLAN
 # ────────────────────────────────────────────────────────────────
 
+
 @frappe.whitelist()
-def get_delivery_notes(company=None, customer=None, status=None,
-                       page=1, page_size=20, search=None):
+def get_delivery_notes(company=None, customer=None, status=None, page=1, page_size=20, search=None):
     """Paginated delivery challans (Delivery Notes)."""
     company = resolve_active_company(company)
     page = cint(page) or 1
@@ -662,11 +755,10 @@ def get_delivery_notes(company=None, customer=None, status=None,
         else ", 'Delivery Challan' AS trader_invoice_type"
     )
 
-    total = frappe.db.sql(
-        f"SELECT COUNT(*) FROM `tabDelivery Note` dn WHERE {where}", params
-    )[0][0]
+    total = frappe.db.sql(f"SELECT COUNT(*) FROM `tabDelivery Note` dn WHERE {where}", params)[0][0]
 
-    rows = frappe.db.sql(f"""
+    rows = frappe.db.sql(
+        f"""
         SELECT dn.name, dn.customer, dn.customer_name, dn.posting_date,
                dn.grand_total, dn.currency, dn.docstatus, dn.status
                {type_select}
@@ -674,9 +766,41 @@ def get_delivery_notes(company=None, customer=None, status=None,
         WHERE {where}
         ORDER BY dn.posting_date DESC, dn.creation DESC
         LIMIT %(page_size)s OFFSET %(offset)s
-    """, {**params, "page_size": page_size, "offset": offset}, as_dict=True)
+    """,
+        {**params, "page_size": page_size, "offset": offset},
+        as_dict=True,
+    )
 
     return {"data": rows, "total": cint(total), "page": page, "page_size": page_size}
+
+
+@frappe.whitelist()
+@frappe.whitelist()
+def create_delivery_challan_from_order(order):
+    """Delivery challan against a submitted sales order.
+
+    The challan is the one document that moves stock for an order. Orders raised from a
+    project go through the project challan (per-PO, cut to what is left to deliver). Other
+    orders use ERPNext's own order-to-challan mapping, which also pre-fills the remaining
+    quantity. This replaces the stock-issue draft that the order page used to create, which
+    issued the same goods a second time and was refused for sales users.
+    """
+    so = frappe.get_doc("Sales Order", order)
+    so.check_permission("read")
+    assert_document_company_access(so.company)
+    if so.docstatus != 1:
+        frappe.throw(_("Submit the sales order before creating a delivery challan."))
+
+    if so.get("trader_opportunity"):
+        from trader_app.api.opportunity import create_delivery_note_for_opportunity
+
+        return create_delivery_note_for_opportunity(so.trader_opportunity, source_oc=so.name)
+
+    from erpnext.selling.doctype.sales_order.sales_order import make_delivery_note
+
+    dn = make_delivery_note(so.name)
+    dn.insert(ignore_permissions=False)
+    return {"name": dn.name, "doctype": "Delivery Note", "source_oc": so.name}
 
 
 @frappe.whitelist()
@@ -685,15 +809,20 @@ def get_delivery_note_detail(name):
     doc.check_permission("read")
     assert_document_company_access(doc.company)
     data = doc.as_dict()
+    from trader_app.api.hierarchy import serialize_commercial_options
+
+    data["trader_commercial_options"] = serialize_commercial_options(doc)
     data["print_format"] = print_format_for_doc(doc)
     return data
 
 
 @frappe.whitelist()
-def create_delivery_note(customer, items, company=None, posting_date=None,
-                         sales_order=None, against_sales_invoice=None):
+def create_delivery_note(
+    customer, items, company=None, posting_date=None, sales_order=None, against_sales_invoice=None
+):
     """Create a delivery challan (Delivery Note)."""
     import json
+
     if isinstance(items, str):
         items = json.loads(items)
 
@@ -772,6 +901,7 @@ def submit_quotation(name):
 # 3.  SALES SUMMARY / ANALYTICS
 # ────────────────────────────────────────────────────────────────
 
+
 @frappe.whitelist()
 def get_sales_summary(company=None):
     """Aggregate sales stats for the Sales page header."""
@@ -780,27 +910,47 @@ def get_sales_summary(company=None):
         today = nowdate()
         first_of_month = getdate(today).replace(day=1).isoformat()
 
-        total_invoices = cint(frappe.db.sql("""
+        total_invoices = cint(
+            frappe.db.sql(
+                """
             SELECT COUNT(*) FROM `tabSales Invoice`
             WHERE company = %s AND docstatus = 1
-        """, (company,))[0][0])
+        """,
+                (company,),
+            )[0][0]
+        )
 
-        monthly_sales = flt(frappe.db.sql("""
+        monthly_sales = flt(
+            frappe.db.sql(
+                """
             SELECT COALESCE(SUM(grand_total), 0) FROM `tabSales Invoice`
             WHERE company = %s AND docstatus = 1
                   AND posting_date >= %s AND posting_date <= %s
-        """, (company, first_of_month, today))[0][0])
+        """,
+                (company, first_of_month, today),
+            )[0][0]
+        )
 
-        total_outstanding = flt(frappe.db.sql("""
+        total_outstanding = flt(
+            frappe.db.sql(
+                """
             SELECT COALESCE(SUM(outstanding_amount), 0) FROM `tabSales Invoice`
             WHERE company = %s AND docstatus = 1 AND outstanding_amount > 0
-        """, (company,))[0][0])
+        """,
+                (company,),
+            )[0][0]
+        )
 
-        avg_order_value = flt(frappe.db.sql("""
+        avg_order_value = flt(
+            frappe.db.sql(
+                """
             SELECT COALESCE(AVG(grand_total), 0) FROM `tabSales Invoice`
             WHERE company = %s AND docstatus = 1
                   AND posting_date >= %s AND posting_date <= %s
-        """, (company, first_of_month, today))[0][0])
+        """,
+                (company, first_of_month, today),
+            )[0][0]
+        )
 
         return {
             "total_invoices": total_invoices,
@@ -817,13 +967,17 @@ def get_sales_summary(company=None):
 # 4.  DOCTYPE EVENT HOOKS
 # ────────────────────────────────────────────────────────────────
 
+
 def validate_sales_invoice(doc, method):
-    """Runs on Sales Invoice validate — declarative rules + credit limit."""
+    """Runs on Sales Invoice validate — declarative rules.
+
+    The credit limit is enforced at submit (``trader_app.api.credit_control``), not on
+    every draft save.
+    """
     if doc.docstatus == 0:
         from trader_app.api.rules import run_rules
 
         run_rules(doc, event="validate")
-        _check_customer_credit_limit(doc)
 
 
 def on_sales_invoice_submit(doc, method):
@@ -848,6 +1002,7 @@ def on_sales_invoice_cancel(doc, method):
 #    HELPERS
 # ────────────────────────────────────────────────────────────────
 
+
 def _ensure_stock_available(item_code, warehouse, qty, company):
     """Block invoice creation when update_stock would oversell a warehouse."""
     if not frappe.db.exists("Warehouse", warehouse):
@@ -857,9 +1012,7 @@ def _ensure_stock_available(item_code, warehouse, qty, company):
     if wh_company and wh_company != company:
         frappe.throw(_("Warehouse {0} does not belong to company {1}.").format(warehouse, company))
 
-    available = flt(frappe.db.get_value(
-        "Bin", {"item_code": item_code, "warehouse": warehouse}, "actual_qty"
-    ) or 0)
+    available = flt(frappe.db.get_value("Bin", {"item_code": item_code, "warehouse": warehouse}, "actual_qty") or 0)
     if available < flt(qty):
         frappe.throw(
             _("Insufficient stock for {0} in {1}. Available: {2}, required: {3}.").format(
@@ -868,31 +1021,7 @@ def _ensure_stock_available(item_code, warehouse, qty, company):
         )
 
 
-def _check_customer_credit_limit(doc):
-    """Check if the invoice would exceed customer credit limit."""
-    from erpnext.selling.doctype.customer.customer import get_credit_limit, get_customer_outstanding
-    try:
-        credit_limit = get_credit_limit(doc.customer, doc.company)
-        if not credit_limit:
-            return
-        outstanding = get_customer_outstanding(doc.customer, doc.company)
-        if flt(outstanding) + flt(doc.grand_total) > flt(credit_limit):
-            frappe.msgprint(
-                _("Warning: This invoice will exceed the credit limit of {0} for customer {1}. "
-                  "Current outstanding: {2}").format(
-                    frappe.format_value(credit_limit, {"fieldtype": "Currency"}),
-                    doc.customer,
-                    frappe.format_value(outstanding, {"fieldtype": "Currency"}),
-                ),
-                indicator="orange",
-                alert=True,
-            )
-    except (AttributeError, ImportError):
-        # Optional ERPNext helpers / version differences — do not swallow broader errors.
-        pass
+from trader_app.api._tenant_guard import INVOICING_ROLES, apply_module_guards
 
-
-
-from trader_app.api._tenant_guard import apply_module_guards
-
-apply_module_guards(globals(), "sales")
+# Finance staff read the invoice they settle; the record itself is still checked for read access (G-PERM-03).
+apply_module_guards(globals(), "sales", extra_roles={"get_sales_invoice_detail": INVOICING_ROLES})

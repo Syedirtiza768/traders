@@ -19,7 +19,31 @@ type Props = {
   allocations: InvoiceAllocation[];
   onChange: (rows: InvoiceAllocation[]) => void;
   loading?: boolean;
+  /** The invoice the receipt was started from. It gets the money first, not the oldest invoice. */
+  targetInvoice?: string | null;
 };
+
+/**
+ * Pay the target invoice first (up to its outstanding amount); anything left stays unapplied.
+ * Used when the receipt is opened from a specific invoice, so the money settles that invoice.
+ */
+export function buildTargetAllocations(
+  invoices: OpenInvoice[],
+  amount: number,
+  target: string,
+): InvoiceAllocation[] {
+  const pay = Math.max(0, amount);
+  return invoices.map((inv) => {
+    const outstanding = Number(inv.outstanding_amount) || 0;
+    const allocated = inv.name === target ? Math.min(pay, outstanding) : 0;
+    return {
+      reference_name: inv.name,
+      posting_date: inv.posting_date,
+      outstanding_amount: outstanding,
+      allocated_amount: allocated,
+    };
+  });
+}
 
 /** Distribute payment amount FIFO across open invoices (oldest first). */
 export function buildFifoAllocations(
@@ -46,6 +70,7 @@ export default function PaymentAllocationPanel({
   allocations,
   onChange,
   loading,
+  targetInvoice,
 }: Props) {
   const payAmount = Math.max(0, Number(amount) || 0);
   const manualEdit = useRef(false);
@@ -64,10 +89,11 @@ export default function PaymentAllocationPanel({
       manualEdit.current = false;
     }
     if (!manualEdit.current) {
-      onChange(buildFifoAllocations(invoices, payAmount));
+      const target = targetInvoice && invoices.some((inv) => inv.name === targetInvoice) ? targetInvoice : null;
+      onChange(target ? buildTargetAllocations(invoices, payAmount, target) : buildFifoAllocations(invoices, payAmount));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [invoices, payAmount, loading, partyKey]);
+  }, [invoices, payAmount, loading, partyKey, targetInvoice]);
 
   const totalAllocated = useMemo(
     () => allocations.reduce((sum, row) => sum + (Number(row.allocated_amount) || 0), 0),

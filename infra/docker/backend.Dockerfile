@@ -2,16 +2,23 @@
 # Optimized for faster iterative rebuilds while remaining compatible with the
 # current docker-compose stack.
 
+ARG BENCH_VERSION=v5.31.0
 ARG FRAPPE_VERSION=version-15
 ARG ERPNEXT_VERSION=version-15
 ARG PYTHON_VERSION=python3.11
 
-FROM frappe/bench:latest AS base
+FROM frappe/bench:${BENCH_VERSION} AS base
 
+ARG BENCH_VERSION
 ARG FRAPPE_VERSION
 ARG ERPNEXT_VERSION
 ARG PYTHON_VERSION
 
+# The MariaDB 11.8 client in the bench base image requires TLS by default. The compose database
+# (mariadb 10.11) offers no TLS on the internal network, so `bench new-site` fails at the schema
+# restore with "SSL is required". Turn the client requirement off for this image.
+USER root
+RUN printf '[client]\nskip-ssl\n' > /etc/mysql/conf.d/traders-client.cnf
 USER frappe
 WORKDIR /home/frappe
 
@@ -43,6 +50,8 @@ COPY --chown=frappe:frappe apps/trader_app /home/frappe/frappe-bench/apps/trader
 # bench get-app updates sites/apps.txt; trader_app is copied in manually, so register it.
 RUN /home/frappe/frappe-bench/env/bin/pip install --no-cache-dir -e /home/frappe/frappe-bench/apps/trader_app \
     && printf '%s\n' frappe erpnext trader_app > sites/apps.txt
+
+COPY --chown=frappe:frappe --chmod=755 scripts/init-site.sh /usr/local/bin/traders-init-site
 
 EXPOSE 8000 9000
 

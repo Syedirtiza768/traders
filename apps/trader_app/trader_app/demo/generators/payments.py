@@ -16,9 +16,21 @@ Payment distribution:
 from __future__ import unicode_literals
 
 import random
+
 import frappe
-from frappe.utils import flt, add_days, getdate, nowdate
+from frappe.utils import add_days, flt, getdate, nowdate
 from trader_app.demo.seed_engine.base import BaseGenerator
+
+
+def _payment_reference_fields(use_bank, payment_type, reference_name, posting_date):
+    """Return the external settlement reference required by bank payments."""
+    if not use_bank:
+        return {}
+
+    # Demo references are deterministic so a failed seed can be safely inspected
+    # and retried without inventing an external bank reference for cash entries.
+    reference_no = "DEMO-%s-%s" % (payment_type[:3].upper(), reference_name)
+    return {"reference_no": reference_no[:140], "reference_date": posting_date}
 
 
 class PaymentGenerator(BaseGenerator):
@@ -156,8 +168,9 @@ class PaymentGenerator(BaseGenerator):
 
         print(f"  ✅ Supplier payments: {fully_paid} full, {partially_paid} partial, {unpaid} unpaid")
 
-    def _create_payment_entry(self, company, payment_type, party_type, party,
-                               amount, reference_doctype, reference_name, posting_date):
+    def _create_payment_entry(
+        self, company, payment_type, party_type, party, amount, reference_doctype, reference_name, posting_date
+    ):
         """Create a Payment Entry."""
         invoice_posting_date = frappe.db.get_value(reference_doctype, reference_name, "posting_date")
         if invoice_posting_date and getdate(posting_date) < getdate(invoice_posting_date):
@@ -172,47 +185,60 @@ class PaymentGenerator(BaseGenerator):
 
         if payment_type == "Receive":
             paid_to = settlement_account or f"Cash - {abbr}"
-            paid_from = frappe.db.get_value(
-                "Account",
-                filters={"account_type": "Receivable", "company": company, "is_group": 0},
-                fieldname="name",
-            ) or f"Debtors - {abbr}"
+            paid_from = (
+                frappe.db.get_value(
+                    "Account",
+                    filters={"account_type": "Receivable", "company": company, "is_group": 0},
+                    fieldname="name",
+                )
+                or f"Debtors - {abbr}"
+            )
         else:
             paid_from = settlement_account or f"Cash - {abbr}"
-            paid_to = frappe.db.get_value(
-                "Account",
-                filters={"account_type": "Payable", "company": company, "is_group": 0},
-                fieldname="name",
-            ) or f"Creditors - {abbr}"
+            paid_to = (
+                frappe.db.get_value(
+                    "Account",
+                    filters={"account_type": "Payable", "company": company, "is_group": 0},
+                    fieldname="name",
+                )
+                or f"Creditors - {abbr}"
+            )
 
-        pe = frappe.get_doc({
-            "doctype": "Payment Entry",
-            "payment_type": payment_type,
-            "company": company,
-            "party_type": party_type,
-            "party": party,
-            "posting_date": posting_date,
-            "paid_amount": amount,
-            "received_amount": amount,
-            "mode_of_payment": mode_of_payment,
-            "target_exchange_rate": 1,
-            "paid_to": paid_to,
-            "paid_from": paid_from,
-            "paid_to_account_currency": self.config["currency"],
-            "paid_from_account_currency": self.config["currency"],
-            "references": [{
-                "reference_doctype": reference_doctype,
-                "reference_name": reference_name,
-                "allocated_amount": amount,
-            }],
-        })
-
+        savepoint = "trader_demo_payment_entry"
+        frappe.db.savepoint(savepoint)
         try:
+            pe = frappe.get_doc(
+                {
+                    "doctype": "Payment Entry",
+                    "payment_type": payment_type,
+                    "company": company,
+                    "party_type": party_type,
+                    "party": party,
+                    "posting_date": posting_date,
+                    "paid_amount": amount,
+                    "received_amount": amount,
+                    "mode_of_payment": mode_of_payment,
+                    "target_exchange_rate": 1,
+                    "paid_to": paid_to,
+                    "paid_from": paid_from,
+                    "paid_to_account_currency": self.config["currency"],
+                    "paid_from_account_currency": self.config["currency"],
+                    **_payment_reference_fields(use_bank, payment_type, reference_name, posting_date),
+                    "references": [
+                        {
+                            "reference_doctype": reference_doctype,
+                            "reference_name": reference_name,
+                            "allocated_amount": amount,
+                        }
+                    ],
+                }
+            )
             pe.insert(ignore_permissions=True)
             pe.submit()
             self.created_records.append(("Payment Entry", pe.name))
         except Exception as e:
-            self.errors.append(f"Payment Entry: {str(e)}")
+            frappe.db.rollback(save_point=savepoint)
+            self.errors.append(f"Payment Entry for {reference_doctype} {reference_name}: {str(e)}")
 
     def _pick_settlement_account(self, company, prefer_bank=False):
         account_type = "Bank" if prefer_bank else "Cash"

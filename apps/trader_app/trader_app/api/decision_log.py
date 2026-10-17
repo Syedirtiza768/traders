@@ -16,9 +16,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint
 
-DECISION_TYPES = frozenset(
-    {"validation", "tax", "wht", "fx", "grouping", "posting", "state", "other"}
-)
+DECISION_TYPES = frozenset({"validation", "tax", "wht", "fx", "grouping", "posting", "state", "other"})
 
 
 def log_decision(
@@ -70,26 +68,43 @@ def get_decision_trace(reference_doctype, reference_name, limit=200):
     can access, and rows are additionally filtered to permitted companies so a
     trace can never leak another tenant's decisions.
     """
-    from trader_app.api.company import get_permitted_company_names, user_can_access_company
+    from trader_app.api.company import (
+        get_permitted_company_names,
+        user_can_access_company,
+    )
 
     user = frappe.session.user
 
-    # Enforce access to the referenced document's company (when it has one).
-    if frappe.db.exists(reference_doctype, reference_name) and frappe.get_meta(
-        reference_doctype
-    ).has_field("company"):
-        doc_company = frappe.db.get_value(reference_doctype, reference_name, "company")
-        if doc_company and not user_can_access_company(doc_company, user):
-            frappe.throw(
-                _("You do not have permission to view decisions for {0}.").format(reference_name),
-                frappe.PermissionError,
-            )
+    # Enforce ordinary source-document access before revealing its decision trace.
+    if not frappe.db.exists(reference_doctype, reference_name):
+        return []
+    source_doc = frappe.get_doc(reference_doctype, reference_name)
+    source_doc.check_permission("read")
+    if frappe.get_meta(reference_doctype).has_field("company"):
+        doc_company = source_doc.get("company")
+    else:
+        doc_company = None
+    if doc_company and not user_can_access_company(doc_company, user):
+        frappe.throw(
+            _("You do not have permission to view decisions for {0}.").format(reference_name),
+            frappe.PermissionError,
+        )
 
     rows = frappe.get_all(
         "Trader Decision Log",
         filters={"reference_doctype": reference_doctype, "reference_name": reference_name},
-        fields=["name", "decision_type", "outcome", "message", "policy",
-                "inputs", "output", "actor", "timestamp", "company"],
+        fields=[
+            "name",
+            "decision_type",
+            "outcome",
+            "message",
+            "policy",
+            "inputs",
+            "output",
+            "actor",
+            "timestamp",
+            "company",
+        ],
         order_by="timestamp asc, creation asc",
         limit_page_length=cint(limit),
     )

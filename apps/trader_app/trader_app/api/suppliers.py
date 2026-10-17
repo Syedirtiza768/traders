@@ -7,9 +7,8 @@ Whitelisted endpoints for supplier management.
 from __future__ import unicode_literals
 
 import frappe
-from frappe import _
+from frappe.utils import cint, flt
 from trader_app.api.company import resolve_active_company
-from frappe.utils import nowdate, flt, cint
 
 
 def _set_trader_party_fields(doc, short_code=None, opening_balance=None):
@@ -38,6 +37,7 @@ def get_suppliers(page=1, page_size=20, search=None, supplier_group=None):
         params["supplier_group"] = supplier_group
 
     from trader_app.api.permissions import tenant_sql_filter
+
     tcond, tparams = tenant_sql_filter("s")
     if tcond:
         conditions.append(tcond)
@@ -45,11 +45,10 @@ def get_suppliers(page=1, page_size=20, search=None, supplier_group=None):
 
     where = " AND ".join(conditions)
 
-    total = frappe.db.sql(
-        f"SELECT COUNT(*) FROM `tabSupplier` s WHERE {where}", params
-    )[0][0]
+    total = frappe.db.sql(f"SELECT COUNT(*) FROM `tabSupplier` s WHERE {where}", params)[0][0]
 
-    rows = frappe.db.sql(f"""
+    rows = frappe.db.sql(
+        f"""
         SELECT s.name, s.supplier_name, s.supplier_group, s.country,
                s.mobile_no, s.email_id,
                COALESCE(s.trader_short_code, '') AS trader_short_code,
@@ -72,7 +71,10 @@ def get_suppliers(page=1, page_size=20, search=None, supplier_group=None):
         WHERE {where}
         ORDER BY s.supplier_name
         LIMIT %(page_size)s OFFSET %(offset)s
-    """, {**params, "company": company, "page_size": page_size, "offset": offset}, as_dict=True)
+    """,
+        {**params, "company": company, "page_size": page_size, "offset": offset},
+        as_dict=True,
+    )
 
     return {"data": rows, "total": cint(total), "page": page, "page_size": page_size}
 
@@ -84,20 +86,35 @@ def get_supplier_detail(name):
     doc.check_permission("read")
     company = resolve_active_company()
 
-    outstanding = flt(frappe.db.sql("""
+    outstanding = flt(
+        frappe.db.sql(
+            """
         SELECT COALESCE(SUM(outstanding_amount), 0) FROM `tabPurchase Invoice`
         WHERE supplier = %s AND company = %s AND docstatus = 1 AND outstanding_amount > 0
-    """, (name, company))[0][0])
+    """,
+            (name, company),
+        )[0][0]
+    )
 
-    total_purchases = flt(frappe.db.sql("""
+    total_purchases = flt(
+        frappe.db.sql(
+            """
         SELECT COALESCE(SUM(grand_total), 0) FROM `tabPurchase Invoice`
         WHERE supplier = %s AND company = %s AND docstatus = 1
-    """, (name, company))[0][0])
+    """,
+            (name, company),
+        )[0][0]
+    )
 
-    invoice_count = cint(frappe.db.sql("""
+    invoice_count = cint(
+        frappe.db.sql(
+            """
         SELECT COUNT(*) FROM `tabPurchase Invoice`
         WHERE supplier = %s AND company = %s AND docstatus = 1
-    """, (name, company))[0][0])
+    """,
+            (name, company),
+        )[0][0]
+    )
 
     result = doc.as_dict()
     result["outstanding_amount"] = outstanding
@@ -116,17 +133,22 @@ def get_supplier_groups():
 @frappe.whitelist()
 def get_supplier_transactions(supplier, company=None, page=1, page_size=20):
     """Recent transactions for a supplier."""
+    frappe.get_doc("Supplier", supplier).check_permission("read")
     company = resolve_active_company(company)
     page = cint(page) or 1
     page_size = min(cint(page_size) or 20, 100)
     offset = (page - 1) * page_size
 
-    total = frappe.db.sql("""
+    total = frappe.db.sql(
+        """
         SELECT COUNT(*) FROM `tabPurchase Invoice`
         WHERE supplier = %s AND company = %s AND docstatus = 1
-    """, (supplier, company))[0][0]
+    """,
+        (supplier, company),
+    )[0][0]
 
-    rows = frappe.db.sql("""
+    rows = frappe.db.sql(
+        """
         SELECT name, posting_date, grand_total, outstanding_amount,
                CASE
                    WHEN outstanding_amount <= 0 THEN 'Paid'
@@ -137,14 +159,24 @@ def get_supplier_transactions(supplier, company=None, page=1, page_size=20):
         WHERE supplier = %s AND company = %s AND docstatus = 1
         ORDER BY posting_date DESC
         LIMIT %s OFFSET %s
-    """, (supplier, company, page_size, offset), as_dict=True)
+    """,
+        (supplier, company, page_size, offset),
+        as_dict=True,
+    )
 
     return {"data": rows, "total": cint(total), "page": page, "page_size": page_size}
 
 
 @frappe.whitelist()
-def create_supplier(supplier_name, supplier_group=None, country=None, mobile_no=None,
-                    email_id=None, short_code=None, opening_balance=None):
+def create_supplier(
+    supplier_name,
+    supplier_group=None,
+    country=None,
+    mobile_no=None,
+    email_id=None,
+    short_code=None,
+    opening_balance=None,
+):
     """Create a minimal Supplier record for the Trader UI."""
     doc = frappe.new_doc("Supplier")
     doc.supplier_name = supplier_name
@@ -159,8 +191,16 @@ def create_supplier(supplier_name, supplier_group=None, country=None, mobile_no=
 
 
 @frappe.whitelist()
-def update_supplier(name, supplier_name=None, supplier_group=None, country=None,
-                    mobile_no=None, email_id=None, short_code=None, opening_balance=None):
+def update_supplier(
+    name,
+    supplier_name=None,
+    supplier_group=None,
+    country=None,
+    mobile_no=None,
+    email_id=None,
+    short_code=None,
+    opening_balance=None,
+):
     """Update an existing Supplier record."""
     doc = frappe.get_doc("Supplier", name)
     doc.check_permission("write")
@@ -205,9 +245,8 @@ def enable_supplier(name):
 
 
 def _default_supplier_group():
-    return frappe.get_all(
-        "Supplier Group", filters={"is_group": 0}, order_by="name", limit=1, pluck="name"
-    )[0]
+    return frappe.get_all("Supplier Group", filters={"is_group": 0}, order_by="name", limit=1, pluck="name")[0]
+
 
 from trader_app.api._tenant_guard import apply_module_guards
 

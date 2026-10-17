@@ -180,7 +180,7 @@ Audit date: 2026-05-17. Status definitions match `FEATURE_GAP_ANALYSIS.md`.
 | H2 | Purchase orders | Purchasing | Implemented | Full CRUD flow in SPA | — | — |
 | H3 | PO approval flow | Purchasing | Partially Implemented | ERPNext workflows in fixtures | Not visible as approval UI in SPA | Medium |
 | H4 | PO tracking | Purchasing | Implemented | `open-purchase-orders` report; Operations queues | — | — |
-| H5 | Inward gate passes | Purchasing | Missing | No Gate Pass DocType | Delivery Note used for outbound only | Medium |
+| H5 | Inward gate passes | Purchasing | Implemented (backend) | `Trader Inward Gate Pass` DocType against a submitted Purchase Receipt; `api/gate_pass.py` | No UI yet; see `ERP_BLUEPRINT_COVERAGE.md` | Medium |
 | H6 | Purchase receiving | Purchasing | Implemented | `CreatePurchaseReceiptPage.tsx`; stock receipt API | — | — |
 | H7 | Purchases / purchase invoice | Purchasing | Implemented | `CreatePurchaseInvoicePage.tsx` | — | — |
 | H8 | Purchase invoice (tax variants) | Purchasing | Implemented | `trader_invoice_type` on PI | — | — |
@@ -200,7 +200,7 @@ Audit date: 2026-05-17. Status definitions match `FEATURE_GAP_ANALYSIS.md`.
 | I2 | Sale orders | Sales | Implemented | Full SPA flow | — | — |
 | I3 | Sale order tracking | Sales | Implemented | Operations page; order detail | — | — |
 | I4 | Delivery challans | Sales | Implemented | Delivery Note + `trader_invoice_type` | — | — |
-| I5 | Outward gate passes | Sales | Missing | No Gate Pass DocType | Challan only | Medium |
+| I5 | Outward gate passes | Sales | Implemented | `Trader Gate Pass` DocType, `api/gate_pass.py`; gate pass panel on the delivery challan page | Inward gate pass (H5) still open; see `ERP_BLUEPRINT_COVERAGE.md` | Medium |
 | I6 | Sale invoices | Sales | Implemented | Create/list/detail/submit | — | — |
 | I7 | Sales tax/VAT invoices | Sales | Implemented | Tax Invoice type | — | — |
 | I8 | Simple invoices | Sales | Implemented | Commercial Invoice type | — | — |

@@ -301,7 +301,7 @@ function TagGroup({
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
           placeholder="Add value…"
-          className="w-full px-2 py-1 text-xs border border-gray-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-900 focus:outline-none focus:ring-1 focus:ring-brand-500"
+          className="w-full px-2 py-1 text-xs border border-gray-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-900 focus:outline-hidden focus:ring-1 focus:ring-brand-500"
         />
         <button type="button" onClick={handleAdd} className="shrink-0 p-1 rounded text-gray-400 hover:text-brand-600 transition-colors">
           <Plus size={14} />
@@ -526,7 +526,7 @@ function CustomTemplatesEditor({
                 value={tmpl.resolver}
                 onChange={(e) => setResolver(id, e.target.value)}
                 list="resolver-suggestions"
-                className="w-28 px-2 py-1 text-xs font-mono border border-gray-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-900 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                className="w-28 px-2 py-1 text-xs font-mono border border-gray-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-900 focus:outline-hidden focus:ring-1 focus:ring-brand-500"
               />
               <datalist id="resolver-suggestions">
                 {KNOWN_TEMPLATES.map((t) => (

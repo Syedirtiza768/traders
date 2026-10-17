@@ -7,7 +7,7 @@
 # Creates timestamped backups of:
 #   1. MariaDB database
 #   2. Frappe site files (uploaded attachments, etc.)
-#   3. Redis data (optional)
+#   3. Site configuration needed to restore encrypted values
 # ============================================================================
 
 set -euo pipefail
@@ -24,24 +24,38 @@ warn()    { echo -e "${YELLOW}⚠️  ${NC}$*"; }
 error()   { echo -e "${RED}❌ ${NC}$*"; exit 1; }
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Configuration
+# Load environment and configuration
 # ──────────────────────────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 COMPOSE_DIR="$PROJECT_DIR/compose"
+COMPOSE_ENV_FILE="${COMPOSE_ENV_FILE:-$COMPOSE_DIR/.env}"
+
+if [ ! -f "$COMPOSE_ENV_FILE" ]; then
+    error "Environment file not found: $COMPOSE_ENV_FILE"
+fi
+
+set -a
+source "$COMPOSE_ENV_FILE"
+set +a
+
 BACKUP_DIR="${BACKUP_DIR:-$PROJECT_DIR/backups}"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 BACKUP_NAME="trader_backup_${TIMESTAMP}"
 RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-30}"
-
-# Load env
-if [ -f "$COMPOSE_DIR/.env" ]; then
-    set -a
-    source "$COMPOSE_DIR/.env"
-    set +a
-fi
-
 SITE_NAME="${SITE_NAME:-trader.localhost}"
+
+# Match the project used by `docker compose up`. Compose derives the default
+# project name from this directory (`compose`) unless the deployment sets one.
+COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-compose}"
+compose() {
+    docker compose \
+        --project-directory "$COMPOSE_DIR" \
+        --env-file "$COMPOSE_ENV_FILE" \
+        -f "$COMPOSE_DIR/docker-compose.yml" \
+        -p "$COMPOSE_PROJECT_NAME" \
+        "$@"
+}
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Create Backup Directory
@@ -49,6 +63,10 @@ SITE_NAME="${SITE_NAME:-trader.localhost}"
 prepare() {
     info "Preparing backup directory..."
     mkdir -p "$BACKUP_DIR/$BACKUP_NAME"
+    chmod 700 "$BACKUP_DIR" "$BACKUP_DIR/$BACKUP_NAME"
+    mkdir -p "$BACKUP_DIR/$BACKUP_NAME/site_backups" \
+        "$BACKUP_DIR/$BACKUP_NAME/public_files" \
+        "$BACKUP_DIR/$BACKUP_NAME/private_files"
     success "Backup directory: $BACKUP_DIR/$BACKUP_NAME"
 }
 
@@ -56,22 +74,11 @@ prepare() {
 # Database Backup
 # ──────────────────────────────────────────────────────────────────────────────
 backup_database() {
-    info "Backing up MariaDB database..."
+    info "Creating a site-consistent database and file backup..."
 
-    cd "$COMPOSE_DIR"
+    compose exec -T backend bench --site "$SITE_NAME" backup --with-files
 
-    docker compose exec -T db mysqldump \
-        --user=root \
-        --password="${DB_ROOT_PASSWORD:-}" \
-        --single-transaction \
-        --routines \
-        --triggers \
-        --databases "${DB_NAME:-_trader}" \
-        | gzip > "$BACKUP_DIR/$BACKUP_NAME/database.sql.gz"
-
-    local db_size
-    db_size=$(du -sh "$BACKUP_DIR/$BACKUP_NAME/database.sql.gz" | cut -f1)
-    success "Database backup complete ($db_size)"
+    success "Frappe database, file, and site-configuration backup created"
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -80,26 +87,32 @@ backup_database() {
 backup_site_files() {
     info "Backing up site files..."
 
-    cd "$COMPOSE_DIR"
-
-    # Use bench backup for a proper Frappe backup
-    docker compose exec -T backend bench --site "$SITE_NAME" backup --with-files 2>/dev/null || true
-
     # Copy the backups from the container
     local container_id
-    container_id=$(docker compose ps -q backend)
+    container_id=$(compose ps -q backend)
+    if [ -z "$container_id" ]; then
+        error "Could not find the backend container for project $COMPOSE_PROJECT_NAME"
+    fi
 
     docker cp "${container_id}:/home/frappe/frappe-bench/sites/${SITE_NAME}/private/backups/." \
-        "$BACKUP_DIR/$BACKUP_NAME/site_backups/" 2>/dev/null || true
+        "$BACKUP_DIR/$BACKUP_NAME/site_backups/"
 
     # Also backup uploaded files
     docker cp "${container_id}:/home/frappe/frappe-bench/sites/${SITE_NAME}/public/files/." \
-        "$BACKUP_DIR/$BACKUP_NAME/public_files/" 2>/dev/null || true
+        "$BACKUP_DIR/$BACKUP_NAME/public_files/"
 
     docker cp "${container_id}:/home/frappe/frappe-bench/sites/${SITE_NAME}/private/files/." \
-        "$BACKUP_DIR/$BACKUP_NAME/private_files/" 2>/dev/null || true
+        "$BACKUP_DIR/$BACKUP_NAME/private_files/"
 
-    success "Site files backup complete"
+    # This file can contain encryption keys and database credentials. It is
+    # included for restore correctness and protected by the backup directory
+    # and archive permissions.
+    docker cp "${container_id}:/home/frappe/frappe-bench/sites/${SITE_NAME}/site_config.json" \
+        "$BACKUP_DIR/$BACKUP_NAME/site_config.json"
+
+    local backup_size
+    backup_size=$(du -sh "$BACKUP_DIR/$BACKUP_NAME" | cut -f1)
+    success "Site files and configuration backup complete ($backup_size)"
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -110,6 +123,7 @@ compress_backup() {
 
     cd "$BACKUP_DIR"
     tar -czf "${BACKUP_NAME}.tar.gz" "$BACKUP_NAME"
+    chmod 600 "${BACKUP_NAME}.tar.gz"
     rm -rf "$BACKUP_NAME"
 
     local archive_size

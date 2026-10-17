@@ -6,14 +6,14 @@ from __future__ import unicode_literals
 import json
 
 import frappe
+from frappe import _
 from frappe.utils import cint
-
 from trader_app.api.company import resolve_active_company
 from trader_app.api.tenant import (
+    _tenant_payload,
     count_tenant_users,
     get_user_tenant_name,
     is_multitenant_enabled,
-    _tenant_payload,
 )
 
 
@@ -34,9 +34,16 @@ def _read_user_ui_settings():
 
     # 2. Fall back to per-user DB defaults (survive clear-cache)
     keys = [
-        "language", "time_zone", "date_format", "number_format",
-        "float_precision", "session_expiry", "enable_two_factor",
-        "dark_mode", "compact_tables", "email_notifications",
+        "language",
+        "time_zone",
+        "date_format",
+        "number_format",
+        "float_precision",
+        "session_expiry",
+        "enable_two_factor",
+        "dark_mode",
+        "compact_tables",
+        "email_notifications",
     ]
     stored = {}
     for k in keys:
@@ -80,11 +87,25 @@ def _payload():
         },
         "ui": {
             "language": ui_settings.get("language") or "en",
-            "time_zone": ui_settings.get("time_zone") or frappe.db.get_single_value("System Settings", "time_zone") or "Asia/Karachi",
-            "date_format": ui_settings.get("date_format") or frappe.db.get_single_value("System Settings", "date_format") or "dd-mm-yyyy",
-            "number_format": ui_settings.get("number_format") or frappe.db.get_single_value("System Settings", "number_format") or "#,###.##",
-            "float_precision": cint(ui_settings.get("float_precision") or frappe.db.get_single_value("System Settings", "float_precision") or 3),
-            "session_expiry": cint(ui_settings.get("session_expiry") or frappe.db.get_single_value("System Settings", "session_expiry") or 240),
+            "time_zone": ui_settings.get("time_zone")
+            or frappe.db.get_single_value("System Settings", "time_zone")
+            or "Asia/Karachi",
+            "date_format": ui_settings.get("date_format")
+            or frappe.db.get_single_value("System Settings", "date_format")
+            or "dd-mm-yyyy",
+            "number_format": ui_settings.get("number_format")
+            or frappe.db.get_single_value("System Settings", "number_format")
+            or "#,###.##",
+            "float_precision": cint(
+                ui_settings.get("float_precision")
+                or frappe.db.get_single_value("System Settings", "float_precision")
+                or 3
+            ),
+            "session_expiry": cint(
+                ui_settings.get("session_expiry")
+                or frappe.db.get_single_value("System Settings", "session_expiry")
+                or 240
+            ),
             "enable_two_factor": cint(ui_settings.get("enable_two_factor") or 0),
             "dark_mode": cint(ui_settings.get("dark_mode") or 0),
             "compact_tables": cint(ui_settings.get("compact_tables") or 0),
@@ -130,26 +151,16 @@ def save_settings(data=None):
 
     # 1. Persist to per-user DB defaults (survives cache clears, no special perms needed)
     for k, v in cleaned.items():
-        frappe.defaults.set_user_default("trader_ui_{}".format(k), v)
+        frappe.defaults.set_user_default("trader_ui_{}".format(k), v, frappe.session.user)
 
     frappe.db.commit()
 
     # 2. Update Redis cache for fast reads
     frappe.cache().set_value(_cache_key(), json.dumps(cleaned))
 
-    # 3. Best-effort: update system-wide settings if caller has permission
-    try:
-        frappe.db.set_single_value("System Settings", "time_zone", cleaned["time_zone"])
-        frappe.db.set_single_value("System Settings", "date_format", cleaned["date_format"])
-        frappe.db.set_single_value("System Settings", "number_format", cleaned["number_format"])
-        frappe.db.set_single_value("System Settings", "float_precision", cleaned["float_precision"])
-        frappe.db.set_single_value("System Settings", "session_expiry", cleaned["session_expiry"])
-        frappe.db.commit()
-    except Exception:
-        # Non-admin users cannot write System Settings — that is fine,
-        # the per-user defaults above are authoritative for this UI.
-        pass
-
+    # These are personal UI preferences. Do not write System Settings here:
+    # frappe.db.set_single_value bypasses document permission checks, so an
+    # ordinary user could otherwise change site-wide settings.
     return {
         "ok": True,
         "message": "Settings saved successfully.",
@@ -162,12 +173,15 @@ def get_trader_roles():
     """Return all Trader-prefixed roles with their disabled status.
     Used by the SettingsPage to display role configuration.
     """
-    roles = frappe.db.sql("""
+    roles = frappe.db.sql(
+        """
         SELECT name, IFNULL(disabled, 0) AS disabled
         FROM `tabRole`
         WHERE name LIKE 'Trader %%'
         ORDER BY name
-    """, as_dict=True)
+    """,
+        as_dict=True,
+    )
     return roles
 
 
@@ -283,6 +297,7 @@ def get_current_user_roles():
                 trader_roles.append(canonical)
 
     return trader_roles
+
 
 from trader_app.api._tenant_guard import apply_module_guards
 

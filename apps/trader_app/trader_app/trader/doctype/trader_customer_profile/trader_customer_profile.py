@@ -16,8 +16,4 @@ class TraderCustomerProfile(Document):
             "name",
         )
         if other:
-            frappe.throw(
-                _("Company {0} already has an active Customer profile ({1}).").format(
-                    self.company, other
-                )
-            )
+            frappe.throw(_("Company {0} already has an active Customer profile ({1}).").format(self.company, other))

@@ -5,6 +5,7 @@ from __future__ import unicode_literals
 
 import sys
 import unittest
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 # Minimal frappe stub so trader_app.api modules can import.
@@ -22,6 +23,8 @@ if "frappe" not in sys.modules:
     frappe_stub.throw = _throw
     frappe_stub.PermissionError = type("PermissionError", (Exception,), {})
     frappe_stub.whitelist = _whitelist
+    frappe_stub.session = MagicMock(user="user-a@test.com")
+    frappe_stub.get_roles.return_value = ["Trader Admin"]
     sys.modules["frappe"] = frappe_stub
     sys.modules["frappe.utils"] = MagicMock()
 else:
@@ -34,9 +37,9 @@ else:
 
     _frappe_mod.whitelist = _whitelist
 
-from trader_app.api._tenant_guard import apply_module_guards, EXEMPT_HANDLER_NAMES
 from trader_app.api import company as company_api
 from trader_app.api import tenant as tenant_api
+from trader_app.api._tenant_guard import EXEMPT_HANDLER_NAMES, apply_module_guards
 
 
 class TenantGuardTests(unittest.TestCase):
@@ -76,6 +79,39 @@ class TenantGuardTests(unittest.TestCase):
             self.assertIs(namespace["get_settings"], original)
             guard.assert_not_called()
 
+    def test_module_guard_denies_role_without_required_capability_before_module_check(self):
+        from trader_app.api._tenant_guard import assert_module_role_access
+
+        with patch.object(sys.modules["frappe"], "session", SimpleNamespace(user="staff@example.com")), patch(
+            "frappe.get_roles", return_value=["Trader Staff"]
+        ):
+            with self.assertRaises(Exception):
+                assert_module_role_access("reports")
+
+    def test_report_module_guard_allows_report_role_and_denies_other_modules(self):
+        module_name = "test_module_guards_reports"
+
+        def report_handler():
+            return "ok"
+
+        report_handler.whitelisted = True
+        report_handler.__module__ = module_name
+        namespace = {"report_handler": report_handler, "__name__": module_name}
+
+        with patch.object(sys.modules["frappe"], "session", SimpleNamespace(user="staff@example.com")), patch(
+            "frappe.get_roles", return_value=["Trader Staff"]
+        ), patch("trader_app.api._tenant_guard.assert_tenant_module_enabled") as module_guard:
+            apply_module_guards(namespace, "reports")
+            with self.assertRaises(Exception):
+                namespace["report_handler"]()
+            module_guard.assert_not_called()
+
+        with patch.object(sys.modules["frappe"], "session", SimpleNamespace(user="viewer@example.com")), patch(
+            "frappe.get_roles", return_value=["Trader Viewer"]
+        ), patch("trader_app.api._tenant_guard.assert_tenant_module_enabled") as module_guard:
+            self.assertEqual(namespace["report_handler"](), "ok")
+            module_guard.assert_called_once_with("reports")
+
     def test_exempt_handler_names_include_boot_endpoints(self):
         self.assertIn("get_multitenant_status", EXEMPT_HANDLER_NAMES)
         self.assertIn("get_settings", EXEMPT_HANDLER_NAMES)
@@ -88,6 +124,8 @@ class TenantModuleLogicTests(unittest.TestCase):
             company_api, "is_super_admin", return_value=False
         ), patch.object(company_api, "get_user_tenant_name", return_value="TNT-00001"), patch.object(
             company_api, "get_tenant_companies", return_value=["Acme Co"]
+        ), patch.object(
+            company_api, "_user_permission_companies", return_value=None
         ), patch.object(
             company_api.frappe, "get_all", return_value=["Acme Co", "Other Co"]
         ):

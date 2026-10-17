@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """Seed Engine — Configuration for demo data generation."""
 
-from datetime import date
-
 DEMO_CONFIG = {
     # Company
     "company_name": "Global Trading Company Ltd",
@@ -12,73 +10,58 @@ DEMO_CONFIG = {
     "city": "Lahore",
     "state": "Punjab",
     "timezone": "Asia/Karachi",
-
     # Fiscal Year
     "fiscal_year_start": "2025-07-01",
     "fiscal_year_end": "2026-06-30",
     "fiscal_year_name": "2025-2026",
-
     # Demo Period (transactions span this range)
     "demo_start_date": "2025-07-01",
     "demo_end_date": "2026-03-16",
-
     # Data Volume — Masters
     "num_customers": (80, 120),
     "num_suppliers": (40, 60),
     "num_items": (300, 500),
-
     # Sales: target count of *submitted Sales Invoices*.
     # Split = direct SI vs linked via SO→SI (see fractions below).
     "num_sales_invoices": (300, 520),
-
     # Purchase: target count of *submitted Purchase Invoices*.
     # Mix = standalone PI vs PI raised from a submitted PO (`purchase_order`/`po_detail`).
     "num_purchase_invoices": (150, 280),
-
     # Quotations (Sales): draft + submitted; some are later converted SO→SI by SalesGenerator.
     "num_quotations": (42, 78),
     # Fraction of quotations that are submitted (rest stay draft for testing).
     "fraction_quotation_submit": 0.64,
-
     # Commercial Opportunity full project chains (Opportunity→Qtn→OC→DN→SI→Payment).
     # Only runs when the Opportunity module is enabled for the company.
     "num_opportunity_chains": 3,
-
     # Procurement documents (optional UI coverage)
     "num_material_requests": (14, 28),
     "num_supplier_quotations": (20, 38),
-
     # Share of sales invoices that originate from a Sales Order (remainder: direct SI).
     "pct_sales_invoices_via_sales_order": 0.34,
     # Of SO-backed invoices, probability to chain from a pending *submitted* quotation.
     "pct_so_linked_from_quotation": 0.36,
-
     # Share of purchase invoices created from a Purchase Order (remainder: standalone PI).
     "pct_purchase_invoices_from_po": 0.52,
-
     # Inter-warehouse Material Transfer entries (Main / Secondary / Retail).
     "num_inter_warehouse_transfers": (6, 14),
-
     # Payment Behavior
-    "payment_completion_rate": 0.70,   # 70% of invoices fully paid
-    "partial_payment_rate": 0.15,      # 15% partially paid
+    "payment_completion_rate": 0.70,  # 70% of invoices fully paid
+    "partial_payment_rate": 0.15,  # 15% partially paid
     # Remaining 15% unpaid — creates outstanding receivables/payables
-    "bank_payment_share": 0.55,        # Share of seeded payments into bank (not cash)
-
+    "bank_payment_share": 0.55,  # Share of seeded payments into bank (not cash)
     # Named bank GL accounts created under the company chart (for payment settlement)
     "bank_accounts": [
         {"account_name": "HBL Current Account"},
         {"account_name": "Meezan Business Account"},
         {"account_name": "UBL Collection Account"},
     ],
-
     # Warehouses
     "warehouses": [
         {"name": "Main Warehouse", "type": "Warehouse", "is_group": 0},
         {"name": "Secondary Warehouse", "type": "Warehouse", "is_group": 0},
         {"name": "Retail Warehouse", "type": "Warehouse", "is_group": 0},
     ],
-
     # Item Groups
     "item_groups": [
         {
@@ -106,7 +89,6 @@ DEMO_CONFIG = {
             "margin_range": (0.12, 0.20),
         },
     ],
-
     # Customer Segments
     "customer_segments": [
         {
@@ -128,7 +110,6 @@ DEMO_CONFIG = {
             "credit_limit_range": (50000, 150000),
         },
     ],
-
     # Supplier Types
     "supplier_types": [
         {"type": "Manufacturer", "count_range": (10, 15), "payment_terms": "Net 30"},
@@ -136,13 +117,11 @@ DEMO_CONFIG = {
         {"type": "Importer", "count_range": (10, 15), "payment_terms": "Net 30"},
         {"type": "Local Supplier", "count_range": (5, 10), "payment_terms": "Net 7"},
     ],
-
     # Tax Configuration (Sales templates seeded in CompanyGenerator)
     "taxes": [
         {"name": "Sales Tax 17%", "rate": 17.0, "type": "On Net Total"},
         {"name": "Sales Tax 5%", "rate": 5.0, "type": "On Net Total"},
     ],
-
     # Payment Terms
     "payment_terms_list": [
         {"name": "Net 7", "days": 7},
@@ -152,7 +131,6 @@ DEMO_CONFIG = {
         {"name": "Net 60", "days": 60},
         {"name": "COD", "days": 0},
     ],
-
     # Cost Centers
     "cost_centers": [
         "Main",
@@ -161,7 +139,6 @@ DEMO_CONFIG = {
         "Administration",
         "Warehouse Operations",
     ],
-
     # Users
     "users": [
         {
@@ -207,16 +184,30 @@ DEMO_CONFIG = {
             "roles": ["System Manager", "Trader Admin", "Sales User", "Purchase User", "Accounts User", "Stock User"],
         },
     ],
-
     # Cities for addresses
     "cities": [
-        "Lahore", "Karachi", "Islamabad", "Rawalpindi", "Faisalabad",
-        "Multan", "Peshawar", "Quetta", "Sialkot", "Gujranwala",
-        "Hyderabad", "Bahawalpur", "Sargodha", "Sukkur", "Larkana",
+        "Lahore",
+        "Karachi",
+        "Islamabad",
+        "Rawalpindi",
+        "Faisalabad",
+        "Multan",
+        "Peshawar",
+        "Quetta",
+        "Sialkot",
+        "Gujranwala",
+        "Hyderabad",
+        "Bahawalpur",
+        "Sargodha",
+        "Sukkur",
+        "Larkana",
     ],
-
     # Territories / Regions
     "territories": [
-        "Punjab", "Sindh", "KPK", "Balochistan", "Islamabad",
+        "Punjab",
+        "Sindh",
+        "KPK",
+        "Balochistan",
+        "Islamabad",
     ],
 }

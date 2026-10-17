@@ -9,6 +9,7 @@
   "line_no",
   "client_requirements",
   "option_no",
+  "is_selected",
   "option_text",
   "package_qty",
   "stock_status",
@@ -38,6 +39,14 @@
    "in_list_view": 1,
    "label": "Option No",
    "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "is_selected",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Selected Option",
+   "description": "The option the customer accepted for this line. Order Confirmation sets it; Delivery Notes and Invoices bill only the selected option. Lines with no selection default to their lowest option number."
   },
   {
    "fieldname": "option_text",

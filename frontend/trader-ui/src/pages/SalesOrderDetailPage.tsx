@@ -12,7 +12,7 @@ import {
   ShoppingCart,
   User,
 } from 'lucide-react';
-import { salesApi } from '../lib/api';
+import { salesApi, suppliersApi } from '../lib/api';
 import { appendPreservedListQuery, extractFrappeError, formatCurrency, formatDate, getActiveCurrency, isOperationsContext } from '../lib/utils';
 import { PageHeader, LoadingBlock, AlertBanner, StatusBadge, EmptyState } from '../components/ui';
 import CommercialHierarchyEditor from '../components/CommercialHierarchyEditor';
@@ -28,6 +28,12 @@ export default function SalesOrderDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [challanBusy, setChallanBusy] = useState(false);
+  const [stockPos, setStockPos] = useState<any | null>(null);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [supplier, setSupplier] = useState('');
+  const [poBusy, setPoBusy] = useState(false);
+  const [poMessage, setPoMessage] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   useEffect(() => {
@@ -121,6 +127,59 @@ export default function SalesOrderDetailPage() {
     })),
   )), [itemRows, order?.set_warehouse]);
 
+  const orderName = order?.name;
+  const orderSubmitted = (order?.docstatus ?? 0) === 1;
+  useEffect(() => {
+    if (!orderName || !orderSubmitted) {
+      setStockPos(null);
+      return;
+    }
+    salesApi.getOrderStockPosition(orderName)
+      .then((res) => setStockPos(res.data.message || null))
+      .catch(() => setStockPos(null));
+    suppliersApi.getList({ page: 1, page_size: 100 })
+      .then((res) => setSuppliers(res.data.message?.data || []))
+      .catch(() => setSuppliers([]));
+  }, [orderName, orderSubmitted, order?.status]);
+
+  const shortLines = (stockPos?.lines || []).filter((line: any) => line.shortfall > 0);
+
+  const buyShortfall = async () => {
+    if (!orderName || !supplier) return;
+    setPoBusy(true);
+    setPoMessage(null);
+    try {
+      const res = await salesApi.createPurchaseOrderForOrder(orderName, supplier);
+      const created = res.data.message;
+      setPoMessage(
+        created?.approval_required
+          ? `Purchase order ${created?.name} is saved as a draft for ${created?.supplier}. ${created?.message} Open it to record the approval, then submit.`
+          : `Purchase order ${created?.name} submitted to ${created?.supplier}. Receive it to stock the order.`,
+      );
+      salesApi.getOrderStockPosition(orderName).then((r) => setStockPos(r.data.message || null)).catch(() => undefined);
+    } catch (err) {
+      setPoMessage(extractFrappeError(err, 'Could not create the purchase order.'));
+    } finally {
+      setPoBusy(false);
+    }
+  };
+
+  const receiveGoods = async (purchaseOrder: string) => {
+    if (!orderName) return;
+    setPoBusy(true);
+    setPoMessage(null);
+    try {
+      const res = await salesApi.receivePurchaseOrderForOrder(orderName, purchaseOrder);
+      const received = res.data.message;
+      setPoMessage(`Goods receipt ${received?.name} posted against ${purchaseOrder}. The stock is on hand for this order.`);
+      salesApi.getOrderStockPosition(orderName).then((r) => setStockPos(r.data.message || null)).catch(() => undefined);
+    } catch (err) {
+      setPoMessage(extractFrappeError(err, 'Could not receive the goods.'));
+    } finally {
+      setPoBusy(false);
+    }
+  };
+
   const buildQuotationDetailPath = (quotationName: string) => appendPreservedListQuery(`/sales/quotations/${encodeURIComponent(quotationName)}`, listSearch);
 
   const buildInvoiceDetailPath = (invoiceName: string) => appendPreservedListQuery(`/sales/${encodeURIComponent(invoiceName)}`, listSearch);
@@ -184,10 +243,22 @@ export default function SalesOrderDetailPage() {
             )}
             {canCreateDispatch && (
               <button
-                onClick={() => navigate(appendPreservedListQuery(`/inventory/dispatches/new?orderName=${encodeURIComponent(order.name || '')}&customer=${encodeURIComponent(order.customer || '')}&warehouse=${encodeURIComponent(order.set_warehouse || '')}&postingDate=${encodeURIComponent(order.delivery_date || order.transaction_date || '')}&lines=${encodedLines}`, listSearch))}
+                disabled={challanBusy}
+                onClick={async () => {
+                  setChallanBusy(true);
+                  try {
+                    const res = await salesApi.createChallanFromOrder(order.name || '');
+                    const created = res.data.message?.name;
+                    if (created) navigate(appendPreservedListQuery(`/sales/challans/${encodeURIComponent(created)}`, listSearch));
+                  } catch (err) {
+                    setError(extractFrappeError(err, 'Could not create the delivery challan.'));
+                  } finally {
+                    setChallanBusy(false);
+                  }
+                }}
                 className="btn-secondary"
               >
-                Create Dispatch
+                {challanBusy ? 'Creating…' : 'Create Delivery Challan'}
               </button>
             )}
             {hasLinkedInvoices && (
@@ -236,8 +307,83 @@ export default function SalesOrderDetailPage() {
         <DetailKPI icon={ReceiptText} label="Grand Total" value={formatCurrency(order.grand_total, order.currency)} tone="green" />
         <DetailKPI icon={Package} label="Items" value={String(itemRows.length)} tone="blue" />
         <DetailKPI icon={ClipboardCheck} label="Delivery Date" value={formatDate(order.delivery_date)} tone="purple" />
-        <DetailKPI icon={canCreateDispatch ? PackageOpen : FileText} label={canCreateDispatch ? 'Dispatch Ready' : 'Currency'} value={canCreateDispatch ? 'Create Stock Issue' : (order.currency || getActiveCurrency())} tone="amber" />
+        <DetailKPI icon={canCreateDispatch ? PackageOpen : FileText} label={canCreateDispatch ? 'Dispatch Ready' : 'Currency'} value={canCreateDispatch ? 'Create Delivery Challan' : (order.currency || getActiveCurrency())} tone="amber" />
       </div>
+
+      {stockPos && stockPos.lines?.length > 0 && (
+        <div className="card p-6 space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Stock for this order</h2>
+            <p className="text-sm text-gray-500">
+              Stock is taken on order. Lines that are short are bought from a supplier against this order, then delivered once the goods are in.
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs uppercase text-gray-500">
+                  <th className="py-2 pr-3">Item</th>
+                  <th className="py-2 pr-3 text-right">To deliver</th>
+                  <th className="py-2 pr-3 text-right">On hand</th>
+                  <th className="py-2 pr-3 text-right">On order</th>
+                  <th className="py-2 pr-3 text-right">Short</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stockPos.lines.map((line: any) => (
+                  <tr key={line.sales_order_item} className="border-t border-gray-100">
+                    <td className="py-2 pr-3">{line.item_code}</td>
+                    <td className="py-2 pr-3 text-right">{line.remaining}</td>
+                    <td className="py-2 pr-3 text-right">{line.on_hand}</td>
+                    <td className="py-2 pr-3 text-right">{line.on_order}</td>
+                    <td className={`py-2 pr-3 text-right font-medium ${line.shortfall > 0 ? 'text-amber-700' : 'text-green-700'}`}>{line.shortfall}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {stockPos.purchase_orders?.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-sm text-gray-600">Purchase orders for this order</p>
+              {stockPos.purchase_orders.map((po: any) => {
+                // Goods are still to come only while ERPNext reports the PO as "To Receive" (and not yet billed).
+                const awaitingGoods = /To Receive/.test(po.status || '');
+                return (
+                  <div key={po.name} className="flex flex-wrap items-center gap-2 text-sm">
+                    <span className="font-medium text-gray-900">{po.name}</span>
+                    <span className="text-gray-600">{po.supplier}</span>
+                    <span className="text-xs text-gray-500">{po.status}</span>
+                    {awaitingGoods && (
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        disabled={poBusy}
+                        onClick={() => receiveGoods(po.name)}
+                      >
+                        Receive goods
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {shortLines.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <select className="input-field w-auto" value={supplier} onChange={(e) => setSupplier(e.target.value)} aria-label="Supplier for the shortfall">
+                <option value="">Choose supplier…</option>
+                {suppliers.map((s: any) => (
+                  <option key={s.name} value={s.name}>{s.supplier_name || s.name}</option>
+                ))}
+              </select>
+              <button type="button" className="btn-primary" disabled={!supplier || poBusy} onClick={buyShortfall}>
+                {poBusy ? 'Ordering…' : `Order shortfall (${shortLines.length} line${shortLines.length > 1 ? 's' : ''})`}
+              </button>
+            </div>
+          )}
+          {poMessage && <AlertBanner tone={/^(Purchase order|Goods receipt) /.test(poMessage) ? 'success' : 'error'}>{poMessage}</AlertBanner>}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <div className="card xl:col-span-2">

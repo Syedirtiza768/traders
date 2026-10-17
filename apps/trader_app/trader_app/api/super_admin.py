@@ -9,7 +9,6 @@ import re
 import frappe
 from frappe import _
 from frappe.utils import cint, getdate, now_datetime
-
 from trader_app.api.tenant import (
     DEFAULT_MODULE_ROWS,
     _require_super_admin,

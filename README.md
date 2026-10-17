@@ -1,21 +1,22 @@
 # Traders — Trader Business System on ERPNext
 
-> A production-grade trader management platform built on ERPNext/Frappe with a custom UI, Dockerized deployment, and comprehensive demo seed data engine.
+> Trader and distribution ERP built on ERPNext/Frappe with a custom UI and an isolated development demo-data engine.
 
 ## Overview
 
 **Traders** transforms ERPNext into a productized trader/distribution management system with:
 
 - 🏢 **Custom Frontend** — Modern SaaS-style UI (React + TypeScript), completely independent of ERPNext Desk
-- 🐳 **Docker Deployment** — One-command deployment on any Ubuntu server
-- 🌱 **Demo Seed Engine** — Generates 6–12 months of realistic trading data instantly
+- 🐳 **Docker Deployment** — Compose-based local setup and documented production overlay
+- 🌱 **Demo Seed Engine** — Verified zero-error QA dataset; restricted to explicitly marked fresh disposable sites
 - 📊 **Trader-Focused Modules** — Sales, purchasing, inventory, receivables, payables, financial dashboards
-- 🔐 **Custom Auth Flow** — Branded login, role-based access, trader-specific permissions
+- 🔐 **Custom Auth Flow** — Branded login, capability-gated routes, tenant and company permission logic
 
 ## System Documentation
 
-For the complete, up-to-date architecture reference, audit findings, and API map, see
-[`docs/SYSTEM_MASTER_CONTEXT.md`](docs/SYSTEM_MASTER_CONTEXT.md).
+For the current production-readiness verdict and evidence, see
+[`docs/PRODUCTION_READINESS_REPORT.md`](docs/PRODUCTION_READINESS_REPORT.md) and its
+[`test matrix`](docs/PRODUCTION_READINESS_TEST_MATRIX.md). The system master context is a historical architecture snapshot; generated architecture audits are heuristic candidates and are not a substitute for current code review.
 
 > **Note on planned features:** Tally/CSV data migration and document approval workflows are
 > declared in the codebase but **not yet implemented**. The Migration Job DocType schema exists
@@ -28,17 +29,21 @@ For the complete, up-to-date architecture reference, audit findings, and API map
 git clone https://github.com/Syedirtiza768/traders.git
 cd traders
 
-# Copy environment file
+# Local-development values only; never use these values in production.
 cp compose/.env.example compose/.env
 
-# Start all services
-docker compose -f compose/docker-compose.yml up -d
+cd compose
+docker compose up -d --build
+docker compose logs -f site-init
 
-# Install demo data (after ERPNext is ready)
-docker compose -f compose/docker-compose.yml exec backend bench --site trader.localhost execute trader_app.demo.install_demo
+# Demo data may only be seeded on a fresh disposable site:
+docker compose exec backend bench --site trader.localhost set-config allow_demo_seed true
+docker compose exec backend bench --site trader.localhost execute trader_app.demo.install_demo
 ```
 
-Access the system at `http://localhost:8080`
+The demo installer rejects any site that already has a Company or business data. `trader_app.demo.uninstall_demo` is disabled because the legacy command could delete site-wide master records; remove a demo dataset by resetting its disposable site.
+
+The `site-init` service creates the Frappe site and installs ERPNext and `trader_app`. Access the local UI at `http://localhost:8080`. Production requires unique secrets from `compose/.env.production.example` and an HTTPS host proxy; see [`docs/DEPLOYMENT_GUIDE.md`](docs/DEPLOYMENT_GUIDE.md).
 
 ## Windows rebuild & redeploy helpers
 
@@ -49,36 +54,15 @@ For Windows/Docker Desktop workflows, use the PowerShell helpers in `scripts/`:
 
 See `docs/WINDOWS_DEPLOYMENT.md` for the quick app-only, frontend-only, backend-only, and full cold rebuild flows.
 
-## Verified Local Demo Status
+## Demo seed status
 
-The local Docker demo flow has been revalidated against the current repo state.
-
-### Latest verified result
-
-- Demo installer: `✅ DEMO INSTALLED SUCCESSFULLY`
-- Sales generator: `459` created, `13` errors
-- Financial generator: `72` created, `0` errors
-
-### Latest verified counts
-
-| Metric | Count |
-|-------|------:|
-| Bins with stock | 450 |
-| Purchase Invoices | 224 |
-| Sales Invoices | 472 |
-| Payment Entries | 589 |
-| Journal Entries | 72 |
-
-### Verified notes
-
-- HTTP site resolution for `trader.localhost` is fixed in the Docker/Nginx setup.
-- `uninstall_demo()` now cleans `Bin` rows correctly.
-- Demo inventory, purchases, sales, payments, and financial entries all populate successfully.
-- A small number of sales invoices can still be rejected by ERPNext credit-limit rules during seeding; the latest verified run ended with `13` such sales errors while still passing validation.
+A clean isolated QA site on 2026-10-05 generated 2,453 records with zero generator errors and passed every generator validation. The demo seed is development/QA data, not an operational production migration. Payment references, fiscal-period stock posting, supplier quotation prerequisites, inventory valuation, and component stock metadata were verified in the seeded site. Read-only accounting checks found no unbalanced GL voucher groups or Bin/Stock Ledger Entry discrepancies. See the production-readiness report and test matrix for scope, limitations, and the remaining release gates.
 
 ### Frontend workspace note
 
 If VS Code shows unresolved imports in `frontend/trader-ui`, install the frontend dependencies before relying on editor typecheck results. The app metadata already declares the required packages in `frontend/trader-ui/package.json`.
+
+The frontend requires **Chrome 111+, Edge 111+, Safari 16.4+, or Firefox 128+**. Its Tailwind CSS 4 build uses modern CSS features and does not support older browser versions; see the [official browser requirements](https://tailwindcss.com/docs/upgrade-guide#browser-requirements).
 
 ## Repository Structure
 

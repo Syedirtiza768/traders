@@ -7,8 +7,7 @@ import json
 
 import frappe
 from frappe import _
-from frappe.utils import nowdate, getdate, flt, cint
-
+from frappe.utils import cint, flt, getdate, nowdate
 from trader_app.api.company import resolve_active_company
 
 
@@ -113,18 +112,20 @@ def apply_document_currency(doc, currency=None, exchange_rate=None, posting_date
     if not settings["multi_currency_enabled"]:
         currency = base
     elif currency != base and currency not in settings["enabled_currencies"]:
-        frappe.throw(
-            _("Currency {0} is not enabled for this company. Update currency settings.").format(currency)
-        )
+        frappe.throw(_("Currency {0} is not enabled for this company. Update currency settings.").format(currency))
 
-    posting_date = posting_date or getattr(doc, "posting_date", None) or getattr(doc, "transaction_date", None) or nowdate()
+    posting_date = (
+        posting_date or getattr(doc, "posting_date", None) or getattr(doc, "transaction_date", None) or nowdate()
+    )
 
     doc.currency = currency
     if currency == base:
         doc.conversion_rate = 1.0
     else:
-        doc.conversion_rate = flt(exchange_rate) if exchange_rate else _fetch_exchange_rate(
-            currency, base, posting_date, for_selling=for_selling
+        doc.conversion_rate = (
+            flt(exchange_rate)
+            if exchange_rate
+            else _fetch_exchange_rate(currency, base, posting_date, for_selling=for_selling)
         )
 
 
@@ -338,6 +339,7 @@ def delete_exchange_rate(name):
     frappe.delete_doc("Currency Exchange", name, ignore_permissions=True)
     frappe.db.commit()
     return {"ok": True, "message": _("Exchange rate deleted.")}
+
 
 from trader_app.api._tenant_guard import apply_module_guards
 

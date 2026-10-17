@@ -9,7 +9,6 @@ from __future__ import unicode_literals
 import frappe
 from frappe.utils import cint
 
-
 # Values stored on Custom Field `trader_invoice_type`
 SALES_INVOICE_TYPES = (
     "Tax Invoice",
@@ -32,9 +31,7 @@ QUOTATION_TYPES = (
     "Proforma Invoice",
 )
 
-DELIVERY_NOTE_TYPES = (
-    "Delivery Challan",
-)
+DELIVERY_NOTE_TYPES = ("Delivery Challan",)
 
 
 def get_document_catalog(side="sales"):
@@ -206,6 +203,23 @@ def set_trader_invoice_type(doc, invoice_type=None, is_return=0):
     if frappe.db.has_column(doc.doctype, "trader_invoice_type"):
         doc.trader_invoice_type = label
     return label
+
+
+def normalize_mapped_invoice_type(doc, method=None):
+    """Keep a mapped invoice's classification valid for its destination doctype."""
+    if doc.doctype not in ("Sales Invoice", "Purchase Invoice"):
+        return
+    if not frappe.db.has_column(doc.doctype, "trader_invoice_type"):
+        return
+
+    allowed_types = SALES_INVOICE_TYPES if doc.doctype == "Sales Invoice" else PURCHASE_INVOICE_TYPES
+    return_type = "Credit Note" if doc.doctype == "Sales Invoice" else "Debit Note"
+    current_type = getattr(doc, "trader_invoice_type", None)
+
+    if cint(getattr(doc, "is_return", 0)):
+        doc.trader_invoice_type = return_type
+    elif current_type not in allowed_types:
+        doc.trader_invoice_type = "Tax Invoice"
 
 
 def print_format_for_doc(doc):

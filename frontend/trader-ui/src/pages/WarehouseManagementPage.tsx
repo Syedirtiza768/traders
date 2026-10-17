@@ -248,7 +248,7 @@ export default function WarehouseManagementPage() {
                       type="checkbox"
                       checked={form.is_group}
                       onChange={(e) => setForm((f) => ({ ...f, is_group: e.target.checked }))}
-                      className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                      className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-3 focus:ring-brand-500"
                     />
                     <span className="text-sm text-gray-700 dark:text-gray-300">This is a group / parent warehouse</span>
                   </label>
@@ -297,7 +297,7 @@ function WarehouseRow({
   return (
     <div className={`flex items-center gap-3 px-5 py-3 hover:bg-gray-50 dark:hover:bg-slate-800/40 ${wh.disabled ? 'opacity-60' : ''}`}>
       <div style={{ paddingLeft: indent * 20 }} className="flex items-center gap-2 flex-1 min-w-0">
-        <Warehouse size={14} className={`flex-shrink-0 ${wh.is_group ? 'text-violet-500' : 'text-gray-400 dark:text-slate-500'}`} />
+        <Warehouse size={14} className={`shrink-0 ${wh.is_group ? 'text-violet-500' : 'text-gray-400 dark:text-slate-500'}`} />
         <div className="min-w-0">
           <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{wh.warehouse_name}</p>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
@@ -309,7 +309,7 @@ function WarehouseRow({
           </div>
         </div>
       </div>
-      <div className="flex items-center gap-2 flex-shrink-0">
+      <div className="flex items-center gap-2 shrink-0">
         <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
           wh.is_group
             ? 'bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400'

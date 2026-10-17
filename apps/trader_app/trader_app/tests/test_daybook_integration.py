@@ -22,7 +22,7 @@ Run on bench:
 
 Or standalone against a site:
   cd apps/trader_app && ../../env/bin/python \
-        tests/test_daybook_integration.py --site <site>
+        trader_app/tests/test_daybook_integration.py --site <site>
 
 The cross-tenant test additionally requires the site to have multi-tenant
 mode enabled (``bench execute trader_app.setup.seed_super_admin.run``) —
@@ -33,8 +33,18 @@ from __future__ import unicode_literals
 
 import unittest
 
-import frappe
-from frappe.utils import add_days, flt
+try:
+    import frappe
+    from frappe.utils import add_days, flt
+except ModuleNotFoundError:
+    frappe = None
+    add_days = flt = None
+
+FRAPPE_SITE_ACTIVE = bool(
+    frappe
+    and isinstance(getattr(getattr(frappe, "local", None), "site", None), str)
+    and getattr(getattr(frappe, "local", None), "site", None)
+)
 
 COMPANY = "Electrence"
 WAREHOUSE = "Stores - ELECT"
@@ -56,36 +66,48 @@ def _leaf(doctype):
     return rows[0] if rows else None
 
 
+@unittest.skipUnless(FRAPPE_SITE_ACTIVE, "requires an initialized Frappe site")
 class DayBookIntegrationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         if not frappe.db.exists("Company", COMPANY):
             raise unittest.SkipTest("Company {0} not present on this site".format(COMPANY))
 
-        cls._orig_components_enabled = frappe.db.get_value(
-            "Company", COMPANY, "trader_components_enabled"
-        )
+        cls._orig_components_enabled = frappe.db.get_value("Company", COMPANY, "trader_components_enabled")
         frappe.db.set_value("Company", COMPANY, "trader_components_enabled", 1, update_modified=False)
 
         cls._orig_neg = frappe.db.get_single_value("Stock Settings", "allow_negative_stock")
         frappe.db.set_single_value("Stock Settings", "allow_negative_stock", 1)
 
         if not frappe.db.exists("Item", ITEM):
-            frappe.get_doc({
-                "doctype": "Item", "item_code": ITEM, "item_name": ITEM,
-                "item_group": _leaf("Item Group"), "stock_uom": "Nos", "is_stock_item": 1,
-                "trader_component_item": 1,
-            }).insert(ignore_permissions=True)
+            frappe.get_doc(
+                {
+                    "doctype": "Item",
+                    "item_code": ITEM,
+                    "item_name": ITEM,
+                    "item_group": _leaf("Item Group"),
+                    "stock_uom": "Nos",
+                    "is_stock_item": 1,
+                    "trader_component_item": 1,
+                }
+            ).insert(ignore_permissions=True)
         if not frappe.db.exists("Customer", CUST):
-            frappe.get_doc({
-                "doctype": "Customer", "customer_name": CUST,
-                "customer_group": _leaf("Customer Group"), "territory": _leaf("Territory"),
-            }).insert(ignore_permissions=True)
+            frappe.get_doc(
+                {
+                    "doctype": "Customer",
+                    "customer_name": CUST,
+                    "customer_group": _leaf("Customer Group"),
+                    "territory": _leaf("Territory"),
+                }
+            ).insert(ignore_permissions=True)
         if not frappe.db.exists("Supplier", SUPP):
-            frappe.get_doc({
-                "doctype": "Supplier", "supplier_name": SUPP,
-                "supplier_group": _leaf("Supplier Group"),
-            }).insert(ignore_permissions=True)
+            frappe.get_doc(
+                {
+                    "doctype": "Supplier",
+                    "supplier_name": SUPP,
+                    "supplier_group": _leaf("Supplier Group"),
+                }
+            ).insert(ignore_permissions=True)
         frappe.db.commit()
 
     @classmethod
@@ -106,8 +128,11 @@ class DayBookIntegrationTests(unittest.TestCase):
 
         frappe.db.set_single_value("Stock Settings", "allow_negative_stock", cls._orig_neg or 0)
         frappe.db.set_value(
-            "Company", COMPANY, "trader_components_enabled",
-            cls._orig_components_enabled or 0, update_modified=False,
+            "Company",
+            COMPANY,
+            "trader_components_enabled",
+            cls._orig_components_enabled or 0,
+            update_modified=False,
         )
         frappe.db.commit()
 
@@ -119,8 +144,10 @@ class DayBookIntegrationTests(unittest.TestCase):
         si.posting_date = date
         si.update_stock = 1
         si.set_warehouse = WAREHOUSE
-        si.append("items", {"item_code": ITEM, "qty": qty, "rate": rate,
-                            "warehouse": WAREHOUSE, "allow_zero_valuation_rate": 1})
+        si.append(
+            "items",
+            {"item_code": ITEM, "qty": qty, "rate": rate, "warehouse": WAREHOUSE, "allow_zero_valuation_rate": 1},
+        )
         si.insert(ignore_permissions=True)
         si.submit()
         return si
@@ -132,8 +159,7 @@ class DayBookIntegrationTests(unittest.TestCase):
         pi.posting_date = date
         pi.update_stock = 1
         pi.set_warehouse = WAREHOUSE
-        pi.append("items", {"item_code": ITEM, "qty": qty, "rate": rate,
-                            "warehouse": WAREHOUSE})
+        pi.append("items", {"item_code": ITEM, "qty": qty, "rate": rate, "warehouse": WAREHOUSE})
         pi.insert(ignore_permissions=True)
         pi.submit()
         return pi
@@ -143,7 +169,7 @@ class DayBookIntegrationTests(unittest.TestCase):
         from trader_app.api.daybook import get_day_book
 
         si = self._make_submitted_si(qty=2, rate=100)  # grand_total 200, direction in
-        pi = self._make_submitted_pi(qty=3, rate=50)   # grand_total 150, direction out
+        pi = self._make_submitted_pi(qty=3, rate=50)  # grand_total 150, direction out
 
         result = get_day_book(company=COMPANY, date=TEST_DATE, page=1, page_size=200)
         rows_by_voucher = {row["voucher_no"]: row for row in result["data"]}
@@ -165,8 +191,8 @@ class DayBookIntegrationTests(unittest.TestCase):
     def test_day_close_summary_reconciles_with_day_book_totals(self):
         from trader_app.api.daybook import get_day_book, get_day_close_summary
 
-        self._make_submitted_si(qty=4, rate=100)   # +400 sales
-        self._make_submitted_pi(qty=2, rate=75)    # +150 purchases
+        self._make_submitted_si(qty=4, rate=100)  # +400 sales
+        self._make_submitted_pi(qty=2, rate=75)  # +150 purchases
 
         book = get_day_book(company=COMPANY, date=TEST_DATE, page=1, page_size=200)
         close = get_day_close_summary(company=COMPANY, date=TEST_DATE)
@@ -186,8 +212,12 @@ class DayBookIntegrationTests(unittest.TestCase):
 
         before = get_day_close_summary(company=COMPANY, date=TEST_DATE_PREV)
         settle_party(
-            party_type="Customer", party=CUST, amount=500,
-            mode_of_payment="Cash", company=COMPANY, posting_date=TEST_DATE,
+            party_type="Customer",
+            party=CUST,
+            amount=500,
+            mode_of_payment="Cash",
+            company=COMPANY,
+            posting_date=TEST_DATE,
         )
         after = get_day_close_summary(company=COMPANY, date=TEST_DATE)
 
@@ -201,8 +231,12 @@ class DayBookIntegrationTests(unittest.TestCase):
 
         si = self._make_submitted_si(qty=1, rate=300, date=TEST_DATE)
         result = settle_party(
-            party_type="Customer", party=CUST, amount=300,
-            mode_of_payment="Cash", company=COMPANY, posting_date=TEST_DATE,
+            party_type="Customer",
+            party=CUST,
+            amount=300,
+            mode_of_payment="Cash",
+            company=COMPANY,
+            posting_date=TEST_DATE,
         )
         self.assertEqual(flt(result["allocated_amount"]), 300.0)
         self.assertEqual(flt(result["unallocated_amount"]), 0.0)
@@ -217,6 +251,7 @@ class DayBookIntegrationTests(unittest.TestCase):
         self.assertEqual(flt(si.outstanding_amount), 0.0)
 
 
+@unittest.skipUnless(FRAPPE_SITE_ACTIVE, "requires an initialized Frappe site")
 class DayBookTenantIsolationIntegrationTests(unittest.TestCase):
     """Two real tenants, two real companies — confirms get_incoming/get_outgoing
     never leak a party across tenant boundaries (regression for 25d7cea)."""
@@ -227,8 +262,7 @@ class DayBookTenantIsolationIntegrationTests(unittest.TestCase):
 
         if not is_multitenant_enabled():
             raise unittest.SkipTest(
-                "Multi-tenant mode not enabled on this site "
-                "(bench execute trader_app.setup.seed_super_admin.run)"
+                "Multi-tenant mode not enabled on this site " "(bench execute trader_app.setup.seed_super_admin.run)"
             )
 
         from trader_app.api.super_admin import create_tenant
@@ -239,13 +273,15 @@ class DayBookTenantIsolationIntegrationTests(unittest.TestCase):
                 raise unittest.SkipTest(
                     "Leftover fixture {0} from a previous run — clean up manually".format(tenant_name)
                 )
-            result = create_tenant({
-                "tenant_name": tenant_name,
-                "enabled_modules": ["dashboard", "settings", "customers", "components"],
-                "admin_email": "_itest.db.{0}@example.test".format(label.lower()),
-                "admin_first_name": "ITest{0}".format(label),
-                "admin_password": "ITestPass!2031",
-            })
+            result = create_tenant(
+                {
+                    "tenant_name": tenant_name,
+                    "enabled_modules": ["dashboard", "settings", "customers", "components"],
+                    "admin_email": "_itest.db.{0}@example.test".format(label.lower()),
+                    "admin_first_name": "ITest{0}".format(label),
+                    "admin_password": "ITestPass!2031",
+                }
+            )
             cls._tenant_info[label] = result
             frappe.db.commit()
 
@@ -257,10 +293,14 @@ class DayBookTenantIsolationIntegrationTests(unittest.TestCase):
             cust_name = "_ITEST DB Cust {0}".format(label)
             frappe.set_user(admin_user)
             try:
-                cust = frappe.get_doc({
-                    "doctype": "Customer", "customer_name": cust_name,
-                    "customer_group": _leaf("Customer Group"), "territory": _leaf("Territory"),
-                }).insert(ignore_permissions=True)
+                cust = frappe.get_doc(
+                    {
+                        "doctype": "Customer",
+                        "customer_name": cust_name,
+                        "customer_group": _leaf("Customer Group"),
+                        "territory": _leaf("Territory"),
+                    }
+                ).insert(ignore_permissions=True)
                 frappe.db.set_value("Customer", cust.name, "trader_opening_balance", 1000, update_modified=False)
             finally:
                 frappe.set_user("Administrator")

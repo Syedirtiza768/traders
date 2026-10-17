@@ -10,8 +10,8 @@ import json
 
 import frappe
 from frappe import _
+from frappe.utils import cint, flt
 from trader_app.api.company import resolve_active_company
-from frappe.utils import nowdate, flt, cint
 
 
 def _parse_dict(value):
@@ -161,8 +161,7 @@ def _list_contacts(customer):
     return rows
 
 
-def _apply_extended_fields(doc, company, tax_id=None, payment_terms=None,
-                           default_currency=None, credit_limit=None):
+def _apply_extended_fields(doc, company, tax_id=None, payment_terms=None, default_currency=None, credit_limit=None):
     if tax_id is not None and hasattr(doc, "tax_id"):
         doc.tax_id = (tax_id or "").strip()
     if payment_terms is not None and hasattr(doc, "payment_terms"):
@@ -184,14 +183,12 @@ def get_customers(page=1, page_size=20, search=None, customer_group=None):
     conditions = ["c.disabled = 0"]
     params = {}
 
-    dba_col = "COALESCE(c.trader_dba, '') AS trader_dba," if frappe.db.has_column(
-        "Customer", "trader_dba"
-    ) else "'' AS trader_dba,"
-    search_dba = (
-        "OR IFNULL(c.trader_dba,'') LIKE %(search)s "
+    dba_col = (
+        "COALESCE(c.trader_dba, '') AS trader_dba,"
         if frappe.db.has_column("Customer", "trader_dba")
-        else ""
+        else "'' AS trader_dba,"
     )
+    search_dba = "OR IFNULL(c.trader_dba,'') LIKE %(search)s " if frappe.db.has_column("Customer", "trader_dba") else ""
 
     if search:
         conditions.append(
@@ -204,19 +201,23 @@ def get_customers(page=1, page_size=20, search=None, customer_group=None):
         conditions.append("c.customer_group = %(customer_group)s")
         params["customer_group"] = customer_group
 
-    from trader_app.api.permissions import tenant_sql_filter
+    from trader_app.api.permissions import customer_company_clause, tenant_sql_filter
+
     tcond, tparams = tenant_sql_filter("c")
     if tcond:
         conditions.append(tcond)
         params.update(tparams)
+    # Only customers this user can open (same rule as the Customer document check).
+    ccond = customer_company_clause(alias="c")
+    if ccond:
+        conditions.append(ccond)
 
     where = " AND ".join(conditions)
 
-    total = frappe.db.sql(
-        f"SELECT COUNT(*) FROM `tabCustomer` c WHERE {where}", params
-    )[0][0]
+    total = frappe.db.sql(f"SELECT COUNT(*) FROM `tabCustomer` c WHERE {where}", params)[0][0]
 
-    rows = frappe.db.sql(f"""
+    rows = frappe.db.sql(
+        f"""
         SELECT c.name, c.customer_name, c.customer_group, c.territory,
                c.mobile_no, c.email_id, c.tax_id, c.payment_terms,
                COALESCE(c.trader_short_code, '') AS trader_short_code,
@@ -240,7 +241,10 @@ def get_customers(page=1, page_size=20, search=None, customer_group=None):
         WHERE {where}
         ORDER BY c.customer_name
         LIMIT %(page_size)s OFFSET %(offset)s
-    """, {**params, "company": company, "page_size": page_size, "offset": offset}, as_dict=True)
+    """,
+        {**params, "company": company, "page_size": page_size, "offset": offset},
+        as_dict=True,
+    )
 
     return {"data": rows, "total": cint(total), "page": page, "page_size": page_size}
 
@@ -263,9 +267,7 @@ def get_customer_form_setup(company=None):
         order_by="name asc",
         pluck="name",
     )
-    territories = frappe.get_all(
-        "Territory", filters={"is_group": 0}, pluck="name", order_by="name asc"
-    )
+    territories = frappe.get_all("Territory", filters={"is_group": 0}, pluck="name", order_by="name asc")
     countries = frappe.get_all("Country", pluck="name", order_by="name asc")
     te_enabled = is_trading_entity_enabled(company)
     trading_entities = list_active_options(company) if te_enabled else []
@@ -299,20 +301,35 @@ def get_customer_detail(name):
     doc.check_permission("read")
     company = resolve_active_company()
 
-    outstanding = flt(frappe.db.sql("""
+    outstanding = flt(
+        frappe.db.sql(
+            """
         SELECT COALESCE(SUM(outstanding_amount), 0) FROM `tabSales Invoice`
         WHERE customer = %s AND company = %s AND docstatus = 1 AND outstanding_amount > 0
-    """, (name, company))[0][0])
+    """,
+            (name, company),
+        )[0][0]
+    )
 
-    total_revenue = flt(frappe.db.sql("""
+    total_revenue = flt(
+        frappe.db.sql(
+            """
         SELECT COALESCE(SUM(grand_total), 0) FROM `tabSales Invoice`
         WHERE customer = %s AND company = %s AND docstatus = 1
-    """, (name, company))[0][0])
+    """,
+            (name, company),
+        )[0][0]
+    )
 
-    invoice_count = cint(frappe.db.sql("""
+    invoice_count = cint(
+        frappe.db.sql(
+            """
         SELECT COUNT(*) FROM `tabSales Invoice`
         WHERE customer = %s AND company = %s AND docstatus = 1
-    """, (name, company))[0][0])
+    """,
+            (name, company),
+        )[0][0]
+    )
 
     result = doc.as_dict()
     result["outstanding_amount"] = outstanding
@@ -322,12 +339,11 @@ def get_customer_detail(name):
     result["addresses"] = _list_addresses(name)
     result["contacts"] = _list_contacts(name)
     from trader_app.api.customer_pack import resolve_customer_pack_settings
+
     result["pack"] = resolve_customer_pack_settings(company)
     entity_name = getattr(doc, "trader_trading_entity", None)
     if entity_name and frappe.db.exists("Trader Trading Entity", entity_name):
-        result["trading_entity_name"] = frappe.db.get_value(
-            "Trader Trading Entity", entity_name, "trading_name"
-        )
+        result["trading_entity_name"] = frappe.db.get_value("Trader Trading Entity", entity_name, "trading_name")
     else:
         result["trading_entity_name"] = None
     return result
@@ -342,17 +358,22 @@ def get_customer_groups():
 @frappe.whitelist()
 def get_customer_transactions(customer, company=None, page=1, page_size=20):
     """Recent transactions for a customer."""
+    frappe.get_doc("Customer", customer).check_permission("read")
     company = resolve_active_company(company)
     page = cint(page) or 1
     page_size = min(cint(page_size) or 20, 100)
     offset = (page - 1) * page_size
 
-    total = frappe.db.sql("""
+    total = frappe.db.sql(
+        """
         SELECT COUNT(*) FROM `tabSales Invoice`
         WHERE customer = %s AND company = %s AND docstatus = 1
-    """, (customer, company))[0][0]
+    """,
+        (customer, company),
+    )[0][0]
 
-    rows = frappe.db.sql("""
+    rows = frappe.db.sql(
+        """
         SELECT name, posting_date, grand_total, outstanding_amount,
                CASE
                    WHEN outstanding_amount <= 0 THEN 'Paid'
@@ -363,16 +384,31 @@ def get_customer_transactions(customer, company=None, page=1, page_size=20):
         WHERE customer = %s AND company = %s AND docstatus = 1
         ORDER BY posting_date DESC
         LIMIT %s OFFSET %s
-    """, (customer, company, page_size, offset), as_dict=True)
+    """,
+        (customer, company, page_size, offset),
+        as_dict=True,
+    )
 
     return {"data": rows, "total": cint(total), "page": page, "page_size": page_size}
 
 
 @frappe.whitelist()
-def create_customer(customer_name, customer_group=None, territory=None, mobile_no=None,
-                    email_id=None, short_code=None, opening_balance=None,
-                    dba=None, tax_id=None, payment_terms=None, default_currency=None,
-                    credit_limit=None, billing_address=None, trading_entity=None):
+def create_customer(
+    customer_name,
+    customer_group=None,
+    territory=None,
+    mobile_no=None,
+    email_id=None,
+    short_code=None,
+    opening_balance=None,
+    dba=None,
+    tax_id=None,
+    payment_terms=None,
+    default_currency=None,
+    credit_limit=None,
+    billing_address=None,
+    trading_entity=None,
+):
     """Create a Customer record for the Trader UI (extended when Customer pack is on)."""
     from trader_app.api.customer_pack import validate_customer_payload
     from trader_app.api.trading_entity import validate_customer_trading_entity
@@ -418,10 +454,23 @@ def create_customer(customer_name, customer_group=None, territory=None, mobile_n
 
 
 @frappe.whitelist()
-def update_customer(name, customer_name=None, customer_group=None, territory=None,
-                    mobile_no=None, email_id=None, short_code=None, opening_balance=None,
-                    dba=None, tax_id=None, payment_terms=None, default_currency=None,
-                    credit_limit=None, billing_address=None, trading_entity=None):
+def update_customer(
+    name,
+    customer_name=None,
+    customer_group=None,
+    territory=None,
+    mobile_no=None,
+    email_id=None,
+    short_code=None,
+    opening_balance=None,
+    dba=None,
+    tax_id=None,
+    payment_terms=None,
+    default_currency=None,
+    credit_limit=None,
+    billing_address=None,
+    trading_entity=None,
+):
     """Update an existing Customer record."""
     from trader_app.api.customer_pack import validate_customer_payload
     from trader_app.api.trading_entity import validate_customer_trading_entity
@@ -484,8 +533,9 @@ def update_customer(name, customer_name=None, customer_group=None, territory=Non
 
 
 @frappe.whitelist()
-def add_customer_contact(customer, first_name, last_name=None, designation=None,
-                         email_id=None, mobile_no=None, phone=None, is_primary=0):
+def add_customer_contact(
+    customer, first_name, last_name=None, designation=None, email_id=None, mobile_no=None, phone=None, is_primary=0
+):
     """Create a Contact linked to Customer."""
     if not frappe.db.exists("Customer", customer):
         frappe.throw(_("Customer {0} not found.").format(customer))
@@ -552,15 +602,18 @@ def enable_customer(name):
 
 
 def _default_customer_group():
-    return frappe.db.get_single_value("Selling Settings", "customer_group") or frappe.get_all(
-        "Customer Group", filters={"is_group": 0}, order_by="name", limit=1, pluck="name"
-    )[0]
+    return (
+        frappe.db.get_single_value("Selling Settings", "customer_group")
+        or frappe.get_all("Customer Group", filters={"is_group": 0}, order_by="name", limit=1, pluck="name")[0]
+    )
 
 
 def _default_territory():
-    return frappe.db.get_single_value("Selling Settings", "territory") or frappe.get_all(
-        "Territory", filters={"is_group": 0}, order_by="name", limit=1, pluck="name"
-    )[0]
+    return (
+        frappe.db.get_single_value("Selling Settings", "territory")
+        or frappe.get_all("Territory", filters={"is_group": 0}, order_by="name", limit=1, pluck="name")[0]
+    )
+
 
 from trader_app.api._tenant_guard import apply_module_guards
 

@@ -5,6 +5,7 @@
  "engine": "InnoDB",
  "field_order": [
   "bundle_name",
+  "trader_tenant",
   "description",
   "total_rate",
   "items"
@@ -17,6 +18,14 @@
    "label": "Bundle Name",
    "reqd": 1,
    "unique": 1
+  },
+  {
+   "fieldname": "trader_tenant",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "label": "Tenant",
+   "options": "Trader Tenant",
+   "read_only": 1
   },
   {
    "fieldname": "description",

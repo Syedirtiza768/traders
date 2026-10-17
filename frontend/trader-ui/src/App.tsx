@@ -190,7 +190,7 @@ export default function App() {
         <Route path="sales/quotations/make" element={<GatedRoute capability="sales:view" module="sales"><MakeQuotationPage /></GatedRoute>} />
         <Route path="sales/quotations/:quotationId/edit" element={<GatedRoute capability="sales:view" module="sales"><MakeQuotationPage /></GatedRoute>} />
         <Route path="sales/quotations/:quotationId" element={<GatedRoute capability="sales:view" module="sales"><QuotationDetailPage /></GatedRoute>} />
-        <Route path="sales/:invoiceId" element={<GatedRoute capability="sales:view" module="sales"><SalesInvoiceDetailPage /></GatedRoute>} />
+        <Route path="sales/:invoiceId" element={<GatedRoute anyCapability={['sales:view', 'finance:view']} module="sales"><SalesInvoiceDetailPage /></GatedRoute>} />
 
         {/* Purchases */}
         <Route path="purchases" element={<GatedRoute capability="purchases:view" module="purchases"><PurchasesPage /></GatedRoute>} />
@@ -207,7 +207,7 @@ export default function App() {
         <Route path="purchases/rfqs" element={<GatedRoute capability="purchases:view" module="purchases"><SupplierQuotationsPage /></GatedRoute>} />
         <Route path="purchases/rfqs/new" element={<GatedRoute capability="purchases:view" module="purchases"><CreateSupplierQuotationPage /></GatedRoute>} />
         <Route path="purchases/rfqs/:quotationId" element={<GatedRoute capability="purchases:view" module="purchases"><SupplierQuotationDetailPage /></GatedRoute>} />
-        <Route path="purchases/:invoiceId" element={<GatedRoute capability="purchases:view" module="purchases"><PurchaseInvoiceDetailPage /></GatedRoute>} />
+        <Route path="purchases/:invoiceId" element={<GatedRoute anyCapability={['purchases:view', 'finance:view']} module="purchases"><PurchaseInvoiceDetailPage /></GatedRoute>} />
 
         {/* Inventory */}
         <Route path="inventory" element={<GatedRoute capability="inventory:view" module="inventory"><InventoryPage /></GatedRoute>} />

@@ -3,37 +3,62 @@
 
 Usage:
     bench --site <site> execute trader_app.demo.install_demo
-    bench --site <site> execute trader_app.demo.uninstall_demo
 """
 
 from __future__ import unicode_literals
 
 import time
+
 import frappe
 from frappe.utils import now_datetime
-
-from trader_app.demo.seed_engine.config import DEMO_CONFIG
-from trader_app.demo.generators.company import CompanyGenerator
-from trader_app.demo.generators.users import UserGenerator
-from trader_app.demo.generators.customers import CustomerGenerator
-from trader_app.demo.generators.suppliers import SupplierGenerator
-from trader_app.demo.generators.items import ItemGenerator
-from trader_app.demo.generators.inventory import InventoryGenerator
 from trader_app.demo.generators.bundles_transfers import (
     BundlesTransfersGenerator,
 )
+from trader_app.demo.generators.company import CompanyGenerator
+from trader_app.demo.generators.customers import CustomerGenerator
+from trader_app.demo.generators.enrichment import EnrichmentGenerator
+from trader_app.demo.generators.financial import FinancialGenerator
+from trader_app.demo.generators.inventory import InventoryGenerator
+from trader_app.demo.generators.items import ItemGenerator
+from trader_app.demo.generators.opportunity_chain import OpportunityChainGenerator
+from trader_app.demo.generators.payments import PaymentGenerator
+from trader_app.demo.generators.purchases import PurchaseGenerator
 from trader_app.demo.generators.quotations import QuotationGenerator
 from trader_app.demo.generators.requisitions import RequisitionsGenerator
-from trader_app.demo.generators.purchases import PurchaseGenerator
 from trader_app.demo.generators.sales import SalesGenerator
-from trader_app.demo.generators.payments import PaymentGenerator
-from trader_app.demo.generators.financial import FinancialGenerator
-from trader_app.demo.generators.opportunity_chain import OpportunityChainGenerator
-from trader_app.demo.generators.enrichment import EnrichmentGenerator
+from trader_app.demo.generators.suppliers import SupplierGenerator
+from trader_app.demo.generators.users import UserGenerator
+from trader_app.demo.seed_engine.config import DEMO_CONFIG
 
 
 class DemoInstaller:
     """Orchestrates the complete demo data installation."""
+
+    SEED_GUARD_DOCTYPES = (
+        "Customer",
+        "Supplier",
+        "Item",
+        "Item Price",
+        "Quotation",
+        "Sales Invoice",
+        "Purchase Invoice",
+        "Sales Order",
+        "Purchase Order",
+        "Delivery Note",
+        "Purchase Receipt",
+        "POS Invoice",
+        "Payment Entry",
+        "Journal Entry",
+        "Stock Entry",
+        "Stock Reconciliation",
+        "Landed Cost Voucher",
+        "Material Request",
+        "Request for Quotation",
+        "Supplier Quotation",
+        "Opportunity",
+        "Stock Ledger Entry",
+        "GL Entry",
+    )
 
     GENERATOR_ORDER = [
         CompanyGenerator,
@@ -61,6 +86,7 @@ class DemoInstaller:
 
     def install(self):
         """Run the complete demo installation."""
+        self._assert_install_target()
         self.start_time = time.time()
 
         print("\n" + "=" * 70)
@@ -89,12 +115,15 @@ class DemoInstaller:
             print("=" * 60)
 
             all_valid = True
+            validation_failures = 0
             for generator in self.generators:
                 try:
                     if not generator.run_validation():
                         all_valid = False
+                        validation_failures += 1
                 except Exception as e:
                     all_valid = False
+                    validation_failures += 1
                     print(f"  ❌ {generator.name}: {str(e)}")
 
             # Print summary
@@ -112,8 +141,14 @@ class DemoInstaller:
                 errors = len(gen.errors)
                 total_records += count
                 total_errors += errors
+                if errors:
+                    all_valid = False
                 status = "✅" if errors == 0 else "⚠️"
                 print(f"  {status} {gen.name:20s} — {count:6d} records, {errors:3d} errors")
+                for detail in gen.errors[:10]:
+                    print(f"      - {str(detail)[:500]}")
+                if errors > 10:
+                    print(f"      - ... and {errors - 10} more errors")
 
             print(f"\n  📦 Total Records: {total_records}")
             print(f"  ⚠️  Total Errors:  {total_errors}")
@@ -124,121 +159,62 @@ class DemoInstaller:
             # Print dashboard verification
             self._verify_dashboard_data()
 
+            if not all_valid:
+                failure_summary = []
+                if total_errors:
+                    failure_summary.append(f"{total_errors} generator errors")
+                if validation_failures:
+                    failure_summary.append(f"{validation_failures} validation failures")
+                frappe.throw(
+                    "Demo installation is incomplete: {0}. "
+                    "Review the generator details above before using this dataset.".format(
+                        " and ".join(failure_summary)
+                    )
+                )
+
         except Exception as e:
             frappe.db.rollback()
             print(f"\n❌ INSTALLATION FAILED: {str(e)}")
-            frappe.log_error(
-                message=frappe.get_traceback(),
-                title="Demo Installation Failed"
-            )
+            frappe.log_error(message=frappe.get_traceback(), title="Demo Installation Failed")
             raise
         finally:
             frappe.flags.in_import = False
             frappe.flags.mute_emails = False
             frappe.flags.mute_messages = False
 
-    def uninstall(self):
-        """Remove all demo data. WARNING: This is destructive."""
-        print("\n" + "=" * 70)
-        print("🗑️  TRADERS — DEMO DATA UNINSTALLER")
-        print("=" * 70)
-        print("⚠️  This will delete ALL data for the demo company.")
-        print("=" * 70)
+    def _assert_install_target(self):
+        """Restrict demo seeding to an explicitly disposable, empty site."""
+        if frappe.conf.get("allow_demo_seed") is not True:
+            frappe.throw(
+                "Demo seeding is disabled. Set allow_demo_seed=true only on a disposable development or QA site."
+            )
+
+        if frappe.db.count("Company"):
+            frappe.throw(
+                "Demo seeding requires a fresh site with no Company records. "
+                "Use an empty disposable site or reset this site before seeding."
+            )
 
         company = self.config["company_name"]
+        if frappe.db.exists("Company", company):
+            frappe.throw(
+                "The demo company already exists. Demo seeding can only run once on a fresh disposable site; "
+                "reset the site to reseed."
+            )
 
-        # Delete in reverse order (respect FK constraints)
-        doctypes_to_clean = [
-            "Payment Entry",
-            "Journal Entry",
-            "Sales Invoice",
-            "Sales Order",
-            "Quotation",
-            "Purchase Invoice",
-            "Purchase Order",
-            "Supplier Quotation",
-            "Material Request",
-            "Stock Entry",
-            "Stock Ledger Entry",
-            "GL Entry",
-            "Bin",
-        ]
+        populated_doctypes = [doctype for doctype in self.SEED_GUARD_DOCTYPES if frappe.db.count(doctype)]
+        if populated_doctypes:
+            frappe.throw(
+                "Demo seeding requires an empty site. Existing business data was found in: {0}. "
+                "Use a fresh disposable site.".format(", ".join(populated_doctypes))
+            )
 
-        for dt in doctypes_to_clean:
-            try:
-                if dt == "Bin":
-                    count = frappe.db.sql(
-                        """
-                        SELECT COUNT(*)
-                        FROM `tabBin` b
-                        INNER JOIN `tabWarehouse` w ON w.name = b.warehouse
-                        WHERE w.company = %s
-                        """,
-                        (company,),
-                    )[0][0]
-                    if count > 0:
-                        frappe.db.sql(
-                            """
-                            DELETE b
-                            FROM `tabBin` b
-                            INNER JOIN `tabWarehouse` w ON w.name = b.warehouse
-                            WHERE w.company = %s
-                            """,
-                            (company,),
-                        )
-                        print(f"  🗑️  Deleted {count} {dt} records")
-                    continue
-
-                count = frappe.db.count(dt, filters={"company": company})
-                if count > 0:
-                    frappe.db.sql(f"DELETE FROM `tab{dt}` WHERE company = %s", (company,))
-                    print(f"  🗑️  Deleted {count} {dt} records")
-            except Exception as e:
-                print(f"  ⚠️  Error cleaning {dt}: {str(e)}")
-
-        # Demo Item Bundles (no company field — match name prefix)
-        try:
-            for bundle in frappe.get_all(
-                "Item Bundle",
-                filters=[["bundle_name", "like", "Demo Pack%"]],
-                pluck="name",
-            ):
-                frappe.delete_doc("Item Bundle", bundle, force=True)
-                print(f"  🗑️  Deleted Item Bundle: {bundle}")
-        except Exception as e:
-            print(f"  ⚠️  Error cleaning Item Bundle: {str(e)}")
-
-        # Clean master data
-        for dt in ["Item Price", "Item"]:
-            try:
-                count = frappe.db.count(dt)
-                if count > 0:
-                    frappe.db.sql(f"DELETE FROM `tab{dt}`")
-                    print(f"  🗑️  Deleted {count} {dt} records")
-            except Exception:
-                pass
-
-        # Delete customers and suppliers
-        for dt in ["Customer", "Supplier"]:
-            try:
-                count = frappe.db.count(dt)
-                if count > 0:
-                    frappe.db.sql(f"DELETE FROM `tab{dt}`")
-                    print(f"  🗑️  Deleted {count} {dt} records")
-            except Exception:
-                pass
-
-        # Delete demo users
-        for user_cfg in self.config["users"]:
-            try:
-                if frappe.db.exists("User", user_cfg["email"]):
-                    frappe.delete_doc("User", user_cfg["email"], force=True)
-                    print(f"  🗑️  Deleted user: {user_cfg['email']}")
-            except Exception:
-                pass
-
-        frappe.db.commit()
-        print("\n✅ Demo data uninstalled.")
+    def uninstall(self):
+        """Reject the unsafe legacy site-wide demo deletion path."""
+        frappe.throw(
+            "Demo uninstallation is disabled because it could delete business data. "
+            "Remove demo data by resetting its disposable site."
+        )
 
     def _verify_dashboard_data(self):
         """Verify that dashboard metrics would show meaningful data."""
@@ -268,27 +244,36 @@ class DemoInstaller:
         print(f"  Purchase Invoices:   {purchases}")
 
         # Outstanding receivables
-        receivables = frappe.db.sql("""
+        receivables = frappe.db.sql(
+            """
             SELECT COALESCE(SUM(outstanding_amount), 0)
             FROM `tabSales Invoice`
             WHERE company = %s AND docstatus = 1 AND outstanding_amount > 0
-        """, (company,))
+        """,
+            (company,),
+        )
         print(f"  Receivables (PKR):   {receivables[0][0]:,.0f}")
 
         # Outstanding payables
-        payables = frappe.db.sql("""
+        payables = frappe.db.sql(
+            """
             SELECT COALESCE(SUM(outstanding_amount), 0)
             FROM `tabPurchase Invoice`
             WHERE company = %s AND docstatus = 1 AND outstanding_amount > 0
-        """, (company,))
+        """,
+            (company,),
+        )
         print(f"  Payables (PKR):      {payables[0][0]:,.0f}")
 
         # Stock value
-        stock_val = frappe.db.sql("""
+        stock_val = frappe.db.sql(
+            """
             SELECT COALESCE(SUM(stock_value), 0)
             FROM `tabBin`
             WHERE warehouse IN (SELECT name FROM `tabWarehouse` WHERE company = %s)
-        """, (company,))
+        """,
+            (company,),
+        )
         print(f"  Stock Value (PKR):   {stock_val[0][0]:,.0f}")
 
         # Payment entries

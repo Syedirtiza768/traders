@@ -12,21 +12,23 @@ from __future__ import unicode_literals
 
 import frappe
 from frappe import _
-from frappe.utils import nowdate, getdate, flt, cint
-
-from trader_app.api.company import assert_document_company_access, resolve_active_company
+from frappe.utils import cint, flt, getdate, nowdate
+from trader_app.api.company import (
+    assert_document_company_access,
+    resolve_active_company,
+)
 from trader_app.api.invoice_types import (
     get_document_catalog,
     normalize_type_key,
+    print_format_for_doc,
     resolve_purchase_taxes,
     set_trader_invoice_type,
-    print_format_for_doc,
 )
-
 
 # ────────────────────────────────────────────────────────────────
 # 1.  LIST ENDPOINTS
 # ────────────────────────────────────────────────────────────────
+
 
 @frappe.whitelist()
 def get_purchase_document_catalog():
@@ -38,10 +40,17 @@ def get_purchase_document_catalog():
 
 
 @frappe.whitelist()
-def get_purchase_invoices(company=None, supplier=None, status=None,
-                          from_date=None, to_date=None,
-                          invoice_type=None,
-                          page=1, page_size=20, search=None):
+def get_purchase_invoices(
+    company=None,
+    supplier=None,
+    status=None,
+    from_date=None,
+    to_date=None,
+    invoice_type=None,
+    page=1,
+    page_size=20,
+    search=None,
+):
     """Paginated Purchase Invoices."""
     company = resolve_active_company(company)
     page = cint(page) or 1
@@ -91,11 +100,10 @@ def get_purchase_invoices(company=None, supplier=None, status=None,
         else ", NULL AS trader_invoice_type, pi.is_return, pi.return_against"
     )
 
-    total = frappe.db.sql(
-        f"SELECT COUNT(*) FROM `tabPurchase Invoice` pi WHERE {where}", params
-    )[0][0]
+    total = frappe.db.sql(f"SELECT COUNT(*) FROM `tabPurchase Invoice` pi WHERE {where}", params)[0][0]
 
-    rows = frappe.db.sql(f"""
+    rows = frappe.db.sql(
+        f"""
         SELECT pi.name, pi.supplier, pi.supplier_name, pi.posting_date,
                pi.due_date, pi.grand_total, pi.outstanding_amount,
                pi.currency, pi.docstatus
@@ -112,7 +120,10 @@ def get_purchase_invoices(company=None, supplier=None, status=None,
         WHERE {where}
         ORDER BY pi.posting_date DESC, pi.creation DESC
         LIMIT %(page_size)s OFFSET %(offset)s
-    """, {**params, "page_size": page_size, "offset": offset}, as_dict=True)
+    """,
+        {**params, "page_size": page_size, "offset": offset},
+        as_dict=True,
+    )
 
     return {"data": rows, "total": cint(total), "page": page, "page_size": page_size}
 
@@ -127,9 +138,9 @@ def get_purchase_invoice_detail(name):
 
 
 @frappe.whitelist()
-def get_purchase_orders(company=None, supplier=None, status=None,
-                        from_date=None, to_date=None,
-                        page=1, page_size=20, search=None):
+def get_purchase_orders(
+    company=None, supplier=None, status=None, from_date=None, to_date=None, page=1, page_size=20, search=None
+):
     """Paginated Purchase Orders."""
     company = resolve_active_company(company)
     page = cint(page) or 1
@@ -157,11 +168,10 @@ def get_purchase_orders(company=None, supplier=None, status=None,
 
     where = " AND ".join(conditions)
 
-    total = frappe.db.sql(
-        f"SELECT COUNT(*) FROM `tabPurchase Order` po WHERE {where}", params
-    )[0][0]
+    total = frappe.db.sql(f"SELECT COUNT(*) FROM `tabPurchase Order` po WHERE {where}", params)[0][0]
 
-    rows = frappe.db.sql(f"""
+    rows = frappe.db.sql(
+        f"""
         SELECT po.name, po.supplier, po.supplier_name,
                po.transaction_date, po.grand_total, po.status,
                po.currency, po.docstatus
@@ -169,18 +179,25 @@ def get_purchase_orders(company=None, supplier=None, status=None,
         WHERE {where}
         ORDER BY po.transaction_date DESC, po.creation DESC
         LIMIT %(page_size)s OFFSET %(offset)s
-    """, {**params, "page_size": page_size, "offset": offset}, as_dict=True)
+    """,
+        {**params, "page_size": page_size, "offset": offset},
+        as_dict=True,
+    )
 
     order_names = [row.name for row in rows]
     invoice_counts = {}
     unpaid_counts = {}
     if order_names:
-        linked_invoices = frappe.db.sql("""
+        linked_invoices = frappe.db.sql(
+            """
             SELECT DISTINCT pii.purchase_order, pi.outstanding_amount
             FROM `tabPurchase Invoice Item` pii
             JOIN `tabPurchase Invoice` pi ON pi.name = pii.parent
             WHERE pii.purchase_order IN %(order_names)s AND pi.docstatus < 2
-        """, {"order_names": order_names}, as_dict=True)
+        """,
+            {"order_names": order_names},
+            as_dict=True,
+        )
         for invoice in linked_invoices:
             purchase_order = invoice.get("purchase_order")
             invoice_counts[purchase_order] = invoice_counts.get(purchase_order, 0) + 1
@@ -195,8 +212,7 @@ def get_purchase_orders(company=None, supplier=None, status=None,
 
 
 @frappe.whitelist()
-def get_material_requests(company=None, status=None, from_date=None, to_date=None,
-                          page=1, page_size=20, search=None):
+def get_material_requests(company=None, status=None, from_date=None, to_date=None, page=1, page_size=20, search=None):
     """Paginated purchase requisitions backed by Material Request."""
     company = resolve_active_company(company)
     page = cint(page) or 1
@@ -211,28 +227,27 @@ def get_material_requests(company=None, status=None, from_date=None, to_date=Non
     params = {"company": company}
 
     if status:
-        if status == 'Draft':
+        if status == "Draft":
             conditions.append("mr.docstatus = 0")
         else:
             conditions.append("mr.status = %(status)s")
-            params['status'] = status
+            params["status"] = status
     if from_date:
         conditions.append("mr.transaction_date >= %(from_date)s")
-        params['from_date'] = from_date
+        params["from_date"] = from_date
     if to_date:
         conditions.append("mr.transaction_date <= %(to_date)s")
-        params['to_date'] = to_date
+        params["to_date"] = to_date
     if search:
         conditions.append("(mr.name LIKE %(search)s OR mr.title LIKE %(search)s)")
-        params['search'] = f"%{search}%"
+        params["search"] = f"%{search}%"
 
     where = " AND ".join(conditions)
 
-    total = frappe.db.sql(
-        f"SELECT COUNT(*) FROM `tabMaterial Request` mr WHERE {where}", params
-    )[0][0]
+    total = frappe.db.sql(f"SELECT COUNT(*) FROM `tabMaterial Request` mr WHERE {where}", params)[0][0]
 
-    rows = frappe.db.sql(f"""
+    rows = frappe.db.sql(
+        f"""
         SELECT mr.name, mr.transaction_date, mr.schedule_date,
                mr.status, mr.docstatus, mr.per_ordered,
                mr.material_request_type, mr.company
@@ -240,7 +255,10 @@ def get_material_requests(company=None, status=None, from_date=None, to_date=Non
         WHERE {where}
         ORDER BY mr.transaction_date DESC, mr.creation DESC
         LIMIT %(page_size)s OFFSET %(offset)s
-    """, {**params, 'page_size': page_size, 'offset': offset}, as_dict=True)
+    """,
+        {**params, "page_size": page_size, "offset": offset},
+        as_dict=True,
+    )
 
     return {"data": rows, "total": cint(total), "page": page, "page_size": page_size}
 
@@ -256,8 +274,9 @@ def get_material_request_detail(name):
 
 
 @frappe.whitelist()
-def get_supplier_quotations(company=None, supplier=None, status=None, from_date=None, to_date=None,
-                            page=1, page_size=20, search=None):
+def get_supplier_quotations(
+    company=None, supplier=None, status=None, from_date=None, to_date=None, page=1, page_size=20, search=None
+):
     """Paginated RFQs backed by Supplier Quotation."""
     company = resolve_active_company(company)
     page = cint(page) or 1
@@ -269,38 +288,42 @@ def get_supplier_quotations(company=None, supplier=None, status=None, from_date=
 
     if supplier:
         conditions.append("sq.supplier = %(supplier)s")
-        params['supplier'] = supplier
+        params["supplier"] = supplier
     if status:
-        if status == 'Draft':
+        if status == "Draft":
             conditions.append("sq.docstatus = 0")
         else:
             conditions.append("sq.status = %(status)s")
-            params['status'] = status
+            params["status"] = status
     if from_date:
         conditions.append("sq.transaction_date >= %(from_date)s")
-        params['from_date'] = from_date
+        params["from_date"] = from_date
     if to_date:
         conditions.append("sq.transaction_date <= %(to_date)s")
-        params['to_date'] = to_date
+        params["to_date"] = to_date
     if search:
-        conditions.append("(sq.name LIKE %(search)s OR sq.supplier_name LIKE %(search)s OR sq.supplier = %(supplier_search)s)")
-        params['search'] = f"%{search}%"
-        params['supplier_search'] = search
+        conditions.append(
+            "(sq.name LIKE %(search)s OR sq.supplier_name LIKE %(search)s OR sq.supplier = %(supplier_search)s)"
+        )
+        params["search"] = f"%{search}%"
+        params["supplier_search"] = search
 
     where = " AND ".join(conditions)
 
-    total = frappe.db.sql(
-        f"SELECT COUNT(*) FROM `tabSupplier Quotation` sq WHERE {where}", params
-    )[0][0]
+    total = frappe.db.sql(f"SELECT COUNT(*) FROM `tabSupplier Quotation` sq WHERE {where}", params)[0][0]
 
-    rows = frappe.db.sql(f"""
+    rows = frappe.db.sql(
+        f"""
         SELECT sq.name, sq.supplier, sq.supplier_name, sq.transaction_date,
                sq.valid_till, sq.grand_total, sq.currency, sq.status, sq.docstatus
         FROM `tabSupplier Quotation` sq
         WHERE {where}
         ORDER BY sq.transaction_date DESC, sq.creation DESC
         LIMIT %(page_size)s OFFSET %(offset)s
-    """, {**params, 'page_size': page_size, 'offset': offset}, as_dict=True)
+    """,
+        {**params, "page_size": page_size, "offset": offset},
+        as_dict=True,
+    )
 
     return {"data": rows, "total": cint(total), "page": page, "page_size": page_size}
 
@@ -314,36 +337,46 @@ def get_supplier_quotation_detail(name):
     data = doc.as_dict()
 
     comparison_quotes = []
-    quoted_item_codes = [item.get('item_code') for item in data.get('items', []) if item.get('item_code')]
+    quoted_item_codes = [item.get("item_code") for item in data.get("items", []) if item.get("item_code")]
 
-    if data.get('material_request'):
+    if data.get("material_request"):
         comparison_quotes = frappe.get_all(
-            'Supplier Quotation',
+            "Supplier Quotation",
             filters={
-                'material_request': data.get('material_request'),
-                'docstatus': ['<', 2],
+                "material_request": data.get("material_request"),
+                "docstatus": ["<", 2],
             },
-            fields=['name', 'supplier', 'supplier_name', 'transaction_date', 'valid_till', 'grand_total', 'currency', 'status', 'docstatus'],
-            order_by='transaction_date desc, creation desc',
+            fields=[
+                "name",
+                "supplier",
+                "supplier_name",
+                "transaction_date",
+                "valid_till",
+                "grand_total",
+                "currency",
+                "status",
+                "docstatus",
+            ],
+            order_by="transaction_date desc, creation desc",
         )
 
     item_comparisons = {}
     if comparison_quotes and quoted_item_codes:
-        quote_names = [row.get('name') for row in comparison_quotes]
+        quote_names = [row.get("name") for row in comparison_quotes]
         rows = frappe.get_all(
-            'Supplier Quotation Item',
+            "Supplier Quotation Item",
             filters={
-                'parent': ['in', quote_names],
-                'item_code': ['in', quoted_item_codes],
+                "parent": ["in", quote_names],
+                "item_code": ["in", quoted_item_codes],
             },
-            fields=['parent', 'item_code', 'qty', 'rate', 'amount'],
-            order_by='item_code asc, rate asc',
+            fields=["parent", "item_code", "qty", "rate", "amount"],
+            order_by="item_code asc, rate asc",
         )
         for row in rows:
-            item_comparisons.setdefault(row.get('item_code'), []).append(row)
+            item_comparisons.setdefault(row.get("item_code"), []).append(row)
 
-    data['comparison_quotes'] = comparison_quotes
-    data['item_comparisons'] = item_comparisons
+    data["comparison_quotes"] = comparison_quotes
+    data["item_comparisons"] = item_comparisons
     return data
 
 
@@ -354,14 +387,18 @@ def get_purchase_order_detail(name):
     doc.check_permission("read")
     assert_document_company_access(doc.company)
     data = doc.as_dict()
-    data["linked_purchase_invoices"] = frappe.db.sql("""
+    data["linked_purchase_invoices"] = frappe.db.sql(
+        """
         SELECT DISTINCT pi.name, pi.posting_date, pi.grand_total,
                pi.currency, pi.status, pi.outstanding_amount
         FROM `tabPurchase Invoice Item` pii
         JOIN `tabPurchase Invoice` pi ON pi.name = pii.parent
         WHERE pii.purchase_order = %(po_name)s AND pi.docstatus < 2
         ORDER BY pi.posting_date DESC, pi.creation DESC
-    """, {"po_name": doc.name}, as_dict=True)
+    """,
+        {"po_name": doc.name},
+        as_dict=True,
+    )
     return data
 
 
@@ -369,13 +406,54 @@ def get_purchase_order_detail(name):
 # 2.  CREATE / SUBMIT
 # ────────────────────────────────────────────────────────────────
 
+
+def _order_item_links(order_name, company):
+    """The lines of a purchase order, by item code, each with the goods receipt line that received it (if any).
+
+    Linking a bill to its receipt clears "Stock Received But Not Billed" and marks the order line as billed.
+    """
+    from trader_app.api.company import assert_document_company_access
+
+    po = frappe.get_doc("Purchase Order", order_name)
+    assert_document_company_access(po.company)
+    if po.docstatus != 1:
+        frappe.throw(_("Submit the purchase order before billing it."))
+    if po.company != company:
+        frappe.throw(_("The purchase order belongs to another company."))
+    links = {}
+    for po_item in po.items:
+        receipt = frappe.db.get_value(
+            "Purchase Receipt Item",
+            {"purchase_order_item": po_item.name, "docstatus": 1},
+            ["parent", "name"],
+            as_dict=True,
+        )
+        links.setdefault(po_item.item_code, []).append({
+            "purchase_order": po.name,
+            "po_detail": po_item.name,
+            "purchase_receipt": receipt.parent if receipt else None,
+            "pr_detail": receipt.name if receipt else None,
+        })
+    return links
+
+
 @frappe.whitelist()
-def create_purchase_invoice(supplier, items, company=None, posting_date=None,
-                            due_date=None, taxes_and_charges=None,
-                            tax_inclusive=0,
-                            is_return=0, return_against=None,
-                            update_stock=1, invoice_type=None,
-                            currency=None, exchange_rate=None):
+def create_purchase_invoice(
+    supplier,
+    items,
+    company=None,
+    posting_date=None,
+    due_date=None,
+    taxes_and_charges=None,
+    tax_inclusive=0,
+    is_return=0,
+    return_against=None,
+    update_stock=1,
+    invoice_type=None,
+    currency=None,
+    exchange_rate=None,
+    source_order=None,
+):
     """Create a Purchase Invoice.
 
     Parameters
@@ -386,8 +464,11 @@ def create_purchase_invoice(supplier, items, company=None, posting_date=None,
     is_return : int — default 0; pass 1 to create a debit note (purchase return)
     return_against : str — source Purchase Invoice name when is_return=1
     update_stock : int — default 1; pass 0 for invoice-only entries
+    source_order : str — purchase order the bill is raised from; its lines are linked back to it (and to the goods
+        receipt that received them), and the bill does not move stock again
     """
     import json
+
     if isinstance(items, str):
         items = json.loads(items)
 
@@ -398,13 +479,19 @@ def create_purchase_invoice(supplier, items, company=None, posting_date=None,
     pi.company = company
     pi.supplier = supplier
     pi.posting_date = posting_date or nowdate()
+    # A date given by the user is kept: without this flag ERPNext resets a back-dated invoice to today.
+    pi.set_posting_time = 1 if posting_date else 0
     pi.due_date = due_date or pi.posting_date
-    pi.update_stock = cint(update_stock)
+    # A bill raised from a purchase order is linked line by line to the order and to its goods receipt. The goods
+    # already came in on the receipt, so the bill does not move stock again.
+    order_links = _order_item_links(source_order, company) if source_order else {}
+    pi.update_stock = 0 if source_order else cint(update_stock)
     pi.is_return = cint(is_return)
     if return_against:
         pi.return_against = return_against
 
     from trader_app.api.currency import apply_document_currency
+
     apply_document_currency(
         pi,
         currency=currency,
@@ -426,11 +513,10 @@ def create_purchase_invoice(supplier, items, company=None, posting_date=None,
         if serial_no and not cint(is_return):
             serial_key = serial_no.lower()
             if serial_key in seen_serials:
-                frappe.throw(
-                    _("Duplicate serial {0} on multiple purchase lines.").format(serial_no)
-                )
+                frappe.throw(_("Duplicate serial {0} on multiple purchase lines.").format(serial_no))
             seen_serials.add(serial_key)
             from trader_app.api.inventory import check_serial_for_purchase
+
             result = check_serial_for_purchase(item_code, serial_no, company=company)
             if not result.get("valid"):
                 frappe.throw(result.get("message") or _("Invalid serial number."))
@@ -441,6 +527,8 @@ def create_purchase_invoice(supplier, items, company=None, posting_date=None,
             "rate": flt(item.get("rate", 0)),
             "warehouse": warehouse,
         }
+        if order_links.get(item_code):
+            row.update(order_links[item_code].pop(0))
         if serial_no:
             row["serial_no"] = serial_no
         if item.get("description"):
@@ -464,11 +552,12 @@ def create_purchase_invoice(supplier, items, company=None, posting_date=None,
 
 
 @frappe.whitelist()
-def create_purchase_order(supplier, items, company=None, transaction_date=None,
-                          schedule_date=None, taxes_and_charges=None,
-                          tax_inclusive=0):
+def create_purchase_order(
+    supplier, items, company=None, transaction_date=None, schedule_date=None, taxes_and_charges=None, tax_inclusive=0
+):
     """Create a Purchase Order."""
     import json
+
     if isinstance(items, str):
         items = json.loads(items)
 
@@ -483,13 +572,16 @@ def create_purchase_order(supplier, items, company=None, transaction_date=None,
     po.set_warehouse = f"Main Warehouse - {abbr}"
 
     for item in items:
-        po.append("items", {
-            "item_code": item.get("item_code"),
-            "qty": flt(item.get("qty", 1)),
-            "rate": flt(item.get("rate", 0)),
-            "warehouse": item.get("warehouse") or f"Main Warehouse - {abbr}",
-            "schedule_date": item.get("schedule_date") or schedule_date or po.schedule_date,
-        })
+        po.append(
+            "items",
+            {
+                "item_code": item.get("item_code"),
+                "qty": flt(item.get("qty", 1)),
+                "rate": flt(item.get("rate", 0)),
+                "warehouse": item.get("warehouse") or f"Main Warehouse - {abbr}",
+                "schedule_date": item.get("schedule_date") or schedule_date or po.schedule_date,
+            },
+        )
 
     if taxes_and_charges:
         po.taxes_and_charges = taxes_and_charges
@@ -505,41 +597,45 @@ def create_purchase_order(supplier, items, company=None, transaction_date=None,
 @frappe.whitelist()
 def create_purchase_order_from_supplier_quotation(name, company=None, transaction_date=None, schedule_date=None):
     """Create a draft purchase order from a selected supplier quotation."""
-    sq = frappe.get_doc('Supplier Quotation', name)
-    sq.check_permission('read')
+    sq = frappe.get_doc("Supplier Quotation", name)
+    sq.check_permission("read")
 
     company = resolve_active_company(company or sq.company)
-    abbr = frappe.get_cached_value('Company', company, 'abbr')
+    abbr = frappe.get_cached_value("Company", company, "abbr")
 
-    po = frappe.new_doc('Purchase Order')
+    po = frappe.new_doc("Purchase Order")
     po.company = company
     po.supplier = sq.supplier
     po.transaction_date = transaction_date or sq.transaction_date or nowdate()
     po.schedule_date = schedule_date or sq.valid_till or po.transaction_date
     po.set_warehouse = f"Main Warehouse - {abbr}"
 
-    if getattr(sq, 'material_request', None):
+    if getattr(sq, "material_request", None):
         po.material_request = sq.material_request
 
     for item in sq.items:
-        po.append('items', {
-            'item_code': item.item_code,
-            'qty': flt(item.qty or 1),
-            'rate': flt(item.rate or 0),
-            'warehouse': getattr(item, 'warehouse', None) or f"Main Warehouse - {abbr}",
-            'schedule_date': schedule_date or sq.valid_till or sq.transaction_date or nowdate(),
-            'supplier_quotation': sq.name,
-            'material_request': getattr(item, 'material_request', None) or getattr(sq, 'material_request', None),
-        })
+        po.append(
+            "items",
+            {
+                "item_code": item.item_code,
+                "qty": flt(item.qty or 1),
+                "rate": flt(item.rate or 0),
+                "warehouse": getattr(item, "warehouse", None) or f"Main Warehouse - {abbr}",
+                "schedule_date": schedule_date or sq.valid_till or sq.transaction_date or nowdate(),
+                "supplier_quotation": sq.name,
+                "material_request": getattr(item, "material_request", None) or getattr(sq, "material_request", None),
+            },
+        )
 
     po.insert(ignore_permissions=False)
-    return {'name': po.name, 'status': 'Draft'}
+    return {"name": po.name, "status": "Draft"}
 
 
 @frappe.whitelist()
 def create_material_request(items, company=None, transaction_date=None, schedule_date=None, title=None):
     """Create a purchase requisition using Material Request."""
     import json
+
     if isinstance(items, str):
         items = json.loads(items)
 
@@ -548,36 +644,48 @@ def create_material_request(items, company=None, transaction_date=None, schedule
 
     mr = frappe.new_doc("Material Request")
     mr.company = company
-    mr.material_request_type = 'Purchase'
+    mr.material_request_type = "Purchase"
     mr.transaction_date = transaction_date or nowdate()
     mr.schedule_date = schedule_date or mr.transaction_date
     if title:
         mr.title = title
 
     for item in items:
-        mr.append('items', {
-            'item_code': item.get('item_code'),
-            'qty': flt(item.get('qty', 1)),
-            'schedule_date': item.get('schedule_date') or schedule_date or mr.schedule_date,
-            'warehouse': item.get('warehouse') or f"Main Warehouse - {abbr}",
-            'rate': flt(item.get('rate', 0)),
-        })
+        mr.append(
+            "items",
+            {
+                "item_code": item.get("item_code"),
+                "qty": flt(item.get("qty", 1)),
+                "schedule_date": item.get("schedule_date") or schedule_date or mr.schedule_date,
+                "warehouse": item.get("warehouse") or f"Main Warehouse - {abbr}",
+                "rate": flt(item.get("rate", 0)),
+            },
+        )
 
     mr.insert(ignore_permissions=False)
-    return {'name': mr.name, 'status': 'Draft'}
+    return {"name": mr.name, "status": "Draft"}
 
 
 @frappe.whitelist()
-def create_supplier_quotation(supplier, items, company=None, transaction_date=None, valid_till=None,
-                              material_request=None, taxes_and_charges=None, tax_inclusive=0):
+def create_supplier_quotation(
+    supplier,
+    items,
+    company=None,
+    transaction_date=None,
+    valid_till=None,
+    material_request=None,
+    taxes_and_charges=None,
+    tax_inclusive=0,
+):
     """Create an RFQ using Supplier Quotation."""
     import json
+
     if isinstance(items, str):
         items = json.loads(items)
 
     company = resolve_active_company(company)
 
-    sq = frappe.new_doc('Supplier Quotation')
+    sq = frappe.new_doc("Supplier Quotation")
     sq.company = company
     sq.supplier = supplier
     sq.transaction_date = transaction_date or nowdate()
@@ -586,22 +694,25 @@ def create_supplier_quotation(supplier, items, company=None, transaction_date=No
         sq.material_request = material_request
 
     for item in items:
-        sq.append('items', {
-            'item_code': item.get('item_code'),
-            'qty': flt(item.get('qty', 1)),
-            'rate': flt(item.get('rate', 0)),
-            'material_request': item.get('material_request') or material_request,
-        })
+        sq.append(
+            "items",
+            {
+                "item_code": item.get("item_code"),
+                "qty": flt(item.get("qty", 1)),
+                "rate": flt(item.get("rate", 0)),
+                "material_request": item.get("material_request") or material_request,
+            },
+        )
 
     if taxes_and_charges:
         sq.taxes_and_charges = taxes_and_charges
-        sq.run_method('set_taxes')
+        sq.run_method("set_taxes")
         if cint(tax_inclusive):
             for tax_row in sq.taxes:
                 tax_row.included_in_print_rate = 1
 
     sq.insert(ignore_permissions=False)
-    return {'name': sq.name, 'status': 'Draft'}
+    return {"name": sq.name, "status": "Draft"}
 
 
 @frappe.whitelist()
@@ -627,21 +738,21 @@ def submit_purchase_order(name):
 @frappe.whitelist()
 def submit_material_request(name):
     """Submit a draft purchase requisition."""
-    doc = frappe.get_doc('Material Request', name)
-    doc.check_permission('submit')
+    doc = frappe.get_doc("Material Request", name)
+    doc.check_permission("submit")
     doc.submit()
     frappe.db.commit()
-    return {'name': doc.name, 'status': 'Submitted'}
+    return {"name": doc.name, "status": "Submitted"}
 
 
 @frappe.whitelist()
 def submit_supplier_quotation(name):
     """Submit a draft supplier quotation / RFQ."""
-    doc = frappe.get_doc('Supplier Quotation', name)
-    doc.check_permission('submit')
+    doc = frappe.get_doc("Supplier Quotation", name)
+    doc.check_permission("submit")
     doc.submit()
     frappe.db.commit()
-    return {'name': doc.name, 'status': 'Submitted'}
+    return {"name": doc.name, "status": "Submitted"}
 
 
 @frappe.whitelist()
@@ -688,6 +799,7 @@ def cancel_supplier_quotation(name):
 # 3.  PURCHASE SUMMARY
 # ────────────────────────────────────────────────────────────────
 
+
 @frappe.whitelist()
 def get_purchase_summary(company=None):
     """Aggregate purchase stats."""
@@ -695,23 +807,47 @@ def get_purchase_summary(company=None):
     today = nowdate()
     first_of_month = getdate(today).replace(day=1).isoformat()
 
-    total_invoices = cint(frappe.db.sql("""
+    total_invoices = cint(
+        frappe.db.sql(
+            """
         SELECT COUNT(*) FROM `tabPurchase Invoice`
         WHERE company = %s AND docstatus = 1
-    """, (company,))[0][0])
+    """,
+            (company,),
+        )[0][0]
+    )
 
-    monthly_purchases = flt(frappe.db.sql("""
+    monthly_purchases = flt(
+        frappe.db.sql(
+            """
         SELECT COALESCE(SUM(grand_total), 0) FROM `tabPurchase Invoice`
         WHERE company = %s AND docstatus = 1
               AND posting_date >= %s AND posting_date <= %s
-    """, (company, first_of_month, today))[0][0])
+    """,
+            (company, first_of_month, today),
+        )[0][0]
+    )
 
-    total_outstanding = flt(frappe.db.sql("""
+    total_outstanding = flt(
+        frappe.db.sql(
+            """
         SELECT COALESCE(SUM(outstanding_amount), 0) FROM `tabPurchase Invoice`
         WHERE company = %s AND docstatus = 1 AND outstanding_amount > 0
-    """, (company,))[0][0])
+    """,
+            (company,),
+        )[0][0]
+    )
 
-    total_suppliers = cint(frappe.db.count("Supplier", {"disabled": 0}))
+    from trader_app.api.permissions import company_master_sql_filter
+
+    supplier_scope, supplier_params = company_master_sql_filter("s", company)
+    supplier_scope = " AND " + supplier_scope if supplier_scope else ""
+    total_suppliers = cint(
+        frappe.db.sql(
+            "SELECT COUNT(*) FROM `tabSupplier` s WHERE IFNULL(s.disabled, 0) = 0{0}".format(supplier_scope),
+            supplier_params,
+        )[0][0]
+    )
 
     return {
         "total_invoices": total_invoices,
@@ -724,6 +860,7 @@ def get_purchase_summary(company=None):
 # ────────────────────────────────────────────────────────────────
 # 4.  DOCTYPE EVENT HOOKS
 # ────────────────────────────────────────────────────────────────
+
 
 def validate_purchase_invoice(doc, method):
     """Runs on Purchase Invoice validate."""
@@ -753,6 +890,7 @@ def on_purchase_invoice_cancel(doc, method):
 # ────────────────────────────────────────────────────────────────
 
 
-from trader_app.api._tenant_guard import apply_module_guards
+from trader_app.api._tenant_guard import INVOICING_ROLES, apply_module_guards
 
-apply_module_guards(globals(), "purchases")
+# Finance staff read the bill they pay; the record itself is still checked for read access (G-PERM-03).
+apply_module_guards(globals(), "purchases", extra_roles={"get_purchase_invoice_detail": INVOICING_ROLES})

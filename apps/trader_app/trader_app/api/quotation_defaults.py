@@ -121,9 +121,14 @@ def get_default_quotation_terms(company=None):
 
 def get_default_order_details(company=None):
     """Return Order Details defaults (payment %, GST/WHT, freight, FX)."""
+    import frappe
+
     from trader_app.api.commercial_totals import snapshot_clause_rates
 
     details = dict(ELECTRENCE_ORDER_DETAILS)
+    # A rupee company carries no dollar exchange clause unless a quotation sets one.
+    if company and (frappe.db.get_value("Company", company, "default_currency") or "").upper() == "PKR":
+        details["rate_clause"] = ""
     details["rate_validity"] = add_days(nowdate(), 15)
     details["quote_date"] = nowdate()
     details["use_quote_date"] = 0
@@ -147,6 +152,19 @@ def apply_order_details_to_quotation(quotation, order_details=None, company=None
             order_details = {}
     if isinstance(order_details, dict):
         payload.update({k: v for k, v in order_details.items() if v is not None})
+        # A schedule the caller gives (advance, delivery or commissioning) replaces the default after-period share,
+        # unless the caller gives that share too; otherwise the schedule would add up to more than 100 percent.
+        gives_schedule = any(order_details.get(k) not in (None, "") for k in (
+            "pay_advance_pct", "pay_delivery_pct", "pay_commissioning_pct"))
+        if gives_schedule and "pay_after_pct" not in order_details:
+            payload["pay_after_pct"] = 0
+            payload["pay_after_days"] = 0
+
+    schedule = sum(flt(payload.get(k)) for k in (
+        "pay_advance_pct", "pay_delivery_pct", "pay_commissioning_pct", "pay_after_pct"))
+    if schedule and abs(schedule - 100) > 0.005:
+        frappe.throw(frappe._("The payment schedule must total 100 percent; it totals {0} percent.").format(
+            round(schedule, 2)))
 
     for key, fieldname in ORDER_DETAIL_FIELD_MAP.items():
         if not frappe.db.has_column("Quotation", fieldname):

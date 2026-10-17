@@ -15,18 +15,16 @@ import json
 
 import frappe
 from frappe import _
-from frappe.utils import nowdate, getdate, flt, cint
-
+from frappe.utils import cint, flt, nowdate
 from trader_app.api.company import resolve_active_company
-
 
 # ────────────────────────────────────────────────────────────────
 # 1.  STOCK BALANCE
 # ────────────────────────────────────────────────────────────────
 
+
 @frappe.whitelist()
-def get_stock_balance(company=None, warehouse=None, item_group=None,
-                      page=1, page_size=20, search=None):
+def get_stock_balance(company=None, warehouse=None, item_group=None, page=1, page_size=20, search=None):
     """Paginated stock balance — item-level view."""
     company = resolve_active_company(company)
     page = cint(page) or 1
@@ -46,17 +44,28 @@ def get_stock_balance(company=None, warehouse=None, item_group=None,
         conditions.append("(b.item_code LIKE %(search)s OR i.item_name LIKE %(search)s)")
         params["search"] = f"%{search}%"
 
+    from trader_app.api.permissions import company_master_sql_filter
+
+    tenant_condition, tenant_params = company_master_sql_filter("i", company)
+    if tenant_condition:
+        conditions.append(tenant_condition)
+        params.update(tenant_params)
+
     where = " AND ".join(conditions)
 
-    total = frappe.db.sql(f"""
+    total = frappe.db.sql(
+        f"""
         SELECT COUNT(DISTINCT b.item_code)
         FROM `tabBin` b
         INNER JOIN `tabWarehouse` w ON w.name = b.warehouse
         INNER JOIN `tabItem` i ON i.name = b.item_code
         WHERE {where}
-    """, params)[0][0]
+    """,
+        params,
+    )[0][0]
 
-    rows = frappe.db.sql(f"""
+    rows = frappe.db.sql(
+        f"""
         SELECT b.item_code, i.item_name, i.item_group, i.stock_uom,
                SUM(b.actual_qty) AS actual_qty,
                SUM(b.stock_value) AS stock_value,
@@ -68,7 +77,10 @@ def get_stock_balance(company=None, warehouse=None, item_group=None,
         GROUP BY b.item_code
         ORDER BY i.item_name
         LIMIT %(page_size)s OFFSET %(offset)s
-    """, {**params, "page_size": page_size, "offset": offset}, as_dict=True)
+    """,
+        {**params, "page_size": page_size, "offset": offset},
+        as_dict=True,
+    )
 
     return {"data": rows, "total": cint(total), "page": page, "page_size": page_size}
 
@@ -77,10 +89,11 @@ def get_stock_balance(company=None, warehouse=None, item_group=None,
 # 2.  STOCK LEDGER (transaction-level)
 # ────────────────────────────────────────────────────────────────
 
+
 @frappe.whitelist()
-def get_stock_ledger(company=None, item_code=None, warehouse=None,
-                     voucher_no=None, from_date=None, to_date=None,
-                     page=1, page_size=20):
+def get_stock_ledger(
+    company=None, item_code=None, warehouse=None, voucher_no=None, from_date=None, to_date=None, page=1, page_size=20
+):
     """Paginated Stock Ledger Entries."""
     company = resolve_active_company(company)
     page = cint(page) or 1
@@ -106,23 +119,37 @@ def get_stock_ledger(company=None, item_code=None, warehouse=None,
         conditions.append("sle.posting_date <= %(to_date)s")
         params["to_date"] = to_date
 
+    from trader_app.api.permissions import company_master_sql_filter
+
+    tenant_condition, tenant_params = company_master_sql_filter("i", company)
+    if tenant_condition:
+        conditions.append(tenant_condition)
+        params.update(tenant_params)
+
     where = " AND ".join(conditions)
 
     total = frappe.db.sql(
-        f"SELECT COUNT(*) FROM `tabStock Ledger Entry` sle WHERE {where}", params
+        f"SELECT COUNT(*) FROM `tabStock Ledger Entry` sle "
+        f"INNER JOIN `tabItem` i ON i.name = sle.item_code WHERE {where}",
+        params,
     )[0][0]
 
-    rows = frappe.db.sql(f"""
+    rows = frappe.db.sql(
+        f"""
         SELECT sle.name, sle.posting_date, sle.posting_time,
                sle.item_code, sle.warehouse,
                sle.actual_qty, sle.qty_after_transaction,
                sle.incoming_rate, sle.stock_value,
                sle.voucher_type, sle.voucher_no
         FROM `tabStock Ledger Entry` sle
+        INNER JOIN `tabItem` i ON i.name = sle.item_code
         WHERE {where}
         ORDER BY sle.posting_date DESC, sle.posting_time DESC
         LIMIT %(page_size)s OFFSET %(offset)s
-    """, {**params, "page_size": page_size, "offset": offset}, as_dict=True)
+    """,
+        {**params, "page_size": page_size, "offset": offset},
+        as_dict=True,
+    )
 
     return {"data": rows, "total": cint(total), "page": page, "page_size": page_size}
 
@@ -130,6 +157,7 @@ def get_stock_ledger(company=None, item_code=None, warehouse=None,
 # ────────────────────────────────────────────────────────────────
 # 3.  ITEMS
 # ────────────────────────────────────────────────────────────────
+
 
 @frappe.whitelist()
 def get_items(item_group=None, page=1, page_size=20, search=None):
@@ -142,6 +170,7 @@ def get_items(item_group=None, page=1, page_size=20, search=None):
     params = {}
 
     from trader_app.api.permissions import tenant_sql_filter
+
     tcond, tparams = tenant_sql_filter("i")
     if tcond:
         conditions.append(tcond)
@@ -162,11 +191,10 @@ def get_items(item_group=None, page=1, page_size=20, search=None):
 
     where = " AND ".join(conditions)
 
-    total = frappe.db.sql(
-        f"SELECT COUNT(*) FROM `tabItem` i WHERE {where}", params
-    )[0][0]
+    total = frappe.db.sql(f"SELECT COUNT(*) FROM `tabItem` i WHERE {where}", params)[0][0]
 
-    rows = frappe.db.sql(f"""
+    rows = frappe.db.sql(
+        f"""
         SELECT i.name AS item_code, i.item_name, i.item_group, i.stock_uom,
                i.is_stock_item, i.has_variants, i.has_serial_no,
                (SELECT ib.barcode FROM `tabItem Barcode` ib
@@ -181,14 +209,33 @@ def get_items(item_group=None, page=1, page_size=20, search=None):
         WHERE {where}
         ORDER BY i.item_name
         LIMIT %(page_size)s OFFSET %(offset)s
-    """, {**params, "page_size": page_size, "offset": offset}, as_dict=True)
+    """,
+        {**params, "page_size": page_size, "offset": offset},
+        as_dict=True,
+    )
 
     return {"data": rows, "total": cint(total), "page": page, "page_size": page_size}
 
 
 def _item_lookup_row(item_code, company=None):
     """Compact item payload for barcode/POS scanners."""
-    row = frappe.db.sql("""
+    from trader_app.api.permissions import company_master_sql_filter, tenant_sql_filter
+
+    conditions = [
+        "i.name = %(item_code)s",
+        "IFNULL(i.disabled, 0) = 0",
+    ]
+    params = {"item_code": item_code}
+    if company:
+        tenant_condition, tenant_params = company_master_sql_filter("i", company)
+    else:
+        tenant_condition, tenant_params = tenant_sql_filter("i")
+    if tenant_condition:
+        conditions.append(tenant_condition)
+        params.update(tenant_params)
+
+    row = frappe.db.sql(
+        """
         SELECT i.name AS item_code, i.item_name, i.item_group, i.stock_uom,
                i.is_stock_item, i.has_serial_no,
                (SELECT ib.barcode FROM `tabItem Barcode` ib
@@ -200,8 +247,11 @@ def _item_lookup_row(item_code, company=None):
             ON ip_sell.item_code = i.name AND ip_sell.price_list = 'Standard Selling'
         LEFT JOIN `tabItem Price` ip_buy
             ON ip_buy.item_code = i.name AND ip_buy.price_list = 'Standard Buying'
-        WHERE i.name = %s AND IFNULL(i.disabled, 0) = 0
-    """, (item_code,), as_dict=True)
+        WHERE {where}
+    """.format(where=" AND ".join(conditions)),
+        params,
+        as_dict=True,
+    )
     if not row:
         return None
     data = row[0]
@@ -209,9 +259,9 @@ def _item_lookup_row(item_code, company=None):
         abbr = frappe.get_cached_value("Company", company, "abbr")
         wh = f"Main Warehouse - {abbr}"
         data["default_warehouse"] = wh
-        data["stock_qty"] = flt(frappe.db.get_value(
-            "Bin", {"item_code": item_code, "warehouse": wh}, "actual_qty"
-        ) or 0)
+        data["stock_qty"] = flt(
+            frappe.db.get_value("Bin", {"item_code": item_code, "warehouse": wh}, "actual_qty") or 0
+        )
     return data
 
 
@@ -241,12 +291,16 @@ def lookup_item_by_barcode(barcode, company=None):
 # 4.  WAREHOUSES
 # ────────────────────────────────────────────────────────────────
 
+
 @frappe.whitelist()
 def get_warehouse_item_qty(item_code, warehouse, company=None):
     """Available quantity for an item in a specific warehouse."""
     company = resolve_active_company(company)
     if not item_code or not warehouse:
         return {"item_code": item_code, "warehouse": warehouse, "qty": 0}
+
+    item = frappe.get_doc("Item", item_code)
+    item.check_permission("read")
 
     if not frappe.db.exists("Warehouse", warehouse):
         frappe.throw(_("Warehouse {0} does not exist.").format(warehouse))
@@ -255,9 +309,7 @@ def get_warehouse_item_qty(item_code, warehouse, company=None):
     if wh_company and wh_company != company:
         frappe.throw(_("Warehouse {0} does not belong to company {1}.").format(warehouse, company))
 
-    qty = flt(frappe.db.get_value(
-        "Bin", {"item_code": item_code, "warehouse": warehouse}, "actual_qty"
-    ) or 0)
+    qty = flt(frappe.db.get_value("Bin", {"item_code": item_code, "warehouse": warehouse}, "actual_qty") or 0)
     return {"item_code": item_code, "warehouse": warehouse, "qty": qty}
 
 
@@ -267,9 +319,11 @@ def get_items_qoh(item_codes=None, warehouse=None, company=None):
     company = resolve_active_company(company)
     if isinstance(item_codes, str):
         try:
-            item_codes = json.loads(item_codes) if item_codes.strip().startswith("[") else [
-                c.strip() for c in item_codes.split(",") if c.strip()
-            ]
+            item_codes = (
+                json.loads(item_codes)
+                if item_codes.strip().startswith("[")
+                else [c.strip() for c in item_codes.split(",") if c.strip()]
+            )
         except Exception:
             item_codes = [item_codes]
     item_codes = [c for c in (item_codes or []) if c]
@@ -282,13 +336,21 @@ def get_items_qoh(item_codes=None, warehouse=None, company=None):
     if wh_company and wh_company != company:
         frappe.throw(_("Warehouse {0} does not belong to company {1}.").format(warehouse, company))
 
+    from trader_app.api.permissions import company_master_sql_filter
+
+    tenant_condition, tenant_params = company_master_sql_filter("i", company)
+    item_condition = ""
+    if tenant_condition:
+        item_condition = " AND " + tenant_condition
+
     rows = frappe.db.sql(
         """
-        SELECT item_code, actual_qty
-        FROM `tabBin`
-        WHERE warehouse = %(warehouse)s AND item_code IN %(items)s
-        """,
-        {"warehouse": warehouse, "items": tuple(item_codes)},
+        SELECT b.item_code, b.actual_qty
+        FROM `tabBin` b
+        INNER JOIN `tabItem` i ON i.name = b.item_code
+        WHERE b.warehouse = %(warehouse)s AND b.item_code IN %(items)s {item_condition}
+        """.format(item_condition=item_condition),
+        {"warehouse": warehouse, "items": tuple(item_codes), **tenant_params},
         as_dict=True,
     )
     qty_map = {r.item_code: flt(r.actual_qty) for r in rows}
@@ -306,6 +368,9 @@ def check_serial_for_item(item_code, serial_no, warehouse=None, company=None):
     if not item_code:
         return {"valid": False, "message": _("Item is required for serial validation.")}
 
+    item = frappe.get_doc("Item", item_code)
+    item.check_permission("read")
+
     if not frappe.db.exists("Serial No", serial_no):
         return {"valid": False, "message": _("Serial number {0} was not found.").format(serial_no)}
 
@@ -319,9 +384,7 @@ def check_serial_for_item(item_code, serial_no, warehouse=None, company=None):
     if sn.item_code != item_code:
         return {
             "valid": False,
-            "message": _("Serial {0} belongs to item {1}, not {2}.").format(
-                serial_no, sn.item_code, item_code
-            ),
+            "message": _("Serial {0} belongs to item {1}, not {2}.").format(serial_no, sn.item_code, item_code),
         }
 
     if company and sn.company and sn.company != company:
@@ -333,9 +396,7 @@ def check_serial_for_item(item_code, serial_no, warehouse=None, company=None):
     if warehouse and sn.warehouse and sn.warehouse != warehouse:
         return {
             "valid": False,
-            "message": _("Serial {0} is in warehouse {1}, not {2}.").format(
-                serial_no, sn.warehouse, warehouse
-            ),
+            "message": _("Serial {0} is in warehouse {1}, not {2}.").format(serial_no, sn.warehouse, warehouse),
         }
 
     if sn.status in ("Delivered",):
@@ -368,6 +429,9 @@ def check_serial_for_purchase(item_code, serial_no, company=None):
     if not item_code:
         return {"valid": False, "message": _("Item is required for serial validation.")}
 
+    item = frappe.get_doc("Item", item_code)
+    item.check_permission("read")
+
     if frappe.db.exists("Serial No", serial_no):
         sn = frappe.db.get_value(
             "Serial No",
@@ -388,9 +452,7 @@ def check_serial_for_purchase(item_code, serial_no, company=None):
         if sn.status not in ("", "Active", "Inactive"):
             return {
                 "valid": False,
-                "message": _("Serial {0} has status {1} and cannot be received again.").format(
-                    serial_no, sn.status
-                ),
+                "message": _("Serial {0} has status {1} and cannot be received again.").format(serial_no, sn.status),
             }
         return {"valid": True, "serial_no": serial_no, "existing": True}
 
@@ -410,6 +472,7 @@ def validate_items_stock(items, company=None):
 
     # Skip stock validation if zero_stock_enabled is set for the tenant
     from trader_app.api.tenant import is_zero_stock_enabled
+
     if is_zero_stock_enabled():
         return {"valid": True, "issues": []}
 
@@ -419,42 +482,48 @@ def validate_items_stock(items, company=None):
         qty = flt(item.get("qty", 0))
         if not item_code or not warehouse or qty <= 0:
             continue
+        item = frappe.get_doc("Item", item_code)
+        item.check_permission("read")
         if not frappe.get_cached_value("Item", item_code, "is_stock_item"):
             continue
 
         if not frappe.db.exists("Warehouse", warehouse):
-            issues.append({
-                "line": idx + 1,
-                "item_code": item_code,
-                "warehouse": warehouse,
-                "message": _("Warehouse {0} does not exist.").format(warehouse),
-            })
+            issues.append(
+                {
+                    "line": idx + 1,
+                    "item_code": item_code,
+                    "warehouse": warehouse,
+                    "message": _("Warehouse {0} does not exist.").format(warehouse),
+                }
+            )
             continue
 
         wh_company = frappe.get_cached_value("Warehouse", warehouse, "company")
         if wh_company and wh_company != company:
-            issues.append({
-                "line": idx + 1,
-                "item_code": item_code,
-                "warehouse": warehouse,
-                "message": _("Warehouse {0} does not belong to company {1}.").format(warehouse, company),
-            })
+            issues.append(
+                {
+                    "line": idx + 1,
+                    "item_code": item_code,
+                    "warehouse": warehouse,
+                    "message": _("Warehouse {0} does not belong to company {1}.").format(warehouse, company),
+                }
+            )
             continue
 
-        available = flt(frappe.db.get_value(
-            "Bin", {"item_code": item_code, "warehouse": warehouse}, "actual_qty"
-        ) or 0)
+        available = flt(frappe.db.get_value("Bin", {"item_code": item_code, "warehouse": warehouse}, "actual_qty") or 0)
         if available < qty:
-            issues.append({
-                "line": idx + 1,
-                "item_code": item_code,
-                "warehouse": warehouse,
-                "required_qty": qty,
-                "available_qty": available,
-                "message": _("Insufficient stock for {0} in {1}. Available: {2}, required: {3}.").format(
-                    item_code, warehouse, available, qty
-                ),
-            })
+            issues.append(
+                {
+                    "line": idx + 1,
+                    "item_code": item_code,
+                    "warehouse": warehouse,
+                    "required_qty": qty,
+                    "available_qty": available,
+                    "message": _("Insufficient stock for {0} in {1}. Available: {2}, required: {3}.").format(
+                        item_code, warehouse, available, qty
+                    ),
+                }
+            )
 
     return {"valid": not issues, "issues": issues}
 
@@ -471,17 +540,28 @@ def get_warehouses(company=None):
     """List warehouses for the company with stock summary."""
     company = resolve_active_company(company)
 
-    rows = frappe.db.sql("""
+    from trader_app.api.permissions import company_master_sql_filter
+
+    tenant_condition, tenant_params = company_master_sql_filter("i", company)
+    if tenant_condition:
+        tenant_condition = " AND " + tenant_condition
+
+    rows = frappe.db.sql(
+        f"""
         SELECT w.name AS warehouse, w.warehouse_name, w.warehouse_type,
-               COUNT(DISTINCT b.item_code) AS item_count,
-               COALESCE(SUM(b.actual_qty), 0) AS total_qty,
-               COALESCE(SUM(b.stock_value), 0) AS stock_value
+               COUNT(DISTINCT i.name) AS item_count,
+               COALESCE(SUM(CASE WHEN i.name IS NOT NULL THEN b.actual_qty ELSE 0 END), 0) AS total_qty,
+               COALESCE(SUM(CASE WHEN i.name IS NOT NULL THEN b.stock_value ELSE 0 END), 0) AS stock_value
         FROM `tabWarehouse` w
         LEFT JOIN `tabBin` b ON b.warehouse = w.name
-        WHERE w.company = %s AND w.is_group = 0
+        LEFT JOIN `tabItem` i ON i.name = b.item_code{tenant_condition}
+        WHERE w.company = %(company)s AND w.is_group = 0
         GROUP BY w.name
         ORDER BY w.name
-    """, (company,), as_dict=True)
+    """,
+        {**tenant_params, "company": company},
+        as_dict=True,
+    )
 
     return rows
 
@@ -490,12 +570,21 @@ def get_warehouses(company=None):
 # 5.  INVENTORY SUMMARY (for dashboard)
 # ────────────────────────────────────────────────────────────────
 
+
 @frappe.whitelist()
 def get_inventory_summary(company=None):
     """Stock summary by item group."""
     company = resolve_active_company(company)
 
-    rows = frappe.db.sql("""
+    from trader_app.api.permissions import company_master_sql_filter
+
+    tenant_condition, tenant_params = company_master_sql_filter("i", company)
+    if tenant_condition:
+        tenant_condition = " AND " + tenant_condition
+    params = {"company": company, **tenant_params}
+
+    rows = frappe.db.sql(
+        f"""
         SELECT i.item_group,
                COUNT(DISTINCT b.item_code) AS item_count,
                COALESCE(SUM(b.actual_qty), 0) AS total_qty,
@@ -503,31 +592,52 @@ def get_inventory_summary(company=None):
         FROM `tabBin` b
         INNER JOIN `tabWarehouse` w ON w.name = b.warehouse
         INNER JOIN `tabItem` i ON i.name = b.item_code
-        WHERE w.company = %s
+        WHERE w.company = %(company)s{tenant_condition}
         GROUP BY i.item_group
         ORDER BY stock_value DESC
-    """, (company,), as_dict=True)
+    """,
+        params,
+        as_dict=True,
+    )
 
-    total_value = flt(frappe.db.sql("""
+    total_value = flt(
+        frappe.db.sql(
+            f"""
         SELECT COALESCE(SUM(b.stock_value), 0)
         FROM `tabBin` b
         INNER JOIN `tabWarehouse` w ON w.name = b.warehouse
-        WHERE w.company = %s
-    """, (company,))[0][0])
+        INNER JOIN `tabItem` i ON i.name = b.item_code
+        WHERE w.company = %(company)s{tenant_condition}
+    """,
+            params,
+        )[0][0]
+    )
 
-    total_items = cint(frappe.db.sql("""
+    total_items = cint(
+        frappe.db.sql(
+            f"""
         SELECT COUNT(DISTINCT b.item_code)
         FROM `tabBin` b
         INNER JOIN `tabWarehouse` w ON w.name = b.warehouse
-        WHERE w.company = %s
-    """, (company,))[0][0])
+        INNER JOIN `tabItem` i ON i.name = b.item_code
+        WHERE w.company = %(company)s{tenant_condition}
+    """,
+            params,
+        )[0][0]
+    )
 
-    low_stock = cint(frappe.db.sql("""
+    low_stock = cint(
+        frappe.db.sql(
+            f"""
         SELECT COUNT(DISTINCT b.item_code)
         FROM `tabBin` b
         INNER JOIN `tabWarehouse` w ON w.name = b.warehouse
-        WHERE w.company = %s AND b.actual_qty > 0 AND b.actual_qty < 10
-    """, (company,))[0][0])
+        INNER JOIN `tabItem` i ON i.name = b.item_code
+        WHERE w.company = %(company)s{tenant_condition} AND b.actual_qty > 0 AND b.actual_qty < 10
+    """,
+            params,
+        )[0][0]
+    )
 
     return {
         "by_group": rows,
@@ -541,6 +651,7 @@ def get_inventory_summary(company=None):
 # 6.  LOW STOCK ITEMS
 # ────────────────────────────────────────────────────────────────
 
+
 @frappe.whitelist()
 def get_low_stock_items(company=None, threshold=10, page=1, page_size=20):
     """Items with stock below threshold."""
@@ -550,25 +661,42 @@ def get_low_stock_items(company=None, threshold=10, page=1, page_size=20):
     page_size = min(cint(page_size) or 20, 100)
     offset = (page - 1) * page_size
 
-    total = frappe.db.sql("""
+    from trader_app.api.permissions import company_master_sql_filter
+
+    tenant_condition, tenant_params = company_master_sql_filter("i", company)
+    if tenant_condition:
+        tenant_condition = " AND " + tenant_condition
+    params = {"company": company, "threshold": threshold, **tenant_params}
+
+    total = frappe.db.sql(
+        f"""
         SELECT COUNT(DISTINCT b.item_code)
         FROM `tabBin` b
         INNER JOIN `tabWarehouse` w ON w.name = b.warehouse
-        WHERE w.company = %s AND b.actual_qty > 0 AND b.actual_qty < %s
-    """, (company, threshold))[0][0]
+        INNER JOIN `tabItem` i ON i.name = b.item_code
+        WHERE w.company = %(company)s{tenant_condition}
+          AND b.actual_qty > 0 AND b.actual_qty < %(threshold)s
+    """,
+        params,
+    )[0][0]
 
-    rows = frappe.db.sql("""
+    rows = frappe.db.sql(
+        f"""
         SELECT b.item_code, i.item_name, i.item_group,
                SUM(b.actual_qty) AS actual_qty,
                b.warehouse
         FROM `tabBin` b
         INNER JOIN `tabWarehouse` w ON w.name = b.warehouse
         INNER JOIN `tabItem` i ON i.name = b.item_code
-        WHERE w.company = %s AND b.actual_qty > 0 AND b.actual_qty < %s
+        WHERE w.company = %(company)s{tenant_condition}
+          AND b.actual_qty > 0 AND b.actual_qty < %(threshold)s
         GROUP BY b.item_code
         ORDER BY actual_qty ASC
         LIMIT %s OFFSET %s
-    """, (company, threshold, page_size, offset), as_dict=True)
+    """,
+        {**params, "page_size": page_size, "offset": offset},
+        as_dict=True,
+    )
 
     return {"data": rows, "total": cint(total), "page": page, "page_size": page_size}
 
@@ -576,6 +704,7 @@ def get_low_stock_items(company=None, threshold=10, page=1, page_size=20):
 # ────────────────────────────────────────────────────────────────
 # 7.  ITEM GROUPS
 # ────────────────────────────────────────────────────────────────
+
 
 @frappe.whitelist()
 def get_item_groups():
@@ -587,6 +716,7 @@ def get_item_groups():
 # 8.  ITEM DETAIL & CREATE
 # ────────────────────────────────────────────────────────────────
 
+
 @frappe.whitelist()
 def get_item_detail(item_code, company=None):
     """Full Item record with current stock totals."""
@@ -594,27 +724,33 @@ def get_item_detail(item_code, company=None):
     doc.check_permission("read")
     company = resolve_active_company(company)
 
-    stock_qty = flt(frappe.db.sql(
-        "SELECT COALESCE(SUM(actual_qty), 0) FROM `tabBin` WHERE item_code = %s",
-        (item_code,)
-    )[0][0])
+    stock_qty = flt(
+        frappe.db.sql(
+            """SELECT COALESCE(SUM(b.actual_qty), 0)
+           FROM `tabBin` b INNER JOIN `tabWarehouse` w ON w.name = b.warehouse
+           WHERE b.item_code = %s AND w.company = %s""",
+            (item_code, company),
+        )[0][0]
+    )
 
-    stock_value = flt(frappe.db.sql(
-        "SELECT COALESCE(SUM(stock_value), 0) FROM `tabBin` WHERE item_code = %s",
-        (item_code,)
-    )[0][0])
+    stock_value = flt(
+        frappe.db.sql(
+            """SELECT COALESCE(SUM(b.stock_value), 0)
+           FROM `tabBin` b INNER JOIN `tabWarehouse` w ON w.name = b.warehouse
+           WHERE b.item_code = %s AND w.company = %s""",
+            (item_code, company),
+        )[0][0]
+    )
 
-    selling_price = flt(frappe.db.get_value(
-        "Item Price",
-        {"item_code": item_code, "price_list": "Standard Selling"},
-        "price_list_rate"
-    ) or 0)
+    selling_price = flt(
+        frappe.db.get_value("Item Price", {"item_code": item_code, "price_list": "Standard Selling"}, "price_list_rate")
+        or 0
+    )
 
-    buying_price = flt(frappe.db.get_value(
-        "Item Price",
-        {"item_code": item_code, "price_list": "Standard Buying"},
-        "price_list_rate"
-    ) or 0)
+    buying_price = flt(
+        frappe.db.get_value("Item Price", {"item_code": item_code, "price_list": "Standard Buying"}, "price_list_rate")
+        or 0
+    )
 
     result = doc.as_dict()
     result["stock_qty"] = stock_qty
@@ -626,8 +762,9 @@ def get_item_detail(item_code, company=None):
 
 
 @frappe.whitelist()
-def create_item(item_code, item_name=None, item_group=None, stock_uom=None,
-                is_stock_item=1, has_serial_no=0, barcode=None):
+def create_item(
+    item_code, item_name=None, item_group=None, stock_uom=None, is_stock_item=1, has_serial_no=0, barcode=None
+):
     """Create a new Item record."""
     doc = frappe.new_doc("Item")
     doc.item_code = item_code
@@ -655,6 +792,7 @@ def create_item(item_code, item_name=None, item_group=None, stock_uom=None,
 def create_purchase_receipt(items, posting_date=None, company=None):
     """Create a Stock Entry with purpose Material Receipt (goods into warehouse)."""
     import json
+
     if isinstance(items, str):
         items = json.loads(items)
 
@@ -668,12 +806,15 @@ def create_purchase_receipt(items, posting_date=None, company=None):
     se.posting_date = posting_date or nowdate()
 
     for item in items:
-        se.append("items", {
-            "item_code": item.get("item_code"),
-            "qty": flt(item.get("qty", 1)),
-            "basic_rate": flt(item.get("rate", 0)),
-            "t_warehouse": item.get("warehouse") or f"Main Warehouse - {abbr}",
-        })
+        se.append(
+            "items",
+            {
+                "item_code": item.get("item_code"),
+                "qty": flt(item.get("qty", 1)),
+                "basic_rate": flt(item.get("rate", 0)),
+                "t_warehouse": item.get("warehouse") or f"Main Warehouse - {abbr}",
+            },
+        )
 
     se.insert(ignore_permissions=False)
     return {"name": se.name, "status": "Draft"}
@@ -683,6 +824,7 @@ def create_purchase_receipt(items, posting_date=None, company=None):
 def create_sales_dispatch(items, posting_date=None, company=None):
     """Create a Stock Entry with purpose Material Issue (goods out of warehouse)."""
     import json
+
     if isinstance(items, str):
         items = json.loads(items)
 
@@ -696,11 +838,14 @@ def create_sales_dispatch(items, posting_date=None, company=None):
     se.posting_date = posting_date or nowdate()
 
     for item in items:
-        se.append("items", {
-            "item_code": item.get("item_code"),
-            "qty": flt(item.get("qty", 1)),
-            "s_warehouse": item.get("warehouse") or f"Main Warehouse - {abbr}",
-        })
+        se.append(
+            "items",
+            {
+                "item_code": item.get("item_code"),
+                "qty": flt(item.get("qty", 1)),
+                "s_warehouse": item.get("warehouse") or f"Main Warehouse - {abbr}",
+            },
+        )
 
     se.insert(ignore_permissions=False)
     return {"name": se.name, "status": "Draft"}
@@ -710,10 +855,12 @@ def create_sales_dispatch(items, posting_date=None, company=None):
 # 9.  STOCK ENTRY (create)
 # ────────────────────────────────────────────────────────────────
 
+
 @frappe.whitelist()
 def create_stock_entry(purpose, items, company=None, posting_date=None):
     """Create a Stock Entry (Material Receipt, Material Issue, Transfer)."""
     import json
+
     if isinstance(items, str):
         items = json.loads(items)
 
@@ -750,6 +897,7 @@ def create_stock_entry(purpose, items, company=None, posting_date=None):
 # 9.  DOCTYPE EVENT HOOKS
 # ────────────────────────────────────────────────────────────────
 
+
 def validate_stock_entry(doc, method):
     """Runs on Stock Entry validate — custom trader checks."""
     for item in doc.items:
@@ -761,17 +909,22 @@ def validate_stock_entry(doc, method):
 # 10. REORDER LEVELS (scheduler)
 # ────────────────────────────────────────────────────────────────
 
+
 def update_reorder_levels():
     """Daily job: flag items that dropped below reorder level."""
     for company in frappe.get_all("Company", pluck="name"):
-        low_items = frappe.db.sql("""
+        low_items = frappe.db.sql(
+            """
             SELECT b.item_code, SUM(b.actual_qty) AS qty
             FROM `tabBin` b
             INNER JOIN `tabWarehouse` w ON w.name = b.warehouse
             WHERE w.company = %s
             GROUP BY b.item_code
             HAVING qty > 0 AND qty < 10
-        """, (company,), as_dict=True)
+        """,
+            (company,),
+            as_dict=True,
+        )
 
         if low_items:
             frappe.log_error(
@@ -780,7 +933,14 @@ def update_reorder_levels():
             )
 
 
+from trader_app.api._tenant_guard import ITEM_READ_ROLES, apply_module_guards
 
-from trader_app.api._tenant_guard import apply_module_guards
-
-apply_module_guards(globals(), "inventory")
+apply_module_guards(
+    globals(),
+    "inventory",
+    extra_roles={
+        "get_items": ITEM_READ_ROLES,
+        "get_warehouses": ITEM_READ_ROLES,
+        "get_items_qoh": ITEM_READ_ROLES,
+    },
+)

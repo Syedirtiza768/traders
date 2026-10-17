@@ -5,7 +5,6 @@ from __future__ import unicode_literals
 
 import frappe
 from frappe import _
-
 from trader_app.api.tenant import (
     assert_company_belongs_to_tenant,
     assert_tenant_active,
@@ -23,9 +22,8 @@ def get_active_company_name(user=None):
     default is the platform's global company would otherwise be locked out of every
     page that calls resolve_active_company."""
     user = user or frappe.session.user
-    resolved = (
-        frappe.defaults.get_user_default("Company", user)
-        or frappe.db.get_single_value("Global Defaults", "default_company")
+    resolved = frappe.defaults.get_user_default("Company", user) or frappe.db.get_single_value(
+        "Global Defaults", "default_company"
     )
 
     if user == "Administrator":
@@ -45,13 +43,24 @@ def get_permitted_company_names(user=None):
 
     Any user with ``trader_tenant`` set is confined to that tenant's companies —
     including System Manager / Trader Admin. Only Administrator and tenant-less
-    platform super-admins may see every company.
+    platform super-admins may see every company. ERPNext User Permissions are
+    applied as an additional restriction so custom APIs cannot bypass a user's
+    Company assignment by switching the active-company parameter.
     """
     user = user or frappe.session.user
     if user == "Administrator":
         return frappe.get_all("Company", pluck="name", order_by="name asc")
 
     companies = frappe.get_all("Company", pluck="name", order_by="name asc")
+
+    # ``frappe.get_all`` intentionally bypasses DocType permissions. Apply the
+    # authoritative User Permission scope explicitly before returning companies
+    # to the SPA or validating a client-supplied company. A missing Company
+    # permission means ERPNext leaves the user unrestricted; an explicitly
+    # empty/malformed Company permission grants no companies (fail closed).
+    permission_companies = _user_permission_companies(user)
+    if permission_companies is not None:
+        companies = [name for name in companies if name in permission_companies]
 
     if is_multitenant_enabled():
         tenant = get_user_tenant_name(user)
@@ -60,6 +69,21 @@ def get_permitted_company_names(user=None):
             return [name for name in companies if name in allowed]
 
     return companies
+
+
+def _user_permission_companies(user):
+    """Return explicitly permitted Company names, or ``None`` if unrestricted."""
+    from frappe.core.doctype.user_permission.user_permission import get_user_permissions
+
+    return _company_names_from_user_permissions(get_user_permissions(user))
+
+
+def _company_names_from_user_permissions(permissions):
+    permissions = permissions or {}
+    if "Company" not in permissions:
+        return None
+
+    return {str(permission.get("doc")) for permission in (permissions.get("Company") or []) if permission.get("doc")}
 
 
 def user_can_access_company(company, user=None):
@@ -111,9 +135,7 @@ def assert_document_company_access(doc_company, user=None):
 
     active = get_active_company_name(user)
     if active and doc_company != active:
-        frappe.throw(
-            _("This record belongs to {0}. Switch your active company to access it.").format(doc_company)
-        )
+        frappe.throw(_("This record belongs to {0}. Switch your active company to access it.").format(doc_company))
 
 
 def _company_payload(company_name):

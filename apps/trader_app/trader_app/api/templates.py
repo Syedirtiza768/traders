@@ -9,7 +9,6 @@ existing invoice-type default resolver so nothing breaks when no map is configur
 from __future__ import unicode_literals
 
 import frappe
-
 from trader_app.api.company import resolve_active_company
 
 
@@ -20,7 +19,12 @@ def resolve_template(target_doctype, company=None, customer=None, persona=None):
     blank-persona (legacy) rows. Customer profile match still beats default.
     """
     company = resolve_active_company(company)
-    profile = frappe.db.get_value("Customer", customer, "customer_group") if customer else None
+    profile = None
+    if customer and frappe.db.exists("Customer", customer):
+        from trader_app.api.permissions import check_master_document_company
+
+        customer_doc = check_master_document_company("Customer", customer, company, ptype="read")
+        profile = customer_doc.customer_group
     persona = (persona or "").strip().lower() or None
 
     fields = ["print_format", "customer_profile", "priority"]

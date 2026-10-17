@@ -20,9 +20,8 @@ import json
 
 import frappe
 from frappe import _
+from frappe.utils import cint, flt
 from trader_app.api.company import resolve_active_company
-from frappe.utils import flt, cint
-
 
 # ────────────────────────────────────────────────────────────────
 # GST DEFAULTS — Punjab, Pakistan
@@ -60,6 +59,7 @@ PUNJAB_GST_TEMPLATES = [
 # 1.  READ GST SETTINGS
 # ────────────────────────────────────────────────────────────────
 
+
 @frappe.whitelist()
 def get_gst_settings(company=None):
     """Return the GST tax templates and configuration for the company."""
@@ -70,24 +70,32 @@ def get_gst_settings(company=None):
     abbr = frappe.get_cached_value("Company", company, "abbr")
 
     # Fetch Sales Taxes and Charges Templates
-    sales_templates = frappe.db.sql("""
+    sales_templates = frappe.db.sql(
+        """
         SELECT t.name, t.title, t.is_default, t.disabled,
                tc.rate, tc.charge_type, tc.description, tc.account_head
         FROM `tabSales Taxes and Charges Template` t
         LEFT JOIN `tabSales Taxes and Charges` tc ON tc.parent = t.name
         WHERE t.company = %(company)s
         ORDER BY t.is_default DESC, t.title ASC
-    """, {"company": company}, as_dict=True)
+    """,
+        {"company": company},
+        as_dict=True,
+    )
 
     # Fetch Purchase Taxes and Charges Templates
-    purchase_templates = frappe.db.sql("""
+    purchase_templates = frappe.db.sql(
+        """
         SELECT t.name, t.title, t.is_default, t.disabled,
                tc.rate, tc.charge_type, tc.description, tc.account_head
         FROM `tabPurchase Taxes and Charges Template` t
         LEFT JOIN `tabPurchase Taxes and Charges` tc ON tc.parent = t.name
         WHERE t.company = %(company)s
         ORDER BY t.is_default DESC, t.title ASC
-    """, {"company": company}, as_dict=True)
+    """,
+        {"company": company},
+        as_dict=True,
+    )
 
     # Group by template name
     sales_grouped = _group_templates(sales_templates)
@@ -119,12 +127,14 @@ def _group_templates(rows):
                 "taxes": [],
             }
         if row.get("rate") is not None:
-            grouped[name]["taxes"].append({
-                "rate": row["rate"],
-                "charge_type": row["charge_type"],
-                "description": row["description"],
-                "account_head": row["account_head"],
-            })
+            grouped[name]["taxes"].append(
+                {
+                    "rate": row["rate"],
+                    "charge_type": row["charge_type"],
+                    "description": row["description"],
+                    "account_head": row["account_head"],
+                }
+            )
     return list(grouped.values())
 
 
@@ -153,38 +163,33 @@ def _read_gst_config(company):
 
     # One-time lazy migration: if a durable pack does not exist yet but a value
     # is still sitting in the old cache-only key, promote it to the DocType.
-    exists = frappe.db.exists(
-        "Trader Config Pack", {"company": company, "pack_key": GST_PACK_KEY}
-    )
+    exists = frappe.db.exists("Trader Config Pack", {"company": company, "pack_key": GST_PACK_KEY})
     if not exists:
         legacy = frappe.cache().get_value(_legacy_gst_config_key(company))
         if legacy:
             if isinstance(legacy, bytes):
                 legacy = legacy.decode("utf-8")
             try:
-                config_store.write_config(
-                    company, GST_PACK_KEY, json.loads(legacy), label="GST Settings"
-                )
+                config_store.write_config(company, GST_PACK_KEY, json.loads(legacy), label="GST Settings")
             except (TypeError, ValueError):
                 pass
 
-    return config_store.read_config(
-        company, GST_PACK_KEY, default=_DEFAULT_GST_CONFIG
-    )
+    return config_store.read_config(company, GST_PACK_KEY, default=_DEFAULT_GST_CONFIG)
 
 
 # ────────────────────────────────────────────────────────────────
 # 2.  SAVE GST SETTINGS
 # ────────────────────────────────────────────────────────────────
 
+
 @frappe.whitelist()
 def save_gst_settings(company=None, config=None):
     """Save GST configuration for the company."""
-    if frappe.session.user == 'Guest' or not any(
+    if frappe.session.user == "Guest" or not any(
         r in frappe.get_roles()
-        for r in ('System Manager', 'Trader Admin', 'Trader Accountant', 'Trader Finance Manager')
+        for r in ("System Manager", "Trader Admin", "Trader Accountant", "Trader Finance Manager")
     ):
-        frappe.throw(_('Not permitted'), frappe.PermissionError)
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
     company = resolve_active_company(company)
     if isinstance(config, str):
         config = json.loads(config)
@@ -211,16 +216,17 @@ def save_gst_settings(company=None, config=None):
 # 3.  SEED PUNJAB GST TEMPLATES
 # ────────────────────────────────────────────────────────────────
 
+
 @frappe.whitelist()
 def seed_punjab_gst_templates(company=None):
     """Create the default Punjab GST tax templates if they don't exist.
     Restricted to admin and finance roles.
     """
-    if frappe.session.user == 'Guest' or not any(
+    if frappe.session.user == "Guest" or not any(
         r in frappe.get_roles()
-        for r in ('System Manager', 'Trader Admin', 'Trader Accountant', 'Trader Finance Manager')
+        for r in ("System Manager", "Trader Admin", "Trader Accountant", "Trader Finance Manager")
     ):
-        frappe.throw(_('Not permitted'), frappe.PermissionError)
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
     company = resolve_active_company(company)
     if not company:
         frappe.throw(_("No company found — create a company first"))
@@ -240,12 +246,15 @@ def seed_punjab_gst_templates(company=None):
             doc.name = sales_name
             doc.company = company
             doc.is_default = tmpl["is_default"]
-            doc.append("taxes", {
-                "charge_type": "On Net Total",
-                "account_head": tax_account,
-                "rate": tmpl["tax_rate"],
-                "description": tmpl["description"],
-            })
+            doc.append(
+                "taxes",
+                {
+                    "charge_type": "On Net Total",
+                    "account_head": tax_account,
+                    "rate": tmpl["tax_rate"],
+                    "description": tmpl["description"],
+                },
+            )
             doc.insert(ignore_permissions=True)
             created.append(sales_name)
 
@@ -257,12 +266,15 @@ def seed_punjab_gst_templates(company=None):
             doc.name = purchase_name
             doc.company = company
             doc.is_default = tmpl["is_default"]
-            doc.append("taxes", {
-                "charge_type": "On Net Total",
-                "account_head": tax_account,
-                "rate": tmpl["tax_rate"],
-                "description": tmpl["description"],
-            })
+            doc.append(
+                "taxes",
+                {
+                    "charge_type": "On Net Total",
+                    "account_head": tax_account,
+                    "rate": tmpl["tax_rate"],
+                    "description": tmpl["description"],
+                },
+            )
             doc.insert(ignore_permissions=True)
             created.append(purchase_name)
 
@@ -276,7 +288,7 @@ def seed_punjab_gst_templates(company=None):
         config["default_sales_tax_template"] = default_sales
     if not config.get("default_purchase_tax_template"):
         config["default_purchase_tax_template"] = default_purchase
-    frappe.cache().set_value(_gst_config_key(company), json.dumps(config))
+    frappe.cache().set_value(_legacy_gst_config_key(company), json.dumps(config))
 
     return {
         "ok": True,
@@ -321,14 +333,19 @@ def _ensure_tax_account(company, abbr):
         frappe.db.commit()
         return acc.name
 
-    frappe.throw(_("Could not find a suitable parent account for GST. "
-                   "Please create a 'GST Payable' account manually under "
-                   "Duties and Taxes."))
+    frappe.throw(
+        _(
+            "Could not find a suitable parent account for GST. "
+            "Please create a 'GST Payable' account manually under "
+            "Duties and Taxes."
+        )
+    )
 
 
 # ────────────────────────────────────────────────────────────────
 # 4.  GET TAX TEMPLATES FOR DOCUMENT CREATION
 # ────────────────────────────────────────────────────────────────
+
 
 @frappe.whitelist()
 def get_tax_templates(doctype="Sales", company=None):
@@ -361,12 +378,11 @@ def get_tax_templates(doctype="Sales", company=None):
             fields=["rate", "included_in_print_rate"],
         )
         tpl["total_tax_rate"] = sum(flt(c.rate) for c in charges)
-        tpl["included_in_print_rate"] = (
-            charges[0].included_in_print_rate if charges else 0
-        )
+        tpl["included_in_print_rate"] = charges[0].included_in_print_rate if charges else 0
 
     return {"templates": templates}
 
-from trader_app.api._tenant_guard import apply_module_guards
 
-apply_module_guards(globals(), "settings")
+from trader_app.api._tenant_guard import TAX_TEMPLATE_READ_ROLES, apply_module_guards
+
+apply_module_guards(globals(), "settings", extra_roles={"get_tax_templates": TAX_TEMPLATE_READ_ROLES})

@@ -11,15 +11,13 @@ invoked by the existing workflow.
 
 from __future__ import unicode_literals
 
-import re
 import json
+import re
 
 import frappe
 from frappe import _
-from frappe.utils import nowdate, flt, cint, now_datetime
-
+from frappe.utils import cint, flt, now_datetime, nowdate
 from trader_app.api.company import resolve_active_company
-
 
 # ────────────────────────────────────────────────────────────────
 # TAXONOMY SEED DATA  (PRD Appendix B — fully configurable)
@@ -29,23 +27,39 @@ TAXONOMY = {
     "SSD": {
         "form_factors": ["M.2 NVMe", "M.2 SATA", "2.5 SATA", "mSATA", "M1", "e/f"],
         "capacities": [
-            "120GB", "128GB", "240GB", "256GB",
-            "480GB", "500GB", "512GB",
-            "1TB", "2TB", "4TB",
+            "120GB",
+            "128GB",
+            "240GB",
+            "256GB",
+            "480GB",
+            "500GB",
+            "512GB",
+            "1TB",
+            "2TB",
+            "4TB",
         ],
         "grades": ["New", "Pulled", "A", "B", "C", "Refurbished"],
     },
     "HDD": {
         "form_factors": ["3.5 HDD", "2.5 HDD"],
         "capacities": [
-            "250GB", "320GB", "500GB", "1TB", "2TB", "4TB", "8TB",
+            "250GB",
+            "320GB",
+            "500GB",
+            "1TB",
+            "2TB",
+            "4TB",
+            "8TB",
         ],
         "grades": ["New", "Pulled", "A", "B", "C", "Refurbished"],
     },
     "RAM": {
         "form_factors": [
-            "DDR4 Desktop", "DDR3 Desktop", "DDR5 Desktop",
-            "DDR4 Laptop", "DDR3 Laptop",
+            "DDR4 Desktop",
+            "DDR3 Desktop",
+            "DDR5 Desktop",
+            "DDR4 Laptop",
+            "DDR3 Laptop",
         ],
         "capacities": ["2GB", "4GB", "8GB", "16GB", "32GB", "64GB"],
         "grades": ["New", "Pulled", "A", "B", "C"],
@@ -82,12 +96,25 @@ TAXONOMY = {
 # GUARD
 # ────────────────────────────────────────────────────────────────
 
+TAXONOMY_ADMIN_ROLES = frozenset({"Trader Admin", "System Manager"})
+
+
+def _assert_taxonomy_admin():
+    """Restrict company taxonomy writes, including in Frappe test contexts."""
+    if getattr(frappe.session, "user", None) == "Administrator":
+        return
+
+    if not TAXONOMY_ADMIN_ROLES.intersection(frappe.get_roles() or []):
+        frappe.throw(_("You do not have permission to change the SKU taxonomy."), frappe.PermissionError)
+
+
 def _assert_enabled(company):
     enabled = cint(frappe.db.get_value("Company", company, "trader_components_enabled") or 0)
     if not enabled:
         frappe.throw(
-            _("Components Trading feature is not enabled for company {0}. "
-              "Enable it in Settings → Company.").format(company),
+            _("Components Trading feature is not enabled for company {0}. " "Enable it in Settings → Company.").format(
+                company
+            ),
             frappe.PermissionError,
         )
 
@@ -95,6 +122,7 @@ def _assert_enabled(company):
 # ────────────────────────────────────────────────────────────────
 # 1.  TAXONOMY
 # ────────────────────────────────────────────────────────────────
+
 
 def _merge_list(base, extra):
     seen = set()
@@ -175,18 +203,34 @@ def _merged_taxonomy(company=None):
     if not frappe.db.has_column("Item", "trader_component_item"):
         return merged
 
-    rows = frappe.db.sql("""
+    from trader_app.api.permissions import company_master_sql_filter, tenant_sql_filter
+
+    if company:
+        tenant_condition, tenant_params = company_master_sql_filter("i", company)
+    else:
+        tenant_condition, tenant_params = tenant_sql_filter("i")
+    conditions = [
+        "i.trader_component_item = 1",
+        "i.disabled = 0",
+        "i.trader_component_category IS NOT NULL",
+        "i.trader_component_category != ''",
+    ]
+    if tenant_condition:
+        conditions.append(tenant_condition)
+
+    rows = frappe.db.sql(
+        """
         SELECT
-            trader_component_category AS category,
-            trader_component_form_factor AS form_factor,
-            trader_component_capacity AS capacity,
-            trader_component_grade AS grade
-        FROM `tabItem`
-        WHERE trader_component_item = 1
-          AND disabled = 0
-          AND trader_component_category IS NOT NULL
-          AND trader_component_category != ''
-    """, as_dict=True)
+            i.trader_component_category AS category,
+            i.trader_component_form_factor AS form_factor,
+            i.trader_component_capacity AS capacity,
+            i.trader_component_grade AS grade
+        FROM `tabItem` i
+        WHERE {where}
+    """.format(where=" AND ".join(conditions)),
+        tenant_params,
+        as_dict=True,
+    )
 
     for row in rows:
         category = row.category
@@ -230,7 +274,7 @@ def get_taxonomy(company=None):
 def save_sku_taxonomy(taxonomy, company=None):
     """Persist company-specific taxonomy overlay (Trader Admin). Merges into Company JSON field."""
     company = resolve_active_company(company)
-    frappe.only_for(("Trader Admin", "System Manager", "Administrator"))
+    _assert_taxonomy_admin()
 
     if isinstance(taxonomy, str):
         taxonomy = json.loads(taxonomy)
@@ -241,7 +285,9 @@ def save_sku_taxonomy(taxonomy, company=None):
         frappe.throw(_("SKU taxonomy field is not installed. Run custom field setup."))
 
     frappe.db.set_value(
-        "Company", company, "trader_sku_taxonomy",
+        "Company",
+        company,
+        "trader_sku_taxonomy",
         json.dumps(taxonomy, indent=0),
     )
     frappe.db.commit()
@@ -249,10 +295,21 @@ def save_sku_taxonomy(taxonomy, company=None):
 
 
 @frappe.whitelist()
-def resolve_item(item_code=None, barcode=None, template=None,
-                 category=None, form_factor=None, capacity=None, grade=None,
-                 item_name=None, item_group=None, stock_uom=None,
-                 standard_rate=0, has_serial_no=0, company=None):
+def resolve_item(
+    item_code=None,
+    barcode=None,
+    template=None,
+    category=None,
+    form_factor=None,
+    capacity=None,
+    grade=None,
+    item_name=None,
+    item_group=None,
+    stock_uom=None,
+    standard_rate=0,
+    has_serial_no=0,
+    company=None,
+):
     """Universal item resolver — pick existing or create on the go.
 
     Resolution order:
@@ -267,6 +324,7 @@ def resolve_item(item_code=None, barcode=None, template=None,
     barcode = (barcode or "").strip()
     if barcode:
         from trader_app.api.inventory import lookup_item_by_barcode
+
         result = lookup_item_by_barcode(barcode, company=company)
         if result.get("found") and result.get("item"):
             item = result["item"]
@@ -279,16 +337,22 @@ def resolve_item(item_code=None, barcode=None, template=None,
             }
         frappe.throw(result.get("message") or _("No item found for barcode {0}.").format(barcode))
 
-    if template == "components" or all([
-        (category or "").strip(),
-        (form_factor or "").strip(),
-        (capacity or "").strip(),
-        (grade or "").strip(),
-    ]):
+    if template == "components" or all(
+        [
+            (category or "").strip(),
+            (form_factor or "").strip(),
+            (capacity or "").strip(),
+            (grade or "").strip(),
+        ]
+    ):
         _assert_enabled(company)
         sku = find_or_create_sku(
-            category, form_factor, capacity, grade,
-            standard_rate=standard_rate, company=company,
+            category,
+            form_factor,
+            capacity,
+            grade,
+            standard_rate=standard_rate,
+            company=company,
         )
         item_name_val = _make_item_name(category, form_factor, capacity, grade)
         return {
@@ -300,7 +364,9 @@ def resolve_item(item_code=None, barcode=None, template=None,
 
     item_code = (item_code or "").strip()
     if item_code and frappe.db.exists("Item", item_code):
-        name = frappe.db.get_value("Item", item_code, "item_name") or item_code
+        item = frappe.get_doc("Item", item_code)
+        item.check_permission("read")
+        name = item.item_name or item_code
         return {
             "item_code": item_code,
             "item_name": name,
@@ -310,6 +376,7 @@ def resolve_item(item_code=None, barcode=None, template=None,
 
     if item_code:
         from trader_app.api.inventory import create_item
+
         created = create_item(
             item_code=item_code,
             item_name=item_name or item_code,
@@ -331,6 +398,9 @@ def resolve_item(item_code=None, barcode=None, template=None,
 def ensure_taxonomy_values(category, form_factor=None, capacity=None, grade=None, company=None):
     """Persist newly typed attribute values into the company taxonomy overlay."""
     company = resolve_active_company(company)
+    # This endpoint writes company configuration, so it must use the same
+    # restricted role policy as the explicit taxonomy editor above.
+    _assert_taxonomy_admin()
     category = (category or "").strip()
     if not category:
         frappe.throw(_("Category is required."))
@@ -351,7 +421,9 @@ def ensure_taxonomy_values(category, form_factor=None, capacity=None, grade=None
         spec["grades"] = _merge_list(spec["grades"], [grade.strip()])
 
     frappe.db.set_value(
-        "Company", company, "trader_sku_taxonomy",
+        "Company",
+        company,
+        "trader_sku_taxonomy",
         json.dumps(overlay, indent=0),
     )
     frappe.db.commit()
@@ -474,7 +546,9 @@ def save_item_group_templates(mapping, company=None):
     if not frappe.db.has_column("Company", "trader_item_group_templates"):
         frappe.throw(_("Item group template field is not installed."))
     frappe.db.set_value(
-        "Company", company, "trader_item_group_templates",
+        "Company",
+        company,
+        "trader_item_group_templates",
         json.dumps(mapping, indent=0),
     )
     frappe.db.commit()
@@ -493,7 +567,9 @@ def save_custom_sku_templates(templates, company=None):
     if not frappe.db.has_column("Company", "trader_custom_sku_templates"):
         frappe.throw(_("Custom SKU templates field is not installed."))
     frappe.db.set_value(
-        "Company", company, "trader_custom_sku_templates",
+        "Company",
+        company,
+        "trader_custom_sku_templates",
         json.dumps(templates, indent=0),
     )
     frappe.db.commit()
@@ -504,10 +580,11 @@ def save_custom_sku_templates(templates, company=None):
 # 2.  CATALOG ITEM LIST
 # ────────────────────────────────────────────────────────────────
 
+
 @frappe.whitelist()
-def get_catalog_items(company=None, category=None, form_factor=None,
-                      capacity=None, grade=None,
-                      page=1, page_size=20, search=None):
+def get_catalog_items(
+    company=None, category=None, form_factor=None, capacity=None, grade=None, page=1, page_size=20, search=None
+):
     """Paginated list of component items (trader_component_item = 1)."""
     company = resolve_active_company(company)
     _assert_enabled(company)
@@ -538,20 +615,20 @@ def get_catalog_items(company=None, category=None, form_factor=None,
         )
         params["search"] = f"%{search}%"
 
-    from trader_app.api.permissions import tenant_sql_filter
-    tcond, tparams = tenant_sql_filter("i")
+    from trader_app.api.permissions import company_master_sql_filter
+
+    tcond, tparams = company_master_sql_filter("i", company)
     if tcond:
         conditions.append(tcond)
         params.update(tparams)
 
     where = " AND ".join(conditions)
 
-    total = frappe.db.sql(
-        f"SELECT COUNT(*) FROM `tabItem` i WHERE {where}", params
-    )[0][0]
+    total = frappe.db.sql(f"SELECT COUNT(*) FROM `tabItem` i WHERE {where}", params)[0][0]
 
     # Join Bin for stock on hand (company-scoped via Warehouse)
-    rows = frappe.db.sql(f"""
+    rows = frappe.db.sql(
+        f"""
         SELECT
             i.item_code, i.item_name, i.stock_uom,
             i.trader_component_category AS category,
@@ -571,7 +648,10 @@ def get_catalog_items(company=None, category=None, form_factor=None,
         GROUP BY i.item_code
         ORDER BY i.trader_component_category, i.trader_component_capacity, i.trader_component_grade
         LIMIT %(page_size)s OFFSET %(offset)s
-    """, {**params, "company": company, "page_size": page_size, "offset": offset}, as_dict=True)
+    """,
+        {**params, "company": company, "page_size": page_size, "offset": offset},
+        as_dict=True,
+    )
 
     return {"data": rows, "total": cint(total), "page": page, "page_size": page_size}
 
@@ -580,13 +660,14 @@ def get_catalog_items(company=None, category=None, form_factor=None,
 # 3.  FIND-OR-CREATE SKU
 # ────────────────────────────────────────────────────────────────
 
+
 def _make_item_code(category, form_factor, capacity, grade):
     """Deterministic item code from the 4-tuple."""
+
     def slug(s):
         return re.sub(r"[^A-Za-z0-9]+", "-", str(s).strip()).strip("-").upper()
-    return "{}-{}-{}-{}".format(
-        slug(category), slug(form_factor), slug(capacity), slug(grade)
-    )
+
+    return "{}-{}-{}-{}".format(slug(category), slug(form_factor), slug(capacity), slug(grade))
 
 
 def _make_item_name(category, form_factor, capacity, grade):
@@ -594,8 +675,7 @@ def _make_item_name(category, form_factor, capacity, grade):
 
 
 @frappe.whitelist()
-def find_or_create_sku(category, form_factor, capacity, grade,
-                       standard_rate=0.0, company=None):
+def find_or_create_sku(category, form_factor, capacity, grade, standard_rate=0.0, company=None):
     """Return existing item_code matching the 4-tuple, or create one.
 
     This is the canonical SKU resolver used by quick-entry and opening-stock import.
@@ -608,24 +688,46 @@ def find_or_create_sku(category, form_factor, capacity, grade,
 
     # 1. Try exact item_code match
     if frappe.db.exists("Item", item_code):
+        item = frappe.get_doc("Item", item_code)
+        item.check_permission("read")
         return {"item_code": item_code, "created": False}
 
     # 2. Try matching on component metadata fields (handles name collisions)
-    existing = frappe.db.get_value(
-        "Item",
+    from trader_app.api.permissions import company_master_sql_filter
+
+    tenant_condition, tenant_params = company_master_sql_filter("i", company)
+    conditions = [
+        "i.trader_component_item = 1",
+        "i.trader_component_category = %(category)s",
+        "i.trader_component_form_factor = %(form_factor)s",
+        "i.trader_component_capacity = %(capacity)s",
+        "i.trader_component_grade = %(grade)s",
+    ]
+    if tenant_condition:
+        conditions.append(tenant_condition)
+    matches = frappe.db.sql(
+        "SELECT i.name FROM `tabItem` i WHERE {0} ORDER BY i.name LIMIT 1".format(" AND ".join(conditions)),
         {
-            "trader_component_item": 1,
-            "trader_component_category": category,
-            "trader_component_form_factor": form_factor,
-            "trader_component_capacity": capacity,
-            "trader_component_grade": grade,
+            "category": category,
+            "form_factor": form_factor,
+            "capacity": capacity,
+            "grade": grade,
+            **tenant_params,
         },
-        "name",
+        as_dict=True,
     )
-    if existing:
-        return {"item_code": existing, "created": False}
+    if matches:
+        item_code = matches[0].name
+        frappe.get_doc("Item", item_code).check_permission("read")
+        return {"item_code": item_code, "created": False}
 
     # 3. Create the item
+    # Item Group creation below intentionally uses ignore_permissions=True as
+    # part of Item creation. Check the actual Item permission first so denied
+    # users cannot leave behind group records as a side effect.
+    if not frappe.has_permission("Item", ptype="create"):
+        frappe.throw(_("You do not have permission to create Items."), frappe.PermissionError)
+
     item_group = _get_or_create_item_group(category)
 
     doc = frappe.new_doc("Item")
@@ -657,7 +759,6 @@ def _get_or_create_item_group(category):
         pg.parent_item_group = frappe.db.get_value("Item Group", {"parent_item_group": ""}, "name") or "All Item Groups"
         pg.is_group = 1
         pg.insert(ignore_permissions=True)
-        frappe.db.commit()
 
     full_name = category
     if not frappe.db.exists("Item Group", full_name):
@@ -666,7 +767,6 @@ def _get_or_create_item_group(category):
         ig.parent_item_group = parent
         ig.is_group = 0
         ig.insert(ignore_permissions=True)
-        frappe.db.commit()
 
     return full_name
 
@@ -677,32 +777,68 @@ def _get_or_create_item_group(category):
 
 # Capacity aliases (lowercase → canonical)
 _CAPACITY_ALIASES = {
-    "120gb": "120GB", "128gb": "128GB", "240gb": "240GB", "256gb": "256GB",
-    "480gb": "480GB", "500gb": "500GB", "512gb": "512GB",
-    "1tb": "1TB", "2tb": "2TB", "4tb": "4TB", "8tb": "8TB",
-    "2gb": "2GB", "4gb": "4GB", "8gb": "8GB", "16gb": "16GB",
-    "32gb": "32GB", "64gb": "64GB",
-    "350w": "350W", "450w": "450W", "500w": "500W", "550w": "550W",
-    "600w": "600W", "650w": "650W", "750w": "750W", "850w": "850W",
+    "120gb": "120GB",
+    "128gb": "128GB",
+    "240gb": "240GB",
+    "256gb": "256GB",
+    "480gb": "480GB",
+    "500gb": "500GB",
+    "512gb": "512GB",
+    "1tb": "1TB",
+    "2tb": "2TB",
+    "4tb": "4TB",
+    "8tb": "8TB",
+    "2gb": "2GB",
+    "4gb": "4GB",
+    "8gb": "8GB",
+    "16gb": "16GB",
+    "32gb": "32GB",
+    "64gb": "64GB",
+    "350w": "350W",
+    "450w": "450W",
+    "500w": "500W",
+    "550w": "550W",
+    "600w": "600W",
+    "650w": "650W",
+    "750w": "750W",
+    "850w": "850W",
 }
 
 # Grade aliases (lowercase → canonical)
 _GRADE_ALIASES = {
-    "new": "New", "pulled": "Pulled", "pull": "Pulled",
-    "a": "A", "agrade": "A", "a-grade": "A",
-    "b": "B", "bgrade": "B", "b-grade": "B",
-    "c": "C", "cgrade": "C", "c-grade": "C",
-    "refurb": "Refurbished", "refurbished": "Refurbished",
+    "new": "New",
+    "pulled": "Pulled",
+    "pull": "Pulled",
+    "a": "A",
+    "agrade": "A",
+    "a-grade": "A",
+    "b": "B",
+    "bgrade": "B",
+    "b-grade": "B",
+    "c": "C",
+    "cgrade": "C",
+    "c-grade": "C",
+    "refurb": "Refurbished",
+    "refurbished": "Refurbished",
 }
 
 # Category aliases (lowercase token → canonical)
 _CATEGORY_ALIASES = {
-    "ssd": "SSD", "hdd": "HDD", "hard disk": "HDD",
-    "ram": "RAM", "memory": "RAM",
-    "gpu": "GPU", "vga": "GPU", "graphics": "GPU",
-    "cpu": "CPU", "processor": "CPU",
-    "mb": "Motherboard", "mobo": "Motherboard", "motherboard": "Motherboard",
-    "psu": "Power Supply", "powersupply": "Power Supply",
+    "ssd": "SSD",
+    "hdd": "HDD",
+    "hard disk": "HDD",
+    "ram": "RAM",
+    "memory": "RAM",
+    "gpu": "GPU",
+    "vga": "GPU",
+    "graphics": "GPU",
+    "cpu": "CPU",
+    "processor": "CPU",
+    "mb": "Motherboard",
+    "mobo": "Motherboard",
+    "motherboard": "Motherboard",
+    "psu": "Power Supply",
+    "powersupply": "Power Supply",
 }
 
 
@@ -786,17 +922,26 @@ def parse_quick_entry(text, company=None):
     resolved_item = None
     if capacity and grade and category:
         # Look for any form factor in this category that has a matching item
-        match = frappe.db.get_value(
-            "Item",
-            {
-                "trader_component_item": 1,
-                "trader_component_category": category,
-                "trader_component_capacity": capacity,
-                "trader_component_grade": grade,
-            },
-            ["name", "item_name"],
+        from trader_app.api.permissions import company_master_sql_filter
+
+        tenant_condition, tenant_params = company_master_sql_filter("i", company)
+        conditions = [
+            "i.trader_component_item = 1",
+            "i.disabled = 0",
+            "i.trader_component_category = %(category)s",
+            "i.trader_component_capacity = %(capacity)s",
+            "i.trader_component_grade = %(grade)s",
+        ]
+        if tenant_condition:
+            conditions.append(tenant_condition)
+        matches = frappe.db.sql(
+            "SELECT i.name, i.item_name FROM `tabItem` i WHERE {0} ORDER BY i.name LIMIT 1".format(
+                " AND ".join(conditions)
+            ),
+            {"category": category, "capacity": capacity, "grade": grade, **tenant_params},
             as_dict=True,
         )
+        match = matches[0] if matches else None
         if match:
             resolved_item = {"item_code": match.name, "item_name": match.item_name}
             # Auto-fill rate from item if not provided
@@ -824,6 +969,7 @@ def parse_quick_entry(text, company=None):
 # ────────────────────────────────────────────────────────────────
 # 5.  OPENING STOCK IMPORT
 # ────────────────────────────────────────────────────────────────
+
 
 @frappe.whitelist()
 def import_opening_stock(items, warehouse=None, company=None):
@@ -865,12 +1011,15 @@ def import_opening_stock(items, warehouse=None, company=None):
         if not frappe.db.exists("Item", item_code):
             frappe.throw(_("Item {0} does not exist.").format(item_code))
 
-        doc.append("items", {
-            "item_code": item_code,
-            "qty": qty,
-            "basic_rate": rate,
-            "t_warehouse": wh,
-        })
+        doc.append(
+            "items",
+            {
+                "item_code": item_code,
+                "qty": qty,
+                "basic_rate": rate,
+                "t_warehouse": wh,
+            },
+        )
 
     if not doc.items:
         frappe.throw(_("No valid items to import."))
@@ -886,9 +1035,9 @@ def import_opening_stock(items, warehouse=None, company=None):
 # 6.  STOCK TAKE
 # ────────────────────────────────────────────────────────────────
 
+
 @frappe.whitelist()
-def get_stock_take_items(company=None, warehouse=None, category=None,
-                         page=1, page_size=50):
+def get_stock_take_items(company=None, warehouse=None, category=None, page=1, page_size=50):
     """Return component items with current perpetual qty for stock-take entry."""
     company = resolve_active_company(company)
     _assert_enabled(company)
@@ -900,6 +1049,13 @@ def get_stock_take_items(company=None, warehouse=None, category=None,
     wh_condition = ""
     params = {"company": company}
 
+    from trader_app.api.permissions import company_master_sql_filter
+
+    tenant_condition, tenant_params = company_master_sql_filter("i", company)
+    params.update(tenant_params)
+    if tenant_condition:
+        tenant_condition = "AND " + tenant_condition
+
     if warehouse:
         wh_condition = "AND b.warehouse = %(warehouse)s"
         params["warehouse"] = warehouse
@@ -909,16 +1065,20 @@ def get_stock_take_items(company=None, warehouse=None, category=None,
         cat_condition = "AND i.trader_component_category = %(category)s"
         params["category"] = category
 
-    total = frappe.db.sql(f"""
+    total = frappe.db.sql(
+        f"""
         SELECT COUNT(DISTINCT i.item_code)
         FROM `tabItem` i
         INNER JOIN `tabBin` b ON b.item_code = i.item_code
         INNER JOIN `tabWarehouse` w ON w.name = b.warehouse AND w.company = %(company)s
-        WHERE i.trader_component_item = 1 AND i.disabled = 0
+        WHERE i.trader_component_item = 1 AND i.disabled = 0 {tenant_condition}
         {wh_condition} {cat_condition}
-    """, params)[0][0]
+    """,
+        params,
+    )[0][0]
 
-    rows = frappe.db.sql(f"""
+    rows = frappe.db.sql(
+        f"""
         SELECT
             i.item_code, i.item_name,
             i.trader_component_category AS category,
@@ -933,12 +1093,15 @@ def get_stock_take_items(company=None, warehouse=None, category=None,
         FROM `tabItem` i
         INNER JOIN `tabBin` b ON b.item_code = i.item_code
         INNER JOIN `tabWarehouse` w ON w.name = b.warehouse AND w.company = %(company)s
-        WHERE i.trader_component_item = 1 AND i.disabled = 0
+        WHERE i.trader_component_item = 1 AND i.disabled = 0 {tenant_condition}
         {wh_condition} {cat_condition}
         GROUP BY i.item_code, b.warehouse
         ORDER BY i.trader_component_category, i.trader_component_capacity
         LIMIT %(page_size)s OFFSET %(offset)s
-    """, {**params, "page_size": page_size, "offset": offset}, as_dict=True)
+    """,
+        {**params, "page_size": page_size, "offset": offset},
+        as_dict=True,
+    )
 
     return {"data": rows, "total": cint(total), "page": page, "page_size": page_size}
 
@@ -979,24 +1142,23 @@ def create_stock_take(items, warehouse=None, company=None):
             continue
 
         # Get current system qty
-        current_qty = flt(
-            frappe.db.get_value("Bin", {"item_code": item_code, "warehouse": wh}, "actual_qty") or 0
-        )
+        current_qty = flt(frappe.db.get_value("Bin", {"item_code": item_code, "warehouse": wh}, "actual_qty") or 0)
         # Only include rows with a difference
         if abs(counted_qty - current_qty) < 0.001:
             continue
 
         # Get current valuation rate
-        val_rate = flt(
-            frappe.db.get_value("Bin", {"item_code": item_code, "warehouse": wh}, "valuation_rate") or 0
-        )
+        val_rate = flt(frappe.db.get_value("Bin", {"item_code": item_code, "warehouse": wh}, "valuation_rate") or 0)
 
-        doc.append("items", {
-            "item_code": item_code,
-            "warehouse": wh,
-            "qty": counted_qty,
-            "valuation_rate": val_rate,
-        })
+        doc.append(
+            "items",
+            {
+                "item_code": item_code,
+                "warehouse": wh,
+                "qty": counted_qty,
+                "valuation_rate": val_rate,
+            },
+        )
         adjusted += 1
 
     if not doc.items:
@@ -1011,6 +1173,7 @@ def create_stock_take(items, warehouse=None, company=None):
         "stock_reconciliation": doc.name,
         "adjusted": adjusted,
     }
+
 
 from trader_app.api._tenant_guard import apply_module_guards
 

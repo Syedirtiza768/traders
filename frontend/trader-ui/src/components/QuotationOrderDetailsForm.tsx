@@ -153,7 +153,7 @@ export default function QuotationOrderDetailsForm({
         <div className="card-header">
           <h2 className="text-lg font-semibold text-gray-900">Order Details</h2>
           <p className="text-sm text-gray-500">
-            Delivery, payment schedule, GST/WHT, freight and FX clause (Sahamid-aligned).
+            Delivery, payment schedule, GST/WHT, freight and FX clause.
           </p>
         </div>
       ) : null}

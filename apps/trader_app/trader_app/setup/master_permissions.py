@@ -14,7 +14,6 @@ from __future__ import unicode_literals
 
 import frappe
 
-
 # role -> (create, write, read, delete)
 _MASTER_PERMS = {
     "Customer": {
@@ -73,24 +72,26 @@ def ensure_master_doc_permissions():
                 updated += 1
                 continue
 
-            doc = frappe.get_doc({
-                "doctype": "Custom DocPerm",
-                "parent": doctype,
-                "parenttype": "DocType",
-                "parentfield": "permissions",
-                "role": role,
-                "permlevel": 0,
-                "create": create,
-                "write": write,
-                "read": read,
-                "delete": delete,
-                "select": 1 if read else 0,
-                "export": 1 if read else 0,
-                "print": 1 if read else 0,
-                "email": 1 if read else 0,
-                "report": 1 if read else 0,
-                "share": 0,
-            })
+            doc = frappe.get_doc(
+                {
+                    "doctype": "Custom DocPerm",
+                    "parent": doctype,
+                    "parenttype": "DocType",
+                    "parentfield": "permissions",
+                    "role": role,
+                    "permlevel": 0,
+                    "create": create,
+                    "write": write,
+                    "read": read,
+                    "delete": delete,
+                    "select": 1 if read else 0,
+                    "export": 1 if read else 0,
+                    "print": 1 if read else 0,
+                    "email": 1 if read else 0,
+                    "report": 1 if read else 0,
+                    "share": 0,
+                }
+            )
             doc.insert(ignore_permissions=True)
             created += 1
 

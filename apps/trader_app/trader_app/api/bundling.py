@@ -17,53 +17,72 @@ import json
 
 import frappe
 from frappe import _
-from trader_app.api.company import resolve_active_company
-from frappe.utils import flt, cint, nowdate
+from frappe.utils import cint, flt
+from trader_app.api.permissions import tenant_sql_filter
+
+
+def _require_bundle_permission(ptype="read"):
+    if not frappe.has_permission("Item Bundle", ptype=ptype):
+        frappe.throw(
+            _("You do not have permission to {0} item bundles.").format(ptype),
+            frappe.PermissionError,
+        )
 
 
 # ────────────────────────────────────────────────────────────────
 # 1.  ITEM BUNDLE CRUD
 # ────────────────────────────────────────────────────────────────
 
+
 @frappe.whitelist()
 def get_item_bundles(search=None, page=1, page_size=50):
     """List all saved item bundles."""
+    _require_bundle_permission("read")
     page = cint(page) or 1
     page_size = min(cint(page_size) or 50, 200)
     offset = (page - 1) * page_size
 
-    conditions = ["1=1"]
+    conditions = []
     params = {}
 
+    tenant_condition, tenant_params = tenant_sql_filter("b")
+    if tenant_condition:
+        conditions.append(tenant_condition)
+        params.update(tenant_params)
+
     if search:
-        conditions.append(
-            "(bundle_name LIKE %(search)s OR description LIKE %(search)s)"
-        )
+        conditions.append("(b.bundle_name LIKE %(search)s OR b.description LIKE %(search)s)")
         params["search"] = f"%{search}%"
 
-    where = " AND ".join(conditions)
+    where = " AND ".join(conditions) or "1=1"
 
-    total = frappe.db.sql(
-        f"SELECT COUNT(*) FROM `tabItem Bundle` WHERE {where}", params
-    )[0][0]
+    total = frappe.db.sql(f"SELECT COUNT(*) FROM `tabItem Bundle` b WHERE {where}", params)[0][0]
 
-    rows = frappe.db.sql(f"""
-        SELECT name, bundle_name, description, total_rate, creation
-        FROM `tabItem Bundle`
+    rows = frappe.db.sql(
+        f"""
+        SELECT b.name, b.bundle_name, b.description, b.total_rate, b.creation
+        FROM `tabItem Bundle` b
         WHERE {where}
-        ORDER BY creation DESC
+        ORDER BY b.creation DESC
         LIMIT %(page_size)s OFFSET %(offset)s
-    """, {**params, "page_size": page_size, "offset": offset}, as_dict=True)
+    """,
+        {**params, "page_size": page_size, "offset": offset},
+        as_dict=True,
+    )
 
     # Attach sub-item counts
     bundle_names = [r.name for r in rows]
     if bundle_names:
-        sub_counts = frappe.db.sql("""
+        sub_counts = frappe.db.sql(
+            """
             SELECT parent, COUNT(*) AS cnt
             FROM `tabItem Bundle Detail`
             WHERE parent IN %(names)s
             GROUP BY parent
-        """, {"names": bundle_names}, as_dict=True)
+        """,
+            {"names": bundle_names},
+            as_dict=True,
+        )
         count_map = {r.parent: r.cnt for r in sub_counts}
         for row in rows:
             row["item_count"] = count_map.get(row.name, 0)
@@ -78,6 +97,7 @@ def get_item_bundle_detail(name):
         frappe.throw(_("Bundle {0} not found").format(name))
 
     doc = frappe.get_doc("Item Bundle", name)
+    doc.check_permission("read")
     data = doc.as_dict()
     return data
 
@@ -111,12 +131,15 @@ def create_item_bundle(bundle_name, description, items):
         rate = flt(item.get("rate", 0))
         if not item_code:
             continue
-        doc.append("items", {
-            "item_code": item_code,
-            "qty": qty,
-            "rate": rate,
-            "amount": flt(qty * rate),
-        })
+        doc.append(
+            "items",
+            {
+                "item_code": item_code,
+                "qty": qty,
+                "rate": rate,
+                "amount": flt(qty * rate),
+            },
+        )
         doc.total_rate += flt(qty * rate)
 
     doc.insert(ignore_permissions=False)
@@ -127,6 +150,7 @@ def create_item_bundle(bundle_name, description, items):
 def update_item_bundle(name, bundle_name=None, description=None, items=None):
     """Update an existing item bundle."""
     doc = frappe.get_doc("Item Bundle", name)
+    doc.check_permission("write")
 
     if bundle_name is not None:
         doc.bundle_name = bundle_name.strip()
@@ -144,12 +168,15 @@ def update_item_bundle(name, bundle_name=None, description=None, items=None):
             rate = flt(item.get("rate", 0))
             if not item_code:
                 continue
-            doc.append("items", {
-                "item_code": item_code,
-                "qty": qty,
-                "rate": rate,
-                "amount": flt(qty * rate),
-            })
+            doc.append(
+                "items",
+                {
+                    "item_code": item_code,
+                    "qty": qty,
+                    "rate": rate,
+                    "amount": flt(qty * rate),
+                },
+            )
             doc.total_rate += flt(qty * rate)
 
     doc.save(ignore_permissions=False)
@@ -167,6 +194,7 @@ def delete_item_bundle(name):
 # 2.  EXPAND BUNDLE FOR DOCUMENT CREATION
 # ────────────────────────────────────────────────────────────────
 
+
 @frappe.whitelist()
 def expand_bundle(name):
     """Return the sub-items for a bundle for insertion into a document.
@@ -177,6 +205,7 @@ def expand_bundle(name):
         frappe.throw(_("Bundle {0} not found").format(name))
 
     doc = frappe.get_doc("Item Bundle", name)
+    doc.check_permission("read")
     return {
         "bundle_name": doc.bundle_name,
         "description": doc.description,
@@ -191,6 +220,7 @@ def expand_bundle(name):
             for d in doc.items
         ],
     }
+
 
 from trader_app.api._tenant_guard import apply_module_guards
 

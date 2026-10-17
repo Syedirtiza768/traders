@@ -11,38 +11,86 @@ Creates:
 from __future__ import unicode_literals
 
 import random
+
 import frappe
 from trader_app.demo.seed_engine.base import BaseGenerator
 
-
 SUPPLIER_NAMES = [
-    "Pakistan Manufacturing Co", "Lahore Industries", "Karachi Trading Corp",
-    "Allied Products Ltd", "National Suppliers Inc", "Eastern Traders",
-    "Western Imports", "Northern Distributors", "Southern Supply Chain",
-    "Punjab Hardware Co", "Sindh Electronics", "Frontier Tools Ltd",
-    "Baloch Supplies", "Islamabad Trading Co", "Crescent Industries",
-    "Star Manufacturing", "Diamond Products", "Golden Enterprises",
-    "Silver Trade Corp", "Ruby Imports", "Sapphire Distributors",
-    "Emerald Supply Co", "Pearl Industries", "Crystal Trading",
-    "Platinum Products", "Bronze Manufacturing", "Copper Traders",
-    "Steel Distributors", "Iron Works Ltd", "Alloy Trading Co",
-    "Metro Supplies", "City Trading Corp", "Royal Industries",
-    "Elite Distributors", "Prime Trading Co", "Global Imports",
-    "United Manufacturers", "Central Supply Chain", "Modern Trading",
-    "Classic Industries", "Grand Distributors", "Premium Suppliers",
-    "Quality Products Ltd", "Reliable Trading Co", "Trusted Suppliers",
-    "Eagle Distributors", "Falcon Trading", "Tiger Industries",
-    "Lion Imports", "Phoenix Suppliers", "Summit Trading Co",
-    "Peak Industries", "Apex Distributors", "Nova Supply Chain",
-    "Alpha Trading", "Beta Industries", "Gamma Imports",
-    "Delta Suppliers", "Omega Trading Corp", "Sigma Distributors",
+    "Pakistan Manufacturing Co",
+    "Lahore Industries",
+    "Karachi Trading Corp",
+    "Allied Products Ltd",
+    "National Suppliers Inc",
+    "Eastern Traders",
+    "Western Imports",
+    "Northern Distributors",
+    "Southern Supply Chain",
+    "Punjab Hardware Co",
+    "Sindh Electronics",
+    "Frontier Tools Ltd",
+    "Baloch Supplies",
+    "Islamabad Trading Co",
+    "Crescent Industries",
+    "Star Manufacturing",
+    "Diamond Products",
+    "Golden Enterprises",
+    "Silver Trade Corp",
+    "Ruby Imports",
+    "Sapphire Distributors",
+    "Emerald Supply Co",
+    "Pearl Industries",
+    "Crystal Trading",
+    "Platinum Products",
+    "Bronze Manufacturing",
+    "Copper Traders",
+    "Steel Distributors",
+    "Iron Works Ltd",
+    "Alloy Trading Co",
+    "Metro Supplies",
+    "City Trading Corp",
+    "Royal Industries",
+    "Elite Distributors",
+    "Prime Trading Co",
+    "Global Imports",
+    "United Manufacturers",
+    "Central Supply Chain",
+    "Modern Trading",
+    "Classic Industries",
+    "Grand Distributors",
+    "Premium Suppliers",
+    "Quality Products Ltd",
+    "Reliable Trading Co",
+    "Trusted Suppliers",
+    "Eagle Distributors",
+    "Falcon Trading",
+    "Tiger Industries",
+    "Lion Imports",
+    "Phoenix Suppliers",
+    "Summit Trading Co",
+    "Peak Industries",
+    "Apex Distributors",
+    "Nova Supply Chain",
+    "Alpha Trading",
+    "Beta Industries",
+    "Gamma Imports",
+    "Delta Suppliers",
+    "Omega Trading Corp",
+    "Sigma Distributors",
 ]
 
 CONTACT_NAMES = [
-    ("Asif", "Mahmood"), ("Tahir", "Hussain"), ("Naeem", "Shah"),
-    ("Kashif", "Aziz"), ("Waseem", "Abbas"), ("Majid", "Saleemi"),
-    ("Liaqat", "Hayat"), ("Pervez", "Rana"), ("Ghulam", "Mustafa"),
-    ("Shafiq", "Rehman"), ("Anwar", "Karim"), ("Bashir", "Ahmad"),
+    ("Asif", "Mahmood"),
+    ("Tahir", "Hussain"),
+    ("Naeem", "Shah"),
+    ("Kashif", "Aziz"),
+    ("Waseem", "Abbas"),
+    ("Majid", "Saleemi"),
+    ("Liaqat", "Hayat"),
+    ("Pervez", "Rana"),
+    ("Ghulam", "Mustafa"),
+    ("Shafiq", "Rehman"),
+    ("Anwar", "Karim"),
+    ("Bashir", "Ahmad"),
 ]
 
 
@@ -81,11 +129,13 @@ class SupplierGenerator(BaseGenerator):
     def _ensure_supplier_groups(self):
         """Create supplier groups if they don't exist."""
         if not frappe.db.exists("Supplier Group", "All Supplier Groups"):
-            root = frappe.get_doc({
-                "doctype": "Supplier Group",
-                "supplier_group_name": "All Supplier Groups",
-                "is_group": 1,
-            })
+            root = frappe.get_doc(
+                {
+                    "doctype": "Supplier Group",
+                    "supplier_group_name": "All Supplier Groups",
+                    "is_group": 1,
+                }
+            )
             try:
                 root.insert(ignore_permissions=True)
             except frappe.DuplicateEntryError:
@@ -94,11 +144,13 @@ class SupplierGenerator(BaseGenerator):
         groups = ["Manufacturer", "Distributor", "Importer", "Local Supplier"]
         for g in groups:
             if not frappe.db.exists("Supplier Group", g):
-                doc = frappe.get_doc({
-                    "doctype": "Supplier Group",
-                    "supplier_group_name": g,
-                    "parent_supplier_group": "All Supplier Groups",
-                })
+                doc = frappe.get_doc(
+                    {
+                        "doctype": "Supplier Group",
+                        "supplier_group_name": g,
+                        "parent_supplier_group": "All Supplier Groups",
+                    }
+                )
                 try:
                     doc.insert(ignore_permissions=True)
                 except frappe.DuplicateEntryError:
@@ -113,15 +165,17 @@ class SupplierGenerator(BaseGenerator):
         payment_terms = sup_type["payment_terms"]
         territory = random.choice(self.config["territories"])
 
-        supplier = frappe.get_doc({
-            "doctype": "Supplier",
-            "supplier_name": supplier_name,
-            "supplier_group": sup_type["type"],
-            "supplier_type": "Company",
-            "country": self.config["country"],
-            "default_currency": self.config["currency"],
-            "payment_terms": payment_terms if frappe.db.exists("Payment Terms Template", payment_terms) else None,
-        })
+        supplier = frappe.get_doc(
+            {
+                "doctype": "Supplier",
+                "supplier_name": supplier_name,
+                "supplier_group": sup_type["type"],
+                "supplier_type": "Company",
+                "country": self.config["country"],
+                "default_currency": self.config["currency"],
+                "payment_terms": payment_terms if frappe.db.exists("Payment Terms Template", payment_terms) else None,
+            }
+        )
 
         try:
             supplier.insert(ignore_permissions=True)
@@ -139,18 +193,22 @@ class SupplierGenerator(BaseGenerator):
     def _create_contact(self, link_name, company_name, first_name, last_name):
         phone = f"+92-{random.randint(300, 345)}-{random.randint(1000000, 9999999)}"
 
-        contact = frappe.get_doc({
-            "doctype": "Contact",
-            "first_name": first_name,
-            "last_name": last_name,
-            "company_name": company_name,
-            "phone_nos": [{"phone": phone, "is_primary_phone": 1}],
-            "email_ids": [{
-                "email_id": f"{first_name.lower()}.{last_name.lower()}{random.randint(1, 99)}@supplier.example.com",
-                "is_primary": 1,
-            }],
-            "links": [{"link_doctype": "Supplier", "link_name": link_name}],
-        })
+        contact = frappe.get_doc(
+            {
+                "doctype": "Contact",
+                "first_name": first_name,
+                "last_name": last_name,
+                "company_name": company_name,
+                "phone_nos": [{"phone": phone, "is_primary_phone": 1}],
+                "email_ids": [
+                    {
+                        "email_id": f"{first_name.lower()}.{last_name.lower()}{random.randint(1, 99)}@supplier.example.com",
+                        "is_primary": 1,
+                    }
+                ],
+                "links": [{"link_doctype": "Supplier", "link_name": link_name}],
+            }
+        )
         try:
             contact.insert(ignore_permissions=True)
         except Exception:
@@ -158,22 +216,30 @@ class SupplierGenerator(BaseGenerator):
 
     def _create_address(self, link_name, title, city, territory):
         streets = [
-            "Industrial Area", "SITE Area", "I.I. Chundrigar Road",
-            "Korangi Industrial Area", "GT Road", "Multan Road",
-            "Main Boulevard", "Industrial Estate", "Factory Area",
+            "Industrial Area",
+            "SITE Area",
+            "I.I. Chundrigar Road",
+            "Korangi Industrial Area",
+            "GT Road",
+            "Multan Road",
+            "Main Boulevard",
+            "Industrial Estate",
+            "Factory Area",
         ]
 
-        address = frappe.get_doc({
-            "doctype": "Address",
-            "address_title": title,
-            "address_type": "Billing",
-            "address_line1": f"Plot {random.randint(1, 200)}, {random.choice(streets)}",
-            "city": city,
-            "state": territory,
-            "country": self.config["country"],
-            "pincode": str(random.randint(10000, 99999)),
-            "links": [{"link_doctype": "Supplier", "link_name": link_name}],
-        })
+        address = frappe.get_doc(
+            {
+                "doctype": "Address",
+                "address_title": title,
+                "address_type": "Billing",
+                "address_line1": f"Plot {random.randint(1, 200)}, {random.choice(streets)}",
+                "city": city,
+                "state": territory,
+                "country": self.config["country"],
+                "pincode": str(random.randint(10000, 99999)),
+                "links": [{"link_doctype": "Supplier", "link_name": link_name}],
+            }
+        )
         try:
             address.insert(ignore_permissions=True)
         except Exception:

@@ -22,8 +22,7 @@ from __future__ import unicode_literals
 import random
 
 import frappe
-from frappe.utils import add_days, flt, getdate, nowdate
-
+from frappe.utils import flt, getdate, nowdate
 from trader_app.api.opportunity import (
     add_customer_po,
     create_invoice_for_opportunity,
@@ -47,9 +46,7 @@ class OpportunityChainGenerator(BaseGenerator):
                 print("  ⏭️  Opportunity module disabled — skipping project-chain seed.")
                 return
 
-            customers = frappe.get_all(
-                "Customer", filters={"disabled": 0}, pluck="name", limit_page_length=0
-            )
+            customers = frappe.get_all("Customer", filters={"disabled": 0}, pluck="name", limit_page_length=0)
             items = frappe.get_all(
                 "Item",
                 filters={"is_stock_item": 1, "disabled": 0, "is_sales_item": 1},
@@ -119,9 +116,7 @@ class OpportunityChainGenerator(BaseGenerator):
         )
 
         # 3. Quotation (draft -> submit)
-        qres = create_quotation_for_opportunity(
-            opp_name, data={"item_code": item["name"]}, company=company
-        )
+        qres = create_quotation_for_opportunity(opp_name, data={"item_code": item["name"]}, company=company)
         qname = qres.get("name")
         if not qname:
             raise RuntimeError("Quotation creation returned no name")
@@ -135,9 +130,7 @@ class OpportunityChainGenerator(BaseGenerator):
         self.created_records.append(("Quotation", qname))
 
         # 4. Order Confirmation (Sales Order) -> submit
-        oc = create_order_confirmation(
-            opp_name, source_quotation=qname, customer_po_no=po_no, company=company
-        )
+        oc = create_order_confirmation(opp_name, source_quotation=qname, customer_po_no=po_no, company=company)
         so_name = oc.get("name")
         if not so_name:
             raise RuntimeError("OC creation returned no name")
@@ -157,9 +150,7 @@ class OpportunityChainGenerator(BaseGenerator):
         self.created_records.append(("Delivery Note", dn_name))
 
         # 6. Invoice from the challan (auto-submit) — posts AR/income/tax/COGS GL
-        inv = create_invoice_for_opportunity(
-            opp_name, delivery_notes=[dn_name], auto_submit=1, company=company
-        )
+        inv = create_invoice_for_opportunity(opp_name, delivery_notes=[dn_name], auto_submit=1, company=company)
         si_name = inv.get("name")
         if not si_name:
             raise RuntimeError("Invoice creation returned no name")
@@ -213,8 +204,10 @@ class OpportunityChainGenerator(BaseGenerator):
 
 # ── helpers (module-level to avoid importing the API's private path) ──
 
+
 def create_delivery_note_for_opportunity_local(opp_name, so_name, company):
     from trader_app.api.opportunity import create_delivery_note_for_opportunity
+
     return create_delivery_note_for_opportunity(opp_name, source_oc=so_name, company=company)
 
 

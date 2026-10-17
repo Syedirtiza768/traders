@@ -7,7 +7,6 @@ import random
 
 import frappe
 from frappe.utils import add_days, flt, getdate, nowdate
-
 from trader_app.demo.seed_engine.base import BaseGenerator
 
 
@@ -23,9 +22,7 @@ class RequisitionsGenerator(BaseGenerator):
             abbr = self.config["company_abbr"]
             main_wh = "Main Warehouse - %s" % abbr
 
-            suppliers = frappe.get_all(
-                "Supplier", filters={"disabled": 0}, pluck="name"
-            )
+            suppliers = frappe.get_all("Supplier", filters={"disabled": 0}, pluck="name")
             items = frappe.get_all(
                 "Item",
                 filters={"is_stock_item": 1, "disabled": 0, "is_purchase_item": 1},
@@ -49,16 +46,14 @@ class RequisitionsGenerator(BaseGenerator):
 
             mr_lo, mr_hi = self.config["num_material_requests"]
             n_mr = random.randint(mr_lo, mr_hi)
-            mr_names = []
+            submitted_mr_names = []
 
             print("  📝 Material Requests: %s" % n_mr)
             for i in range(n_mr):
                 tr = add_days(start, random.randint(0, 240))
                 if getdate(tr) > getdate(nowdate()):
                     tr = nowdate()
-                picks = random.sample(
-                    items, min(random.randint(2, 5), len(items))
-                )
+                picks = random.sample(items, min(random.randint(2, 5), len(items)))
 
                 mr = frappe.new_doc("Material Request")
                 mr.company = company
@@ -94,12 +89,10 @@ class RequisitionsGenerator(BaseGenerator):
                 try:
                     mr.insert(ignore_permissions=True)
                     self.created_records.append(("Material Request", mr.name))
-                    mr_names.append(mr.name)
                     if random.random() < 0.72:
                         mr.submit()
-                        self.created_records.append(
-                            ("Material Request Submit", mr.name)
-                        )
+                        submitted_mr_names.append(mr.name)
+                        self.created_records.append(("Material Request Submit", mr.name))
                 except Exception as e:
                     self.errors.append("MR: %s" % str(e))
 
@@ -108,9 +101,14 @@ class RequisitionsGenerator(BaseGenerator):
 
             sq_lo, sq_hi = self.config["num_supplier_quotations"]
             n_sq = random.randint(sq_lo, sq_hi)
-            linked_mr = random.sample(
-                mr_names, min(max(1, len(mr_names) // 3), len(mr_names))
-            ) if mr_names else []
+            linked_mr = (
+                random.sample(
+                    submitted_mr_names,
+                    min(max(1, len(submitted_mr_names) // 3), len(submitted_mr_names)),
+                )
+                if submitted_mr_names
+                else []
+            )
 
             print("  📨 Supplier Quotations: %s" % n_sq)
             for j in range(n_sq):
@@ -131,9 +129,7 @@ class RequisitionsGenerator(BaseGenerator):
                     sq.material_request = mr_link
 
                 if mr_doc and mr_doc.items:
-                    mr_items = mr_doc.items[
-                        : max(1, random.randint(1, len(mr_doc.items)))
-                    ]
+                    mr_items = mr_doc.items[: max(1, random.randint(1, len(mr_doc.items)))]
                     for mi in mr_items:
                         base = buying.get(mi.item_code, flt(mi.rate) or 100)
                         sq.append(
@@ -143,12 +139,11 @@ class RequisitionsGenerator(BaseGenerator):
                                 "qty": max(1, flt(mi.qty) * random.uniform(0.8, 1.0)),
                                 "rate": round(base * random.uniform(0.95, 1.08), 2),
                                 "material_request": mr_link,
+                                "warehouse": mi.warehouse or main_wh,
                             },
                         )
                 else:
-                    picks = random.sample(
-                        items, min(random.randint(2, 6), len(items))
-                    )
+                    picks = random.sample(items, min(random.randint(2, 6), len(items)))
                     for row in picks:
                         base = buying.get(row["name"], random.uniform(50, 2000))
                         sq.append(
@@ -157,6 +152,7 @@ class RequisitionsGenerator(BaseGenerator):
                                 "item_code": row["name"],
                                 "qty": random.randint(5, 80),
                                 "rate": round(base * random.uniform(0.92, 1.05), 2),
+                                "warehouse": main_wh,
                             },
                         )
 
@@ -168,9 +164,7 @@ class RequisitionsGenerator(BaseGenerator):
                     self.created_records.append(("Supplier Quotation", sq.name))
                     if random.random() < 0.68:
                         sq.submit()
-                        self.created_records.append(
-                            ("Supplier Quotation Submit", sq.name)
-                        )
+                        self.created_records.append(("Supplier Quotation Submit", sq.name))
                 except Exception as e:
                     self.errors.append("SQ: %s" % str(e))
 

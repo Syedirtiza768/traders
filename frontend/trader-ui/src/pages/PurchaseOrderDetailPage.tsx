@@ -12,6 +12,7 @@ import {
   Truck,
 } from 'lucide-react';
 import { purchasesApi } from '../lib/api';
+import ApprovalPanel from '../components/ApprovalPanel';
 import { appendPreservedListQuery, extractFrappeError, formatCurrency, formatDate, getActiveCurrency, isOperationsContext } from '../lib/utils';
 import { PageHeader, LoadingBlock, AlertBanner, StatusBadge, EmptyState } from '../components/ui';
 
@@ -196,6 +197,7 @@ export default function PurchaseOrderDetailPage() {
         }
       />
 
+      {order && <ApprovalPanel doctype="Purchase Order" name={order.name} />}
       {feedback && (
         <AlertBanner tone={feedback.type === 'success' ? 'success' : 'error'}>{feedback.message}</AlertBanner>
       )}
