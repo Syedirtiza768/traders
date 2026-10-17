@@ -375,7 +375,7 @@ def create_purchase_invoice(supplier, items, company=None, posting_date=None,
                             tax_inclusive=0,
                             is_return=0, return_against=None,
                             update_stock=1, invoice_type=None,
-                            currency=None, exchange_rate=None):
+                            currency=None, exchange_rate=None, no_taxes=0):
     """Create a Purchase Invoice.
 
     Parameters
@@ -386,6 +386,8 @@ def create_purchase_invoice(supplier, items, company=None, posting_date=None,
     is_return : int — default 0; pass 1 to create a debit note (purchase return)
     return_against : str — source Purchase Invoice name when is_return=1
     update_stock : int — default 1; pass 0 for invoice-only entries
+    no_taxes : int — pass 1 when the user explicitly chose "No Tax"; skips
+               the invoice-type default template
     """
     import json
     if isinstance(items, str):
@@ -414,7 +416,10 @@ def create_purchase_invoice(supplier, items, company=None, posting_date=None,
     )
 
     set_trader_invoice_type(pi, invoice_type=invoice_type, is_return=is_return)
-    taxes_and_charges = resolve_purchase_taxes(company, invoice_type, taxes_and_charges)
+    if cint(no_taxes):
+        taxes_and_charges = None
+    else:
+        taxes_and_charges = resolve_purchase_taxes(company, invoice_type, taxes_and_charges)
 
     default_warehouse = f"Main Warehouse - {abbr}"
     seen_serials = set()

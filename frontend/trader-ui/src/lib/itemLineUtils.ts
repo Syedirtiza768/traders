@@ -1,10 +1,17 @@
 import type { ItemLineEntryLine } from '../components/ItemLineEntry';
 
+// Single id source for every ItemLineEntryLine (empty lines, prefills and lines
+// added inside ItemLineEntry). Two counters used to hand out the same id, so
+// editing one line also rewrote its twin.
 let _nextId = 1;
+
+export function nextEntryLineId(): number {
+  return _nextId++;
+}
 
 export function createEmptyEntryLine(warehouse = ''): ItemLineEntryLine {
   return {
-    id: _nextId++,
+    id: nextEntryLineId(),
     item_code: '',
     item_name: '',
     qty: 1,

@@ -6,7 +6,7 @@ import useQuickAdd from './useQuickAdd';
 import QuickAddProvider from './QuickAddProvider';
 import { catalogApi, inventoryApi } from '../lib/api';
 import { useCompanyStore } from '../stores/companyStore';
-import { getEntryLineIssues } from '../lib/itemLineUtils';
+import { getEntryLineIssues, nextEntryLineId } from '../lib/itemLineUtils';
 import { formatCurrency } from '../lib/utils';
 
 /** Normalised voucher line — always resolves to tabItem.item_code. */
@@ -39,8 +39,6 @@ type LineConfig = {
   default_template?: string;
 };
 
-let _lineId = 1;
-
 export type ItemLineEntryProps = {
   lines: ItemLineEntryLine[];
   onChange: (lines: ItemLineEntryLine[]) => void;
@@ -59,6 +57,8 @@ export type ItemLineEntryProps = {
   renderLineExtra?: (line: ItemLineEntryLine, index: number) => ReactNode;
   onLineActivate?: (index: number) => void;
   hideLineTotal?: boolean;
+  /** Document currency for amount cells; defaults to the company currency. */
+  currency?: string;
 };
 
 
@@ -78,6 +78,7 @@ export default function ItemLineEntry({
   showLineIssues = false,
   renderLineExtra,
   onLineActivate,
+  currency,
   hideLineTotal = false,
 }: ItemLineEntryProps) {
   const componentsEnabled = useCompanyStore((s) => s.componentsEnabled);
@@ -243,7 +244,7 @@ export default function ItemLineEntry({
     onChange([
       ...linesRef.current,
       {
-        id: _lineId++,
+        id: nextEntryLineId(),
         warehouse: patch.warehouse || defaultWarehouse,
         serial_no: '',
         description: '',
@@ -671,7 +672,7 @@ export default function ItemLineEntry({
                       <div>
                         <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500">Amount</span>
                         <div className="input-field bg-gray-50 text-right text-sm font-medium text-gray-900">
-                          {formatCurrency((Number(line.qty) || 0) * (Number(line.rate) || 0))}
+                          {formatCurrency((Number(line.qty) || 0) * (Number(line.rate) || 0), currency)}
                         </div>
                       </div>
                       <div className="flex items-end">
@@ -793,7 +794,7 @@ export default function ItemLineEntry({
           })}
           {!hideLineTotal && (
             <div className="text-right text-xs font-semibold text-gray-700 dark:text-slate-200">
-              Total: {invoiceLayout ? formatCurrency(lineTotal) : lineTotal.toFixed(2)}
+              Total: {invoiceLayout ? formatCurrency(lineTotal, currency) : lineTotal.toFixed(2)}
             </div>
           )}
         </div>

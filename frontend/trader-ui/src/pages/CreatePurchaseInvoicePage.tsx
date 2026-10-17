@@ -223,6 +223,8 @@ export default function CreatePurchaseInvoicePage() {
         due_date: dueDate,
         items: validLines,
         taxes_and_charges: taxTemplate || undefined,
+        // An explicit "No Tax" pick must not fall back to the default template server-side.
+        no_taxes: !typeConfig.hideTaxPicker && !taxTemplate ? 1 : undefined,
         tax_inclusive: taxInclusive ? 1 : 0,
         invoice_type: invoiceTypeKey,
         currency: currency !== baseCurrency ? currency : undefined,
@@ -375,6 +377,7 @@ export default function CreatePurchaseInvoicePage() {
               onChange={setLines}
               priceContext="purchase"
               invoiceLayout
+              currency={currency}
               disabled={loading || saving}
               defaultWarehouse={defaultWarehouse}
               minLines={1}
@@ -389,24 +392,24 @@ export default function CreatePurchaseInvoicePage() {
           <ReadinessCard ready={isReadyToSave} issues={readinessIssues} />
           <div className="rounded-lg bg-gray-900 px-4 py-3 text-white">
             <div className="text-xs uppercase tracking-wide text-gray-300">Draft Grand Total</div>
-            <div className="mt-1 text-2xl font-semibold">{formatCurrency(grandTotal)}</div>
+            <div className="mt-1 text-2xl font-semibold">{formatCurrency(grandTotal, currency)}</div>
           </div>
           <SummaryRow label="Valid Lines" value={String(validLineCount)} />
           {taxInclusive && taxRate > 0 ? (
             <>
-              <SummaryRow label="Entered Total (incl. tax)" value={formatCurrency(total)} />
-              <SummaryRow label={`GST (${taxRate}%) included`} value={formatCurrency(taxAmount)} />
-              <SummaryRow label="Net Total (excl. tax)" value={formatCurrency(total - taxAmount)} />
+              <SummaryRow label="Entered Total (incl. tax)" value={formatCurrency(total, currency)} />
+              <SummaryRow label={`GST (${taxRate}%) included`} value={formatCurrency(taxAmount, currency)} />
+              <SummaryRow label="Net Total (excl. tax)" value={formatCurrency(total - taxAmount, currency)} />
             </>
           ) : (
             <>
-              <SummaryRow label="Net Total" value={formatCurrency(total)} />
+              <SummaryRow label="Net Total" value={formatCurrency(total, currency)} />
               {taxRate > 0 && (
-                <SummaryRow label={`Tax (${taxRate}%)`} value={formatCurrency(taxAmount)} />
+                <SummaryRow label={`Tax (${taxRate}%)`} value={formatCurrency(taxAmount, currency)} />
               )}
             </>
           )}
-          <SummaryRow label="Grand Total" value={formatCurrency(grandTotal)} />
+          <SummaryRow label="Grand Total" value={formatCurrency(grandTotal, currency)} />
           <SummaryRow label="Posting Date" value={postingDate} />
           <SummaryRow label="Due Date" value={dueDate} />
           <p className="text-xs leading-5 text-gray-500">

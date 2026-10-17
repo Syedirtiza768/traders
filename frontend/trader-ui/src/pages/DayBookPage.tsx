@@ -63,6 +63,12 @@ interface Voucher {
 
   running_total?: number;
 
+  /** Document currency for invoices; amount is always in the company currency. */
+  currency?: string | null;
+
+  /** Invoice grand total in its own document currency. */
+  doc_amount?: number | null;
+
 }
 
 
@@ -167,6 +173,8 @@ export default function DayBookPage() {
   const company = useCompanyStore((s) => s.company);
 
   const revision = useCompanyStore((s) => s.revision);
+
+  const baseCurrency = useCompanyStore((s) => s.currency);
 
 
 
@@ -550,6 +558,16 @@ export default function DayBookPage() {
                       <td className={`px-4 py-2.5 text-right font-semibold ${dirColor}`}>
 
                         {fmtAmt(v.amount)}
+
+                        {v.currency && v.currency !== baseCurrency && v.doc_amount != null && (
+
+                          <div className="text-xs font-normal text-gray-500">
+
+                            {formatAmount(v.doc_amount, { currency: v.currency })}
+
+                          </div>
+
+                        )}
 
                       </td>
 
