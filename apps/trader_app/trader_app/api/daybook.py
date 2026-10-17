@@ -57,7 +57,10 @@ def get_day_book(company=None, date=None, page=1, page_size=50):
     and Journal Entries for the given date, sorted by posting time.
 
     Each row includes a `voucher_type`, `voucher_no`, `party`, `amount`,
-    `direction` (in/out), and `running_total` fields.
+    `direction` (in/out), and `running_total` fields. `amount`,
+    `outstanding_amount` and `running_total` are in the company currency;
+    invoices raised in another currency also carry `currency` and
+    `doc_amount` (the grand total in that document currency).
     """
     company = resolve_active_company(company)
     _assert_enabled(company)
@@ -67,15 +70,23 @@ def get_day_book(company=None, date=None, page=1, page_size=50):
     page_size = min(cint(page_size) or 50, 200)
     offset = (page - 1) * page_size
 
-    params = {"company": company, "date": date}
+    company_currency = frappe.get_cached_value("Company", company, "default_currency")
+    params = {"company": company, "date": date, "company_currency": company_currency}
 
+    # outstanding_amount is held in the party account currency; convert it
+    # to the company currency when the party account is foreign.
     voucher_union = """
         SELECT
             'Sale' AS voucher_type,
             si.name AS voucher_no,
             si.customer AS party,
-            si.grand_total AS amount,
-            si.outstanding_amount,
+            si.base_grand_total AS amount,
+            CASE WHEN si.party_account_currency = %(company_currency)s
+                THEN si.outstanding_amount
+                ELSE si.outstanding_amount * si.conversion_rate
+            END AS outstanding_amount,
+            si.currency AS currency,
+            si.grand_total AS doc_amount,
             si.status,
             si.posting_date,
             si.creation AS posted_at,
@@ -93,8 +104,13 @@ def get_day_book(company=None, date=None, page=1, page_size=50):
             'Purchase' AS voucher_type,
             pi.name AS voucher_no,
             pi.supplier AS party,
-            pi.grand_total AS amount,
-            pi.outstanding_amount,
+            pi.base_grand_total AS amount,
+            CASE WHEN pi.party_account_currency = %(company_currency)s
+                THEN pi.outstanding_amount
+                ELSE pi.outstanding_amount * pi.conversion_rate
+            END AS outstanding_amount,
+            pi.currency AS currency,
+            pi.grand_total AS doc_amount,
             pi.status,
             pi.posting_date,
             pi.creation AS posted_at,
@@ -112,8 +128,10 @@ def get_day_book(company=None, date=None, page=1, page_size=50):
             CONCAT('Payment ', pe.payment_type) AS voucher_type,
             pe.name AS voucher_no,
             pe.party AS party,
-            pe.paid_amount AS amount,
+            pe.base_paid_amount AS amount,
             0 AS outstanding_amount,
+            NULL AS currency,
+            NULL AS doc_amount,
             pe.status,
             pe.posting_date,
             pe.creation AS posted_at,
@@ -132,6 +150,8 @@ def get_day_book(company=None, date=None, page=1, page_size=50):
             '' AS party,
             je.total_debit AS amount,
             0 AS outstanding_amount,
+            NULL AS currency,
+            NULL AS doc_amount,
             je.docstatus AS status,
             je.posting_date,
             je.creation AS posted_at,
@@ -150,6 +170,8 @@ def get_day_book(company=None, date=None, page=1, page_size=50):
             '' AS party,
             COALESCE(se.total_incoming_value, se.total_outgoing_value, 0) AS amount,
             0 AS outstanding_amount,
+            NULL AS currency,
+            NULL AS doc_amount,
             CAST(se.docstatus AS CHAR) AS status,
             se.posting_date,
             se.creation AS posted_at,
@@ -205,6 +227,7 @@ def get_day_book(company=None, date=None, page=1, page_size=50):
         "page": page,
         "page_size": page_size,
         "date": date,
+        "currency": company_currency,
     }
 
 
@@ -214,7 +237,7 @@ def _get_day_totals(company, date):
 
     sales_total = frappe.db.sql(
         """
-        SELECT COALESCE(SUM(grand_total), 0) FROM `tabSales Invoice`
+        SELECT COALESCE(SUM(base_grand_total), 0) FROM `tabSales Invoice`
         WHERE company = %(company)s AND posting_date = %(date)s
           AND docstatus = 1 AND is_return = 0
     """,
@@ -223,7 +246,7 @@ def _get_day_totals(company, date):
 
     purchase_total = frappe.db.sql(
         """
-        SELECT COALESCE(SUM(grand_total), 0) FROM `tabPurchase Invoice`
+        SELECT COALESCE(SUM(base_grand_total), 0) FROM `tabPurchase Invoice`
         WHERE company = %(company)s AND posting_date = %(date)s
           AND docstatus = 1 AND is_return = 0
     """,
@@ -232,7 +255,7 @@ def _get_day_totals(company, date):
 
     cash_in = frappe.db.sql(
         """
-        SELECT COALESCE(SUM(paid_amount), 0) FROM `tabPayment Entry`
+        SELECT COALESCE(SUM(base_paid_amount), 0) FROM `tabPayment Entry`
         WHERE company = %(company)s AND posting_date = %(date)s
           AND docstatus = 1 AND payment_type = 'Receive'
     """,
@@ -241,7 +264,7 @@ def _get_day_totals(company, date):
 
     cash_out = frappe.db.sql(
         """
-        SELECT COALESCE(SUM(paid_amount), 0) FROM `tabPayment Entry`
+        SELECT COALESCE(SUM(base_paid_amount), 0) FROM `tabPayment Entry`
         WHERE company = %(company)s AND posting_date = %(date)s
           AND docstatus = 1 AND payment_type = 'Pay'
     """,

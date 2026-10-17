@@ -431,6 +431,7 @@ def create_sales_invoice(
     preferred_bank_account=None,
     currency=None,
     exchange_rate=None,
+    no_taxes=0,
 ):
     """Create a Sales Invoice from the UI.
 
@@ -441,6 +442,8 @@ def create_sales_invoice(
     update_stock : int — default 0 (stock is managed via Delivery Notes).
                    Pass 1 only when invoicing without a delivery note and
                    stock deduction is explicitly required.
+    no_taxes : int — pass 1 when the user explicitly chose "No Tax"; skips
+               the invoice-type default template
     """
     import json
 
@@ -479,7 +482,10 @@ def create_sales_invoice(
         si.preferred_bank_account = preferred_bank_account
 
     set_trader_invoice_type(si, invoice_type=invoice_type, is_return=is_return)
-    taxes_and_charges = resolve_sales_taxes(company, invoice_type, taxes_and_charges)
+    if cint(no_taxes):
+        taxes_and_charges = None
+    else:
+        taxes_and_charges = resolve_sales_taxes(company, invoice_type, taxes_and_charges)
 
     for item in items:
         item_code = item.get("item_code")

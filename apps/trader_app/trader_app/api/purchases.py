@@ -453,6 +453,7 @@ def create_purchase_invoice(
     currency=None,
     exchange_rate=None,
     source_order=None,
+    no_taxes=0,
 ):
     """Create a Purchase Invoice.
 
@@ -466,6 +467,8 @@ def create_purchase_invoice(
     update_stock : int — default 1; pass 0 for invoice-only entries
     source_order : str — purchase order the bill is raised from; its lines are linked back to it (and to the goods
         receipt that received them), and the bill does not move stock again
+    no_taxes : int — pass 1 when the user explicitly chose "No Tax"; skips
+               the invoice-type default template
     """
     import json
 
@@ -501,7 +504,10 @@ def create_purchase_invoice(
     )
 
     set_trader_invoice_type(pi, invoice_type=invoice_type, is_return=is_return)
-    taxes_and_charges = resolve_purchase_taxes(company, invoice_type, taxes_and_charges)
+    if cint(no_taxes):
+        taxes_and_charges = None
+    else:
+        taxes_and_charges = resolve_purchase_taxes(company, invoice_type, taxes_and_charges)
 
     default_warehouse = f"Main Warehouse - {abbr}"
     seen_serials = set()
