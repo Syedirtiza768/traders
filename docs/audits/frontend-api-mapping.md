@@ -12,7 +12,7 @@ All frontend API calls, their originating screens, HTTP methods, and target endp
 - `frontend/trader-ui/src/stores/authStore.ts`
 
 ## Last Audit Basis
-Full scan of all API namespaces and page-level call sites — 2026-10-04
+Full scan of all API namespaces and page-level call sites — 2026-10-17
 
 ---
 
@@ -94,6 +94,10 @@ Full scan of all API namespaces and page-level call sites — 2026-10-04
 | `getDeliveryNotes` | GET | `trader_app.api.sales.get_delivery_notes` | params?: Record<string, any> |
 | `getDeliveryNoteDetail` | GET | `trader_app.api.sales.get_delivery_note_detail` | name: string |
 | `createDeliveryNote` | POST | `trader_app.api.sales.create_delivery_note` | data: Record<string, any> |
+| `createChallanFromOrder` | POST | `trader_app.api.sales.create_delivery_challan_from_order` | order: string |
+| `getOrderStockPosition` | GET | `trader_app.api.back_to_back.get_order_stock_position` | order: string |
+| `createPurchaseOrderForOrder` | POST | `trader_app.api.back_to_back.create_purchase_order_for_order` | order: string, supplier: string, rates?: Record<string, number> |
+| `receivePurchaseOrderForOrder` | POST | `trader_app.api.back_to_back.receive_purchase_order_for_order` | order: string, purchaseOrder: string |
 | `submitDeliveryNote` | POST | `trader_app.api.sales.submit_delivery_note` | name: string |
 | `cancelDeliveryNote` | POST | `trader_app.api.sales.cancel_delivery_note` | name: string |
 | `createInvoiceFromChallan` | POST | `trader_app.api.grouped_invoicing.create_grouped_invoice` | name: string |
@@ -110,7 +114,7 @@ Full scan of all API namespaces and page-level call sites — 2026-10-04
 | `get` | GET | `trader_app.api.opportunity.get_opportunity` | name: string, company?: string |
 | `create` | POST | `trader_app.api.opportunity.create_opportunity` | data: Record<string, any> |
 | `update` | POST | `trader_app.api.opportunity.update_opportunity` | name: string, data: Record<string, any> |
-| `close` | POST | `trader_app.api.opportunity.close_opportunity` | name: string, close_stage: string |
+| `close` | POST | `trader_app.api.opportunity.close_opportunity` | name: string, close_stage: string, close_reason?: string |
 | `reopen` | POST | `trader_app.api.opportunity.reopen_opportunity` | name: string |
 | `addComment` | POST | `trader_app.api.opportunity.add_opportunity_comment` | name: string, comment: string |
 | `addCustomerPo` | POST | `trader_app.api.opportunity.add_customer_po` | name: string, data: Record<string, any> |
@@ -127,8 +131,13 @@ Full scan of all API namespaces and page-level call sites — 2026-10-04
     opportunity: string;
     source_quotation?: string;
     customer_po_no?: string;
+    /** `{ "<line>": <option> }`: the option the customer accepted per line. */
+    selected_options?: Record<string, number>;
+    /** Quote line numbers this customer PO covers; the rest of the quotation stays for other POs. */
+    lines?: number[];
   } |
-| `createDeliveryNote` | POST | `trader_app.api.opportunity.create_delivery_note_for_opportunity` | opportunity: string, source_oc?: string |
+| `deliveryPlan` | GET | `trader_app.api.opportunity.get_delivery_plan_for_opportunity` | opportunity: string, source_oc?: string |
+| `createDeliveryNote` | POST | `trader_app.api.opportunity.create_delivery_note_for_opportunity` | opportunity: string, source_oc?: string, lines?: number[] |
 | `listInvoiceableDeliveryNotes` | GET | `trader_app.api.opportunity.list_invoiceable_delivery_notes_for_opportunity` | opportunity: string |
 | `createInvoice` | POST | `trader_app.api.opportunity.create_invoice_for_opportunity` | params: {
     opportunity: string;
@@ -136,8 +145,43 @@ Full scan of all API namespaces and page-level call sites — 2026-10-04
     posting_date?: string;
     auto_submit?: 0 | 1;
   } |
-| `saveCommercialOptions` | POST | `trader_app.api.opportunity.save_commercial_options` | doctype: string, name: string, commercial_options: unknown |
+| `saveCommercialOptions` | POST | `trader_app.api.opportunity.save_commercial_options` | doctype: string, name: string, commercial_options: unknown, expectedModified?: string |
+| `duplicateQuotation` | POST | `trader_app.api.opportunity.duplicate_quotation_for_opportunity` | name: string, forceNew = false, company?: string |
+| `createReturnDeliveryNote` | POST | `trader_app.api.opportunity.create_return_delivery_note` | deliveryNote: string, company?: string |
+| `getReconciliation` | GET | `trader_app.api.reconciliation.get_opportunity_reconciliation` | opportunity: string, company?: string |
+| `getFulfilment` | GET | `trader_app.api.fulfilment.get_fulfilment_progress` | opportunity: string |
 | `toggleFeature` | POST | `trader_app.api.settings.toggle_opportunity_feature` | enabled: boolean, company?: string |
+
+### `gatePassApi`
+
+| Method | HTTP | Endpoint | Parameters |
+|---|---|---|---|
+| `dispatchStatus` | GET | `trader_app.api.gate_pass.get_dispatch_status` | deliveryNote: string |
+| `list` | GET | `trader_app.api.gate_pass.list_gate_passes` | params?: { company?: string; delivery_note?: string; opportunity?: string; status?: string } |
+| `create` | POST | `trader_app.api.gate_pass.create_gate_pass` | params: {
+    delivery_note: string;
+    items?: GatePassItem[];
+    vehicle_no?: string;
+    driver_name?: string;
+    driver_phone?: string;
+    received_by?: string;
+    remarks?: string;
+  } |
+| `cancel` | POST | `trader_app.api.gate_pass.cancel_gate_pass` | name: string |
+
+### `arTrackerApi`
+
+| Method | HTTP | Endpoint | Parameters |
+|---|---|---|---|
+| `invoicePayments` | GET | `trader_app.api.ar_tracking.get_invoice_payment_tracker` | params?: {
+    company?: string;
+    customer?: string;
+    opportunity?: string;
+    as_of?: string;
+    status?: string;
+    include_settled?: 0 | 1;
+  } |
+| `invoicePaymentHistory` | GET | `trader_app.api.ar_tracking.get_invoice_payment_history` | invoice: string |
 
 ### `arApi`
 
@@ -241,6 +285,13 @@ Full scan of all API namespaces and page-level call sites — 2026-10-04
 | `update` | POST | `trader_app.api.suppliers.update_supplier` | data: Record<string, any> |
 | `enable` | POST | `trader_app.api.suppliers.enable_supplier` | name: string |
 | `disable` | POST | `trader_app.api.suppliers.disable_supplier` | name: string |
+| `getStatus` | GET | `trader_app.api.approvals.get_approval_status` | doctype: string, name: string |
+| `approve` | POST | `trader_app.api.approvals.approve` | doctype: string, name: string, reason: string |
+
+### `financeApi`
+
+| Method | HTTP | Endpoint | Parameters |
+|---|---|---|---|
 | `getPaymentEntries` | GET | `trader_app.api.finance.get_payment_entries` | params?: Record<string, any> |
 | `getPaymentEntryDetail` | GET | `trader_app.api.finance.get_payment_entry_detail` | name: string |
 | `getPaymentEntrySetup` | GET | `trader_app.api.finance.get_payment_entry_setup` | company?: string |
